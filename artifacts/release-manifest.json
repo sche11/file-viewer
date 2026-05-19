@@ -1,0 +1,19 @@
+{
+  "version": "1.0.7",
+  "package": "@flyfish-group/file-viewer3",
+  "generatedAt": "2026-05-19T07:29:52.619Z",
+  "sourceBranch": "v3",
+  "sourceCommit": "e26414d",
+  "publicRepo": "/Users/wangyu/IdeaProjects/file-viewer-public",
+  "artifactOnly": true,
+  "allowedRoots": [
+    "README.md",
+    "LICENSE",
+    "package.json",
+    "dist",
+    "demo",
+    "docs",
+    "example",
+    "artifacts"
+  ]
+}
