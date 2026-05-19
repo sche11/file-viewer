@@ -4,6 +4,7 @@
 
 - 在线 Demo: [viewer.flyfish.dev](https://viewer.flyfish.dev)
 - npm: [@flyfish-group/file-viewer3](https://www.npmjs.com/package/@flyfish-group/file-viewer3)
+- 公开成品仓库: [github.com/flyfish-dev/file-viewer](https://github.com/flyfish-dev/file-viewer)
 - 源码自助开通: [dev.flyfish.group/shop](https://dev.flyfish.group/shop)
 - 当前版本: `1.0.6`
 
