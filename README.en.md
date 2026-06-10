@@ -23,18 +23,18 @@ The viewer does not require a backend conversion service. It is designed for OA 
 
 | Stack | Package | Version | Recommended branch | Notes |
 | --- | --- | --- | --- | --- |
-| Vue 3 | `@flyfish-group/file-viewer3` | `1.0.21` | `v3` | Recommended version and the runtime baseline for React / vanilla JS iframe integrations |
-| Vue 2.7 | `@flyfish-group/file-viewer` | `1.0.21` | `main` | Vue 2 compatible package with the same format coverage and API semantics |
-| React 17 / 18 / 19 | `@flyfish-group/file-viewer-react` | `1.0.21` | adapter package | iframe component that loads `/file-viewer/index.html` by default |
-| Vanilla JavaScript | `@flyfish-group/file-viewer-web` | `1.0.21` | adapter package | iframe helpers and static viewer asset copier |
+| Vue 3 | `@flyfish-group/file-viewer3` | `1.0.22` | `v3` | Recommended version and the runtime baseline for React / vanilla JS iframe integrations |
+| Vue 2.7 | `@flyfish-group/file-viewer` | `1.0.22` | `main` | Vue 2 compatible package with the same format coverage and API semantics |
+| React 17 / 18 / 19 | `@flyfish-group/file-viewer-react` | `1.0.22` | adapter package | iframe component that loads `/file-viewer/index.html` by default |
+| Vanilla JavaScript | `@flyfish-group/file-viewer-web` | `1.0.22` | adapter package | iframe helpers and static viewer asset copier |
 
 For intranet or offline environments, this artifact repository also ships npm tarballs under `artifacts/`:
 
 ```bash
-npm install ./artifacts/flyfish-group-file-viewer3-1.0.21.tgz
-npm install ./artifacts/flyfish-group-file-viewer-1.0.21.tgz
-npm install ./artifacts/flyfish-group-file-viewer-web-1.0.21.tgz
-npm install ./artifacts/flyfish-group-file-viewer-react-1.0.21.tgz
+npm install ./artifacts/flyfish-group-file-viewer3-1.0.22.tgz
+npm install ./artifacts/flyfish-group-file-viewer-1.0.22.tgz
+npm install ./artifacts/flyfish-group-file-viewer-web-1.0.22.tgz
+npm install ./artifacts/flyfish-group-file-viewer-react-1.0.22.tgz
 ```
 
 When installing the React tarball offline, install the same-version web tarball first because the React package depends on `@flyfish-group/file-viewer-web`.
@@ -344,7 +344,7 @@ The artifact repository also contains:
 The project provides a static nginx runtime image and build scripts for `linux/amd64` and `linux/arm64`. A typical deployment can serve the demo and comparison page directly:
 
 ```bash
-docker run --rm -p 8080:80 flyfishdev/file-viewer:1.0.21
+docker run --rm -p 8080:80 flyfishdev/file-viewer:1.0.22
 ```
 
 Then open:
