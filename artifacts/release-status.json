@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-20T00:27:50.544Z",
-  "version": "2.0.0",
+  "generatedAt": "2026-06-20T01:15:38.443Z",
+  "version": "2.0.1",
   "sourcePolicy": "private-complete-original-workspace",
   "openSourcePolicy": "public-open-source-main-repository",
   "sourceBaseline": {
@@ -18,7 +18,7 @@
     "branch": "v3",
     "commit": "1b152d97a0948ac92e502dd0305bc9cc5ad4a79e",
     "shortCommit": "1b152d97",
-    "dirty": false
+    "dirty": true
   },
   "sourceRemote": {
     "url": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
@@ -32,7 +32,7 @@
       "url": "https://github.com/flyfish-dev/file-viewer",
       "branch": "main",
       "ok": true,
-      "hash": "d6a93c0f3db21e42fa20b040884195186b01cd08",
+      "hash": "70dd3a9b5889df0d4cf58615031776b6be7a91a3",
       "error": ""
     },
     "gitee": {
@@ -43,17 +43,22 @@
       "error": ""
     },
     "inSync": false,
-    "reportHashNote": "This status report is generated before it is committed into the open-source main repository, so the observed open-source main hash can trail the metadata-only commit that carries this file. Use pnpm audit:ecosystem-status for live remote heads."
+    "syncMode": "stale",
+    "treeChecked": true,
+    "referenceTree": "96475c20d8b24f35a2366b4e94388f50d3dc0812",
+    "giteeTree": "62b18f03808005d7045f6bcb1c078889de3cdff4",
+    "treeError": "",
+    "reportHashNote": "This status report is generated before it is committed into the open-source main repository, so the observed open-source main hash can trail the metadata-only commit that carries this file. Gitee can intentionally use a shallow snapshot commit; inSync is true when the file tree matches even if commit hashes differ. Use pnpm audit:ecosystem-status for live remote heads."
   },
   "githubRelease": {
-    "ok": true,
-    "tag": "v2.0.0",
-    "url": "https://github.com/flyfish-dev/file-viewer/releases/tag/v2.0.0",
-    "assetCount": 20,
-    "hasManifest": true,
-    "hasStatus": true,
-    "hasSchema": true,
-    "error": ""
+    "ok": false,
+    "tag": "v2.0.1",
+    "url": "",
+    "assetCount": 0,
+    "hasManifest": false,
+    "hasStatus": false,
+    "hasSchema": false,
+    "error": "release not found"
   },
   "componentRepositories": [
     {
@@ -222,105 +227,107 @@
   "npmPackages": [
     {
       "packageName": "@file-viewer/core",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fcore - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/core@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@flyfish-group/file-viewer3",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": "1.0.26",
-      "ok": false,
-      "error": "expected 2.0.0"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "file-viewer3",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": "1.0.26",
-      "ok": false,
-      "error": "expected 2.0.0"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@flyfish-group/file-viewer",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": "1.0.25",
-      "ok": false,
-      "error": "expected 2.0.0"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@flyfish-group/file-viewer-web",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": "1.0.25",
-      "ok": false,
-      "error": "expected 2.0.0"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@flyfish-group/file-viewer-react",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": "1.0.25",
-      "ok": false,
-      "error": "expected 2.0.0"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/vue3",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fvue3 - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/vue3@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/vue2.7",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fvue2.7 - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/vue2.7@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/vue2.6",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fvue2.6 - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/vue2.6@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/react",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2freact - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/react@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/react-legacy",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2freact-legacy - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/react-legacy@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/web",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fweb - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/web@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/jquery",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fjquery - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/jquery@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     },
     {
       "packageName": "@file-viewer/svelte",
-      "expectedVersion": "2.0.0",
-      "publishedVersion": null,
-      "ok": false,
-      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fsvelte - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/svelte@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
+      "expectedVersion": "2.0.1",
+      "publishedVersion": "2.0.1",
+      "ok": true,
+      "error": ""
     }
   ],
   "gaps": [
-    "open-source main Gitee repository 8ddb952be08d differs from GitHub d6a93c0f3db2",
+    "local source worktree has uncommitted changes",
+    "open-source main Gitee repository tree 62b18f038080 differs from GitHub tree 96475c20d8b2",
+    "GitHub Release v2.0.1 missing",
     "core Gitee repository missing",
     "vue3 Gitee repository missing",
     "vue2.7 Gitee repository missing",
@@ -329,44 +336,49 @@
     "react-legacy Gitee repository missing",
     "web Gitee repository missing",
     "jquery Gitee repository missing",
-    "svelte Gitee repository missing",
-    "@file-viewer/core npm unpublished !== 2.0.0",
-    "@flyfish-group/file-viewer3 npm 1.0.26 !== 2.0.0",
-    "file-viewer3 npm 1.0.26 !== 2.0.0",
-    "@flyfish-group/file-viewer npm 1.0.25 !== 2.0.0",
-    "@flyfish-group/file-viewer-web npm 1.0.25 !== 2.0.0",
-    "@flyfish-group/file-viewer-react npm 1.0.25 !== 2.0.0",
-    "@file-viewer/vue3 npm unpublished !== 2.0.0",
-    "@file-viewer/vue2.7 npm unpublished !== 2.0.0",
-    "@file-viewer/vue2.6 npm unpublished !== 2.0.0",
-    "@file-viewer/react npm unpublished !== 2.0.0",
-    "@file-viewer/react-legacy npm unpublished !== 2.0.0",
-    "@file-viewer/web npm unpublished !== 2.0.0",
-    "@file-viewer/jquery npm unpublished !== 2.0.0",
-    "@file-viewer/svelte npm unpublished !== 2.0.0"
+    "svelte Gitee repository missing"
   ],
   "gapSummary": {
-    "total": 24,
-    "externalBlockers": 24,
-    "localActionable": 0,
+    "total": 12,
+    "externalBlockers": 11,
+    "localActionable": 1,
     "byChannel": {
+      "source-worktree": 1,
       "gitee": 10,
-      "npm": 14
+      "github-release": 1
     },
     "externalBlockerChannels": [
       "gitee",
-      "npm"
+      "github-release"
     ],
-    "localActionableChannels": []
+    "localActionableChannels": [
+      "source-worktree"
+    ]
   },
   "gapDetails": [
     {
-      "id": "gitee-open-source-main-gitee-repository-8ddb952be08d-differs-from-github-d6a93c0f3db2",
+      "id": "source-worktree-local-source-worktree-has-uncommitted-changes",
+      "channel": "source-worktree",
+      "scope": "local",
+      "externalBlocker": false,
+      "message": "local source worktree has uncommitted changes",
+      "nextAction": "Commit or clean the local source worktree, then rerun the release audit."
+    },
+    {
+      "id": "gitee-open-source-main-gitee-repository-tree-62b18f038080-differs-from-github-tree-96475c20d8b2",
       "channel": "gitee",
       "scope": "public-mirror",
       "externalBlocker": true,
-      "message": "open-source main Gitee repository 8ddb952be08d differs from GitHub d6a93c0f3db2",
+      "message": "open-source main Gitee repository tree 62b18f038080 differs from GitHub tree 96475c20d8b2",
       "nextAction": "Run `pnpm public:gitee:snapshot -- --push --confirm-rewrite-history` to publish a shallow Gitee mirror with the same file tree."
+    },
+    {
+      "id": "github-release-github-release-v2.0.1-missing",
+      "channel": "github-release",
+      "scope": "release-assets",
+      "externalBlocker": true,
+      "message": "GitHub Release v2.0.1 missing",
+      "nextAction": "Upload the missing GitHub Release metadata or artifact and rerun verify:github-release-assets."
     },
     {
       "id": "gitee-core-gitee-repository-missing",
@@ -439,118 +451,6 @@
       "externalBlocker": true,
       "message": "svelte Gitee repository missing",
       "nextAction": "Set `FILE_VIEWER_GITEE_TOKEN_FILE=<repo-external-token-file>` and run `pnpm components:gitee:publish`."
-    },
-    {
-      "id": "npm-@file-viewer-core-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/core npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@flyfish-group-file-viewer3-npm-1.0.26-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@flyfish-group/file-viewer3 npm 1.0.26 !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-file-viewer3-npm-1.0.26-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "file-viewer3 npm 1.0.26 !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@flyfish-group-file-viewer-npm-1.0.25-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@flyfish-group/file-viewer npm 1.0.25 !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@flyfish-group-file-viewer-web-npm-1.0.25-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@flyfish-group/file-viewer-web npm 1.0.25 !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@flyfish-group-file-viewer-react-npm-1.0.25-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@flyfish-group/file-viewer-react npm 1.0.25 !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-vue3-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/vue3 npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-vue2.7-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/vue2.7 npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-vue2.6-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/vue2.6 npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-react-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/react npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-react-legacy-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/react-legacy npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-web-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/web npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-jquery-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/jquery npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
-    },
-    {
-      "id": "npm-@file-viewer-svelte-npm-unpublished-2.0.0",
-      "channel": "npm",
-      "scope": "package-registry",
-      "externalBlocker": true,
-      "message": "@file-viewer/svelte npm unpublished !== 2.0.0",
-      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
     }
   ],
   "nextActions": [
