@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-22T01:11:54.663Z",
+  "generatedAt": "2026-06-22T01:16:53.883Z",
   "version": "2.0.9",
   "sourcePolicy": "private-complete-original-workspace",
   "openSourcePolicy": "public-open-source-main-repository",
@@ -8,23 +8,23 @@
     "repository": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "policy": "private-complete-original-workspace",
-    "authoritativeCommit": "10215ec1a101c08194bca9ba7dee19c0deabcae2",
+    "authoritativeCommit": "8980533b5903ea37a5527c46d02fa76be32d7416",
     "localBranch": "v3",
-    "localCommit": "10215ec1a101c08194bca9ba7dee19c0deabcae2",
+    "localCommit": "8980533b5903ea37a5527c46d02fa76be32d7416",
     "inSync": true,
     "note": "Private Gitea main is the complete original aggregate workspace. The local checkout branch is only the execution context and can be transitional during branch cutover."
   },
   "local": {
     "branch": "v3",
-    "commit": "10215ec1a101c08194bca9ba7dee19c0deabcae2",
-    "shortCommit": "10215ec1",
-    "dirty": true
+    "commit": "8980533b5903ea37a5527c46d02fa76be32d7416",
+    "shortCommit": "8980533b",
+    "dirty": false
   },
   "sourceRemote": {
     "url": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "ok": true,
-    "hash": "10215ec1a101c08194bca9ba7dee19c0deabcae2",
+    "hash": "8980533b5903ea37a5527c46d02fa76be32d7416",
     "error": ""
   },
   "openSourceMain": {
@@ -32,7 +32,7 @@
       "url": "https://github.com/flyfish-dev/file-viewer",
       "branch": "main",
       "ok": true,
-      "hash": "b1392499633476abedb0044df2f1a0d40cbda62c",
+      "hash": "cd9648bff72541dbbbb91688d96fe95ecc4362ec",
       "error": ""
     },
     "gitee": {
@@ -45,7 +45,7 @@
     "inSync": false,
     "syncMode": "stale",
     "treeChecked": true,
-    "referenceTree": "a750ef8f832bee57858e071fdd9c83d1b23f640e",
+    "referenceTree": "fc262fd4e9935be4ce3768a635d886482dcae833",
     "giteeTree": "62b18f03808005d7045f6bcb1c078889de3cdff4",
     "treeError": "",
     "reportHashNote": "This status report is generated before it is committed into the open-source main repository, so the observed open-source main hash can trail the metadata-only commit that carries this file. Gitee can intentionally use a shallow snapshot commit; inSync is true when the file tree matches even if commit hashes differ. Use pnpm audit:ecosystem-status for live remote heads."
@@ -332,7 +332,6 @@
     }
   ],
   "gaps": [
-    "local source worktree has uncommitted changes",
     "GitHub Release v2.0.9 missing",
     "@file-viewer/core npm 2.0.8 !== 2.0.9",
     "@file-viewer/pptx npm 2.0.8 !== 2.0.9",
@@ -351,11 +350,10 @@
     "@file-viewer/svelte npm 2.0.8 !== 2.0.9"
   ],
   "gapSummary": {
-    "total": 17,
+    "total": 16,
     "externalBlockers": 16,
-    "localActionable": 1,
+    "localActionable": 0,
     "byChannel": {
-      "source-worktree": 1,
       "github-release": 1,
       "npm": 15
     },
@@ -363,19 +361,9 @@
       "github-release",
       "npm"
     ],
-    "localActionableChannels": [
-      "source-worktree"
-    ]
+    "localActionableChannels": []
   },
   "gapDetails": [
-    {
-      "id": "source-worktree-local-source-worktree-has-uncommitted-changes",
-      "channel": "source-worktree",
-      "scope": "local",
-      "externalBlocker": false,
-      "message": "local source worktree has uncommitted changes",
-      "nextAction": "Commit or clean the local source worktree, then rerun the release audit."
-    },
     {
       "id": "github-release-github-release-v2.0.9-missing",
       "channel": "github-release",
