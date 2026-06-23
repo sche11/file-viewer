@@ -1,9 +1,9 @@
 {
   "version": "2.0.11",
   "package": "@flyfish-group/file-viewer-workspace",
-  "generatedAt": "2026-06-23T06:05:03.418Z",
+  "generatedAt": "2026-06-23T06:42:28.031Z",
   "sourceBranch": "main",
-  "sourceCommit": "63f82674",
+  "sourceCommit": "81e769da",
   "corePackage": {
     "packageName": "@file-viewer/core",
     "description": "Framework-neutral TypeScript file preview core with format registry, lifecycle APIs, search, zoom, print, export, and renderer orchestration.",
@@ -30,7 +30,7 @@
     "@file-viewer/renderer-typst": "2.0.11",
     "@file-viewer/renderer-archive": "2.0.11",
     "@file-viewer/renderer-email": "2.0.11",
-    "@file-viewer/renderer-ebook": "2.0.11",
+    "@file-viewer/renderer-epub": "2.0.11",
     "@file-viewer/renderer-text": "2.0.11",
     "@file-viewer/renderer-image": "2.0.11",
     "@file-viewer/renderer-media": "2.0.11",
@@ -315,17 +315,17 @@
       "historicalPackages": []
     },
     {
-      "name": "@file-viewer/renderer-ebook",
+      "name": "@file-viewer/renderer-epub",
       "version": "2.0.11",
       "kind": "renderer",
       "framework": null,
       "packageDir": "packages/renderers/ebook",
-      "tarball": "file-viewer-renderer-ebook-2.0.11.tgz",
+      "tarball": "file-viewer-renderer-epub-2.0.11.tgz",
       "artifactIncluded": true,
       "artifactDuplicateOf": null,
       "artifactNote": null,
-      "github": "https://github.com/flyfish-dev/file-viewer-renderer-ebook",
-      "gitee": "https://gitee.com/flyfish-dev/file-viewer-renderer-ebook",
+      "github": "https://github.com/flyfish-dev/file-viewer-renderer-epub",
+      "gitee": "https://gitee.com/flyfish-dev/file-viewer-renderer-epub",
       "entryFormats": [
         "esm",
         "types"
@@ -945,10 +945,10 @@
       ]
     },
     {
-      "packageName": "@file-viewer/renderer-ebook",
-      "repository": "file-viewer-renderer-ebook",
-      "github": "https://github.com/flyfish-dev/file-viewer-renderer-ebook",
-      "gitee": "https://gitee.com/flyfish-dev/file-viewer-renderer-ebook",
+      "packageName": "@file-viewer/renderer-epub",
+      "repository": "file-viewer-renderer-epub",
+      "github": "https://github.com/flyfish-dev/file-viewer-renderer-epub",
+      "gitee": "https://gitee.com/flyfish-dev/file-viewer-renderer-epub",
       "entryFormats": [
         "esm",
         "types"
