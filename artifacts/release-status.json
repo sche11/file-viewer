@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-01T04:38:36.297Z",
+  "generatedAt": "2026-07-01T04:44:13.236Z",
   "version": "2.1.15",
   "sourcePolicy": "private-complete-original-workspace",
   "openSourcePolicy": "public-open-source-main-repository",
@@ -32,7 +32,7 @@
       "url": "https://github.com/flyfish-dev/file-viewer",
       "branch": "main",
       "ok": true,
-      "hash": "fb7d00f5a14027662bac52d6b3cf82d783ea8c02",
+      "hash": "2d0c0fbea7a6c007f9c18b973202513c28f34a95",
       "error": ""
     },
     "gitee": {
@@ -45,20 +45,20 @@
     "inSync": false,
     "syncMode": "stale",
     "treeChecked": true,
-    "referenceTree": "52ce04df76f9f3d6de94a344044c517853cee16d",
+    "referenceTree": "5d95982c7f21becefeed2ff404fc9549956dcde2",
     "giteeTree": "ef9e54e70ed3110034a0103cb80e8fee613104c3",
     "treeError": "",
     "reportHashNote": "The open-source main repository mirrors the current public source tree and records the private source commit in the public commit body for traceability. The observed remote hash can trail until that mirror commit is pushed. Gitee can intentionally use a shallow snapshot commit; inSync is true when the file tree matches even if commit hashes differ. Use pnpm audit:ecosystem-status for live remote heads."
   },
   "githubRelease": {
-    "ok": false,
+    "ok": true,
     "tag": "v2.1.15",
-    "url": "",
-    "assetCount": 0,
-    "hasManifest": false,
-    "hasStatus": false,
-    "hasSchema": false,
-    "error": "release not found"
+    "url": "https://github.com/flyfish-dev/file-viewer/releases/tag/v2.1.15",
+    "assetCount": 55,
+    "hasManifest": true,
+    "hasStatus": true,
+    "hasSchema": true,
+    "error": ""
   },
   "componentRepositories": [
     {
@@ -68,7 +68,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-core",
         "branch": "main",
         "ok": true,
-        "hash": "a26cf4bec338f81bc2a0c35daa18cefb7307d0ab",
+        "hash": "749e412cdf812af213cadfc2c81b697d47b13200",
         "error": ""
       },
       "gitee": {
@@ -86,7 +86,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-web",
         "branch": "main",
         "ok": true,
-        "hash": "8a3b2e4ebefd6b2ab8b3a59435e32a6d6227612a",
+        "hash": "b68c015223032ca3285c3da24b5a68d029979b2a",
         "error": ""
       },
       "gitee": {
@@ -104,7 +104,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-web-full",
         "branch": "main",
         "ok": true,
-        "hash": "0712c43960e602c6d3d12162418aa00b5be32b93",
+        "hash": "356a66ce1688c5343fc01c85a3d9bbb8c8d81742",
         "error": ""
       },
       "gitee": {
@@ -122,7 +122,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-vue3",
         "branch": "main",
         "ok": true,
-        "hash": "d619c6691e05fa8b08e1e77b12bfa6c99af109ba",
+        "hash": "10fe5ea9b4fd28e51dbc1cf6f83355934aeb39bb",
         "error": ""
       },
       "gitee": {
@@ -140,7 +140,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-vue3-full",
         "branch": "main",
         "ok": true,
-        "hash": "6e8cb41d59b5fbdfefa72acb88440c7f0abba778",
+        "hash": "1ea2cd0241772a5a1edc538ffbc74105ad6d898f",
         "error": ""
       },
       "gitee": {
@@ -158,7 +158,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-vue2.7",
         "branch": "main",
         "ok": true,
-        "hash": "8f76df0ff06b0506eb920d791e2b8ea4c30108bc",
+        "hash": "113df283048881427093db1ec564e98810050b93",
         "error": ""
       },
       "gitee": {
@@ -176,7 +176,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-vue2.7-full",
         "branch": "main",
         "ok": true,
-        "hash": "fa33de0c0d0b59958d13fa738491a1941b0c37e7",
+        "hash": "51686f1415dc5840aa7937b891dfafb9bc76f2a3",
         "error": ""
       },
       "gitee": {
@@ -194,7 +194,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-vue2.6",
         "branch": "main",
         "ok": true,
-        "hash": "854ca0b76ea95a0c4d762ca3f6a62d61f577ab0c",
+        "hash": "55b6909927bbd6893a389a019541104c7eed6b7b",
         "error": ""
       },
       "gitee": {
@@ -212,7 +212,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-vue2.6-full",
         "branch": "main",
         "ok": true,
-        "hash": "161994e630cfe7680d8c10244e5da6e48af4704b",
+        "hash": "efc0f37dff567c8477eec60899cb6cd5f1aec441",
         "error": ""
       },
       "gitee": {
@@ -230,7 +230,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-react",
         "branch": "main",
         "ok": true,
-        "hash": "3b8e3530b6244df74490a54d8ec67cfe4a56a10f",
+        "hash": "bf270c1cfd065f2aa304f4475a201bde9431ee6a",
         "error": ""
       },
       "gitee": {
@@ -248,7 +248,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-react-full",
         "branch": "main",
         "ok": true,
-        "hash": "58ef3a098df403d01377272bbef26498b827af90",
+        "hash": "4939b255296daa5e61cbe0e287616db8d83a3d54",
         "error": ""
       },
       "gitee": {
@@ -266,7 +266,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-react-legacy",
         "branch": "main",
         "ok": true,
-        "hash": "74f8144f6c3227a9d87849bb28236e4d1460628a",
+        "hash": "77a371201c1489b84d3d46b9695a7299e6de66ba",
         "error": ""
       },
       "gitee": {
@@ -284,7 +284,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-react-legacy-full",
         "branch": "main",
         "ok": true,
-        "hash": "9c7a93430c923e96ed14ead84151c48b44e18a79",
+        "hash": "23eab3a5dbf3b82b57b877727268021871c24513",
         "error": ""
       },
       "gitee": {
@@ -302,7 +302,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-jquery",
         "branch": "main",
         "ok": true,
-        "hash": "8d3264cd7310773bdb73581acb14bf58c27f7a1f",
+        "hash": "2b8e4fdcfeec7575db6ee6a41f47f9d664e80a2f",
         "error": ""
       },
       "gitee": {
@@ -320,7 +320,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-jquery-full",
         "branch": "main",
         "ok": true,
-        "hash": "ef2300bc6a61b67e8aed2ee407040aee2016b5f8",
+        "hash": "8ba356dc78a457b06e3cbde926e4e04bfad149ca",
         "error": ""
       },
       "gitee": {
@@ -338,7 +338,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-svelte",
         "branch": "main",
         "ok": true,
-        "hash": "3a98537a4c050a4f41856e263cdeb703f4167003",
+        "hash": "021a671d4a737d3958033b0032cc77751a19018b",
         "error": ""
       },
       "gitee": {
@@ -356,7 +356,7 @@
         "url": "https://github.com/flyfish-dev/file-viewer-svelte-full",
         "branch": "main",
         "ok": true,
-        "hash": "d8c4d6f948f4a3041deb712c29066ee9f19ef63c",
+        "hash": "ab8f534b92e2976f5dcc33afcba453822c613303",
         "error": ""
       },
       "gitee": {
@@ -736,7 +736,6 @@
   ],
   "gaps": [
     "source remote https://git.flyfish.dev/flyfish-group/file-viewer.git missing main",
-    "GitHub Release v2.1.15 missing",
     "@file-viewer/core npm 2.1.14 !== 2.1.15",
     "@file-viewer/renderer-pdf npm 2.1.14 !== 2.1.15",
     "@file-viewer/renderer-ofd npm 2.1.14 !== 2.1.15",
@@ -790,16 +789,14 @@
     "@file-viewer/svelte-full npm 2.1.14 !== 2.1.15"
   ],
   "gapSummary": {
-    "total": 53,
-    "externalBlockers": 53,
+    "total": 52,
+    "externalBlockers": 52,
     "localActionable": 0,
     "byChannel": {
       "source-remote": 1,
-      "github-release": 1,
       "npm": 51
     },
     "externalBlockerChannels": [
-      "github-release",
       "npm",
       "source-remote"
     ],
@@ -813,14 +810,6 @@
       "externalBlocker": true,
       "message": "source remote https://git.flyfish.dev/flyfish-group/file-viewer.git missing main",
       "nextAction": "Restore the private Gitea source branch or push the expected release source."
-    },
-    {
-      "id": "github-release-github-release-v2.1.15-missing",
-      "channel": "github-release",
-      "scope": "release-assets",
-      "externalBlocker": true,
-      "message": "GitHub Release v2.1.15 missing",
-      "nextAction": "Upload the missing GitHub Release metadata or artifact and rerun verify:github-release-assets."
     },
     {
       "id": "npm-@file-viewer-core-npm-2.1.14-2.1.15",
@@ -1232,7 +1221,6 @@
     }
   ],
   "nextActions": [
-    "Run `npm login` / passkey in an interactive terminal, then `pnpm release:ecosystem:publish`.",
-    "Create or update the GitHub Release assets, then rerun `pnpm release:public`."
+    "Run `npm login` / passkey in an interactive terminal, then `pnpm release:ecosystem:publish`."
   ]
 }
