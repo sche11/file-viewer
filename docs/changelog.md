@@ -8,7 +8,7 @@
 - `fit` 对象形态支持 `{ mode, resize, padding, minScale, maxScale }`，其中 `resize` 默认 `until-interaction`：首屏和容器变化自动适配，用户手动缩放、平移或恢复视图后停止覆盖用户视角
 - core 扩展 zoom / view-state provider 合约，新增 `fitToView()` controller/ref API 和 `fit-change` 事件；Web Component 支持 `<flyfish-file-viewer fit="width">`
 - PDF、图片、CAD、XMind、Geo 和 3D renderer 接入专属 fit provider，其他标准 renderer 通过通用 view-state provider 走内部 zoom provider 兜底；压缩包和邮件内嵌预览继承父级 `options.fit`
-- Demo 新增 fit 模式切换入口，新增 `pnpm verify:issue81-fit` 浏览器回归入口，覆盖显式 fit、resize、用户缩放暂停自动适配和 `fitToView()` 主动重算
+- Demo 新增 fit 模式切换入口；显式 fit、resize、用户缩放暂停自动适配和 `fitToView()` 主动重算纳入通用浏览器 smoke / release matrix 体系，避免长期保留一次性 issue 验证入口
 
 ## 当前主线工具栏定制能力
 
