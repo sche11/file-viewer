@@ -54,7 +54,8 @@ const enSidebar = {
         { text: 'Svelte', link: '/en/guide/ecosystem#svelte' },
         { text: 'Core API', link: '/en/guide/ecosystem#core-api' },
         { text: 'PPTX Engine', link: '/en/guide/ecosystem#pptx-engine' },
-        { text: 'Component Options', link: '/en/guide/usage' }
+        { text: 'Component Options', link: '/en/guide/usage' },
+        { text: 'Style Isolation', link: '/en/guide/style-isolation' }
       ]
     },
     {
@@ -202,7 +203,8 @@ export default defineConfig({
             { text: 'Svelte 集成', link: '/guide/ecosystem#svelte' },
             { text: 'Core 自定义接入', link: '/guide/ecosystem#core' },
             { text: 'PPTX 引擎接入', link: '/guide/ecosystem#pptx' },
-            { text: '组件用法', link: '/guide/usage' }
+            { text: '组件用法', link: '/guide/usage' },
+            { text: '样式隔离与定制', link: '/guide/style-isolation' }
           ]
         },
         {

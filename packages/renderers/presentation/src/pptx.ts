@@ -4,6 +4,7 @@ import {
   createFileViewerZoomChangeEmitter,
   normalizeFileViewerErrorMessage,
   registerFileViewerZoomProvider,
+  resolveFileViewerLocale,
   waitForFileViewerNextPaint,
   unregisterFileViewerZoomProvider,
 } from '@file-viewer/core';
@@ -13,6 +14,7 @@ import type {
   FileViewerRenderedInstance,
   FileViewerZoomState,
 } from '@file-viewer/core';
+import type { PptxDiagnosticError } from '@file-viewer/pptx';
 
 type PptxRenderState = 'loading' | 'ready' | 'error';
 
@@ -74,23 +76,230 @@ const clampZoomPercent = (value: number) => {
   return Math.min(300, Math.max(25, Math.round(value)));
 };
 
+type PptxDiagnosticCopy = {
+  zh: string;
+  en: string;
+};
+
+type PptxDiagnosticErrorLike = Partial<PptxDiagnosticError> & {
+  name?: string;
+  code?: string;
+  stage?: string;
+  message?: string;
+  detail?: string;
+  hint?: string;
+};
+
+const pptxDiagnosticMessages: Record<string, PptxDiagnosticCopy> = {
+  PPTX_FILE_EMPTY: {
+    zh: '文件为空或过小，无法读取。',
+    en: 'The file is empty or too small to read.',
+  },
+  PPTX_FILE_TOO_LARGE: {
+    zh: '文件超过浏览器安全预览体积限制。',
+    en: 'The file is larger than the browser-safe preview limit.',
+  },
+  PPTX_INVALID_ZIP: {
+    zh: '文件不是有效的 PowerPoint OpenXML 压缩包。',
+    en: 'The file is not a valid PowerPoint OpenXML package.',
+  },
+  PPTX_MISSING_CONTENT_TYPES: {
+    zh: '文件缺少 [Content_Types].xml，无法识别内部结构。',
+    en: 'The package is missing [Content_Types].xml, so its structure cannot be identified.',
+  },
+  PPTX_MISSING_PRESENTATION: {
+    zh: '文件缺少 ppt/presentation.xml，无法读取幻灯片列表。',
+    en: 'The package is missing ppt/presentation.xml, so the slide list cannot be read.',
+  },
+  PPTX_NO_SLIDES: {
+    zh: '文件中没有找到可预览的幻灯片。',
+    en: 'No previewable slides were found in the file.',
+  },
+  PPTX_MISSING_SLIDE: {
+    zh: '文件缺少某一页幻灯片内容。',
+    en: 'The package is missing one of the slide parts.',
+  },
+  PPTX_SLIDE_RENDER_FAILED: {
+    zh: '某一页幻灯片解析失败。',
+    en: 'One slide failed to parse.',
+  },
+  PPTX_WORKER_FAILED: {
+    zh: 'PPTX Worker 启动或运行失败。',
+    en: 'The PPTX Worker failed to start or run.',
+  },
+  PPTX_PARSE_FAILED: {
+    zh: 'PPTX 文件解析失败。',
+    en: 'The PPTX file could not be parsed.',
+  },
+};
+
+const pptxDiagnosticFallbackHints: Record<string, PptxDiagnosticCopy> = {
+  PPTX_INVALID_ZIP: {
+    zh: '请确认接口返回的是原始 .pptx 二进制文件，而不是登录页、HTML/JSON 错误响应或被截断的内容。',
+    en: 'Confirm that the response is the original .pptx binary, not a login page, HTML/JSON error response, or truncated download.',
+  },
+  PPTX_WORKER_FAILED: {
+    zh: '请检查 presentation.workerUrl、Worker 文件路径、MIME 类型、CSP 和跨域策略。',
+    en: 'Check presentation.workerUrl, the Worker file path, MIME type, CSP, and cross-origin policy.',
+  },
+  PPTX_NO_SLIDES: {
+    zh: '请重新保存演示文稿，或检查包内是否存在 ppt/slides/slide*.xml。',
+    en: 'Re-save the presentation, or check whether ppt/slides/slide*.xml exists inside the package.',
+  },
+};
+
+const localizePptxDiagnosticCopy = (
+  copy: PptxDiagnosticCopy | undefined,
+  locale: string
+) => {
+  if (!copy) {
+    return '';
+  }
+  return locale === 'zh-CN' ? copy.zh : copy.en;
+};
+
+const sanitizePptxDiagnosticText = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.replace(/^Error:\s*/i, '').trim();
+};
+
+const isPptxDiagnosticErrorLike = (error: unknown): error is PptxDiagnosticErrorLike => {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    (
+      (error as PptxDiagnosticErrorLike).name === 'PptxDiagnosticError' ||
+      (error as PptxDiagnosticErrorLike).code ||
+      (error as PptxDiagnosticErrorLike).stage
+    )
+  );
+};
+
+const classifyPptxErrorString = (message: string): PptxDiagnosticErrorLike | null => {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('end of central directory') ||
+    lower.includes('corrupt zip') ||
+    lower.includes('invalid zip') ||
+    lower.includes('not a zip') ||
+    lower.includes('jszip')
+  ) {
+    return {
+      name: 'PptxDiagnosticError',
+      code: 'PPTX_INVALID_ZIP',
+      stage: 'read-zip',
+      detail: message,
+    };
+  }
+  if (
+    lower.includes('worker') ||
+    lower.includes('script error') ||
+    lower.includes('failed to construct') ||
+    lower.includes('failed to load')
+  ) {
+    return {
+      name: 'PptxDiagnosticError',
+      code: 'PPTX_WORKER_FAILED',
+      stage: 'worker-runtime',
+      detail: message,
+    };
+  }
+  if (lower.includes('[content_types].xml')) {
+    return {
+      name: 'PptxDiagnosticError',
+      code: 'PPTX_MISSING_CONTENT_TYPES',
+      stage: 'read-content-types',
+      detail: message,
+    };
+  }
+  if (lower.includes('ppt/presentation.xml')) {
+    return {
+      name: 'PptxDiagnosticError',
+      code: 'PPTX_MISSING_PRESENTATION',
+      stage: 'read-presentation',
+      detail: message,
+    };
+  }
+  if (lower.includes('slide') || lower.includes('ppt/slides/')) {
+    return {
+      name: 'PptxDiagnosticError',
+      code: 'PPTX_SLIDE_RENDER_FAILED',
+      stage: 'render-slide',
+      detail: message,
+    };
+  }
+  return null;
+};
+
+const formatPptxDiagnosticError = (
+  error: PptxDiagnosticErrorLike,
+  fallback: string,
+  context?: FileRenderContext
+) => {
+  const locale = resolveFileViewerLocale(context?.options);
+  const code = String(error.code || 'PPTX_PARSE_FAILED');
+  const localizedReason = localizePptxDiagnosticCopy(pptxDiagnosticMessages[code], locale);
+  const rawReason = sanitizePptxDiagnosticText(error.message);
+  const reason = (
+    locale === 'zh-CN'
+      ? rawReason || localizedReason
+      : localizedReason || rawReason
+  ) || fallback;
+  const detail = sanitizePptxDiagnosticText(error.detail);
+  const hint = sanitizePptxDiagnosticText(error.hint) ||
+    localizePptxDiagnosticCopy(pptxDiagnosticFallbackHints[code], locale);
+  const stage = sanitizePptxDiagnosticText(error.stage);
+  const separator = locale === 'zh-CN' ? '：' : ': ';
+  const parts = [`${fallback}${separator}${reason}`];
+
+  if (stage) {
+    parts.push(locale === 'zh-CN' ? `阶段：${stage}` : `Stage: ${stage}`);
+  }
+  if (detail && detail !== reason) {
+    parts.push(locale === 'zh-CN' ? `详情：${detail}` : `Detail: ${detail}`);
+  }
+  if (hint) {
+    parts.push(locale === 'zh-CN' ? `建议：${hint}` : `Hint: ${hint}`);
+  }
+  return parts.join(locale === 'zh-CN' ? '；' : '; ');
+};
+
 const formatErrorMessage = (
   error: unknown,
   fallback: string,
   context?: FileRenderContext
 ) => {
+  if (isPptxDiagnosticErrorLike(error)) {
+    return formatPptxDiagnosticError(error, fallback, context);
+  }
   if (error instanceof Error || typeof error === 'string') {
-    return normalizeFileViewerErrorMessage(error, context?.options);
+    const normalized = normalizeFileViewerErrorMessage(error, context?.options);
+    const classified = classifyPptxErrorString(normalized);
+    if (classified) {
+      return formatPptxDiagnosticError(classified, fallback, context);
+    }
+    return normalized || fallback;
   }
   if (error === undefined || error === null) {
     return fallback;
   }
   try {
-    return JSON.stringify(error) || fallback;
+    const serialized = JSON.stringify(error) || '';
+    if (serialized) {
+      const classified = classifyPptxErrorString(serialized);
+      if (classified) {
+        return formatPptxDiagnosticError(classified, fallback, context);
+      }
+    }
+    return serialized || fallback;
   } catch {
     return String(error || fallback);
   }
 };
+
+export const resolvePptxPreviewErrorMessage = formatErrorMessage;
 
 const buildExportAdapter = (targetWindow?: Window | null): FileRenderExportAdapter => ({
   print: true,
@@ -200,6 +409,7 @@ export default async function renderPptx(
 
     try {
       const nextViewer = await PptxViewer.open(buffer, surface, {
+        styleRoot: context?.surface?.shadowRoot,
         fitMode: 'contain',
         zoomPercent,
         workerUrl: presentationOptions?.workerUrl,

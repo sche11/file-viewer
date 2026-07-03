@@ -93,9 +93,12 @@ const viewerOptions = {
   preset: officePreset,
   rendererMode: 'replace',
   theme: 'light',
+  styleIsolation: 'shadow',
   toolbar: { position: 'bottom-right' }
 }
 ```
+
+Use `styleIsolation:'shadow'` when the host page has uncontrolled global CSS, low-code resets, or micro-frontend style collisions. Vue 3 keeps light-DOM compatibility by default. See [Style Isolation And Customization](/en/guide/style-isolation) for CSS tokens and `::part()` customization.
 
 ## Register Globally
 

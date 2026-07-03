@@ -2,6 +2,15 @@
 
 这份日志记录的是当前仓库主线中，对外最值得说明的能力演进。
 
+## `v2.1.18` 离线资产、本地化发布与 DOCX 引擎更新
+
+- 全仓版本、workspace 依赖和 release matrix 推进到 `2.1.18`；当前矩阵覆盖 52 个 npm 发布目标、16 个组件目标、27 条 smoke 渲染链、24 个 renderer pipeline、206 个扩展名和 432 个组件渲染目标。
+- `libarchive.js` Worker / WASM 改为发布前自动从当前 lockfile 固定版本同步到 demo、component demo、web viewer、compat viewer 和 web-full 产物，`release:standard:preflight` 会强制校验这些本地资产，压缩包运行时不再依赖外部地址。
+- 全仓离线运行时扫描扩展到 core、renderer、preset、组件、compat、demo public/dist 和 full IIFE async renderer 产物；默认禁止 CDN、官方域名 fallback 和第三方在线服务引用，Geo 默认公开底图作为明确例外保留。
+- DOCX 渲染引擎升级到 `@file-viewer/docx@0.3.17`，同步刷新 `vendor/docx/docx.worker.js`、`jszip.min.js` 和缓存版本参数，确保 npm 包、demo、component demo、web viewer 和 web-full 都拿到同一版离线 Worker 资产。
+- `sanitize:release-dist` 覆盖 public 与 dist 两类运行时资产，避免 `prepare-viewer` 或 full IIFE 构建后重新带入 Typst 字体 CDN、Chevrotain diagram CDN、Draw.io 远端 fallback 等外链标记。
+- Web Component / IIFE / web-full 默认走 Shadow DOM 样式隔离，框架组件可通过 `options.styleIsolation:'shadow'` opt-in；README、生态组件 README 和文档站同步说明 tokens、parts、hostile CSS 验证和旧 light DOM 兼容路径。
+
 ## 当前主线 ViewerOptions.fit 统一适配能力
 
 - `ViewerOptions` 新增 `fit`，支持 `auto`、`contain`、`cover`、`width`、`height`、`actual` 和 `scale-down`；未传 `fit` 时继续保持各 renderer 历史首屏行为，避免轻量接入被默认策略改变

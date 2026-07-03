@@ -60,6 +60,33 @@ viewer.options = {
 
 Keep the host element or parent container at a stable height. The viewer fills that surface.
 
+## Style Isolation And Theme Customization
+
+`<flyfish-file-viewer>`, `@file-viewer/web-full`, and IIFE entries use Shadow DOM by default to isolate the viewer shell, toolbar, and rendered content. This is the recommended path when the host page has global resets, low-code styles, micro-frontend CSS collisions, or legacy admin CSS. To return to the historical light-DOM behavior, set `style-isolation="none"` explicitly:
+
+```html
+<flyfish-file-viewer
+  src="/files/demo.pdf"
+  style-isolation="none"
+  style="display:block;height:720px"
+></flyfish-file-viewer>
+```
+
+Use CSS tokens and Shadow Parts for controlled customization:
+
+```css
+flyfish-file-viewer {
+  --file-viewer-toolbar-bg: rgba(255, 255, 255, 0.96);
+  --file-viewer-button-color: #154b83;
+}
+
+flyfish-file-viewer::part(toolbar) {
+  border-radius: 999px;
+}
+```
+
+See [Style Isolation And Customization](/en/guide/style-isolation) for modes, tokens, parts, and hostile CSS verification.
+
 For Vite projects, add `@file-viewer/vite-plugin`. Installing the package alone does not make Vite run it; register the plugin once in `vite.config.ts`. It auto-discovers installed `@file-viewer/preset-*` packages and injects renderers, so both the Custom Element and `mountViewer` receive the matching format capabilities without manually importing the preset:
 
 ```bash
@@ -197,6 +224,14 @@ The CDN full bundle is ideal for POCs, classic admin pages, and public productio
 
 ## Offline Assets
 
+For intranet or strict-CSP deployments, copy runtime assets into your own public directory:
+
+```bash
+npx file-viewer-copy-assets ./public/file-viewer
+```
+
+The command verifies worker, WASM, PDF, CAD, Typst, Archive, Data, DOCX, Spreadsheet, PPTX, and Draw.io assets. Runtime options such as `options.pdf.workerUrl`, `options.presentation.workerUrl`, `options.archive.wasmUrl`, `options.docx.workerUrl`, `options.typst.compilerWasmUrl`, and `options.drawing.viewerScriptUrl` can point to self-hosted URLs.
+
 ## Internationalization
 
 The Web Component accepts `locale` as an HTML attribute or JS property. Use `options.messages` / `options.i18n` for custom copy:
@@ -217,11 +252,3 @@ viewer.options = {
   }
 }
 ```
-
-For intranet or strict-CSP deployments, copy runtime assets into your own public directory:
-
-```bash
-npx file-viewer-copy-assets ./public/file-viewer
-```
-
-The command verifies worker, WASM, PDF, CAD, Typst, Archive, Data, DOCX, Spreadsheet, PPTX, and Draw.io assets. Runtime options such as `options.pdf.workerUrl`, `options.presentation.workerUrl`, `options.archive.wasmUrl`, `options.docx.workerUrl`, `options.typst.compilerWasmUrl`, and `options.drawing.viewerScriptUrl` can point to self-hosted URLs.

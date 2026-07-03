@@ -7,6 +7,8 @@ export {
 } from './options';
 export type {
   NativePptxEngineOptions,
+  PptxDiagnosticError,
+  PptxDiagnosticErrorCode,
   PptxFitMode,
   PptxListOptions,
   PptxSlideSize,

@@ -25,6 +25,7 @@ Flyfish Viewer is browser-side file preview infrastructure for business applicat
 <a class="doc-action doc-action-primary" href="https://demo.file-viewer.app" target="_blank" rel="noreferrer">Try the demo</a>
 <a class="doc-action" href="/en/guide/formats">View format matrix</a>
 <a class="doc-action" href="/en/guide/compare">Compare options</a>
+<a class="doc-action" href="/en/guide/style-isolation">Style isolation</a>
 <a class="doc-action" href="/en/guide/quickstart">Open quickstart</a>
 </div>
 <div class="doc-start-stats" aria-label="Flyfish Viewer capability metrics">
@@ -74,6 +75,7 @@ Flyfish Viewer is browser-side file preview infrastructure for business applicat
 <article class="doc-card"><strong>Format fidelity</strong><h3>Real business attachments</h3><p>PDF, Word, Excel, PPTX, OFD, Typst, CAD, DWF, PSD, Mermaid, PlantUML, and nested archive preview are maintained as focused modules.</p></article>
 <article class="doc-card"><strong>Performance by design</strong><h3>Heavy dependencies load on demand</h3><p>Renderers, workers, WASM, fonts, and vendor assets are layered so the full IIFE entry does not push every capability into the first script.</p></article>
 <article class="doc-card"><strong>Consistent interaction</strong><h3>Viewer-level operations stay unified</h3><p>Search, zoom, print, export, download, watermark, toolbar permissions, and lifecycle hooks stay consistent across preview pipelines.</p></article>
+<article class="doc-card"><strong>Style isolation</strong><h3>Host CSS should not break preview surfaces</h3><p>Web Component / IIFE entries default to Shadow DOM. Framework packages can opt in with <code>styleIsolation</code>, then customize through tokens and <code>::part()</code>.</p></article>
 <article class="doc-card"><strong>Enterprise delivery</strong><h3>Public, intranet, and offline deployment</h3><p>Worker, WASM, and font assets can be self-hosted with Docker, static hosting, Cloudflare Pages, release packages, and private CDNs.</p></article>
 </div>
 </section>

@@ -51,7 +51,7 @@ import {
   createFileRenderHandlerLoader,
   applyFileViewerRenderSurfaceState,
   createFileViewerRenderSurfaceState,
-  createFileViewerRenderTarget,
+  createFileViewerRenderSurface,
   removeFileViewerRenderTarget,
 } from '../rendering/handler';
 import { createFileViewerCoreRendererRegistry } from '../renderers/index';
@@ -191,6 +191,7 @@ export const createViewer = (
   let installedAutoRendererVersion = -1;
   let currentSource: NormalizedFileViewerSource | null = null;
   let currentRenderTarget: HTMLElement | null = null;
+  let currentDocumentRoot: HTMLElement | null = null;
   const renderSurfaceState = createFileViewerRenderSurfaceState<RendererSession>();
   const requestScope = createFileViewerRequestScope();
   const documentTarget = {
@@ -302,12 +303,16 @@ export const createViewer = (
   };
 
   const createRenderTarget = (fillHeight = true) => {
-    const target = createFileViewerRenderTarget(container);
+    const surface = createFileViewerRenderSurface(container, {
+      styleIsolation: options.styleIsolation,
+    });
+    const target = surface.host || surface.container;
     if (fillHeight) {
       target.style.height = '100%';
+      surface.container.style.height = '100%';
     }
     currentRenderTarget = target;
-    return target;
+    return surface;
   };
 
   const disposeStaleSession = async (
@@ -497,12 +502,12 @@ export const createViewer = (
   };
 
   const zoomController = createFileViewerZoomController({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     beforeZoom: runBeforeViewerOperation,
     onChange: state => emitZoomAndOperationAvailabilityChange(state),
   });
   const fitController = createFileViewerFitController({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     getFit: () => options.fit,
     onFit: result => {
       zoomController.refreshProvider();
@@ -512,7 +517,7 @@ export const createViewer = (
     },
   });
   const viewStateController = createFileViewerViewStateController({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     onChange: change => {
       if (
         (change.source === 'user' || change.source === 'api') &&
@@ -524,7 +529,7 @@ export const createViewer = (
     },
   });
   const documentActions = createFileViewerDocumentFeatureControllerActionHandlers({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     searchTarget: documentTarget,
     searchOptions: () => options.search,
     getAiOptions: () => options.ai,
@@ -556,6 +561,7 @@ export const createViewer = (
     await session?.destroy?.();
     removeRenderTarget(target || undefined);
     currentSource = null;
+    currentDocumentRoot = null;
     applyFileViewerRenderSurfaceState(renderSurfaceState, {
       session: null,
       exportAdapter: null,
@@ -589,7 +595,10 @@ export const createViewer = (
       const startedAt = Date.now();
       await emitLifecycle(options, createOptions.onEvent, 'load-start', normalized, version, startedAt);
 
-      const target = createRenderTarget(renderer?.id !== 'office-presentation');
+      const surface = createRenderTarget(renderer?.id !== 'office-presentation');
+      const target = surface.container;
+      const targetHost = surface.host || target;
+      currentDocumentRoot = target;
 
       if (!renderer?.load) {
         renderMissingRendererState(target, normalized.extension, options);
@@ -604,7 +613,7 @@ export const createViewer = (
       try {
         session = await renderer.load({
           source: normalized,
-          surface: { container: target },
+          surface,
           options,
           signal: createOptions.signal,
           registerExportAdapter: adapter => {
@@ -615,15 +624,15 @@ export const createViewer = (
         });
       } catch (error) {
         if (!requestScope.isCurrentRequest(version)) {
-          removeRenderTarget(target);
+          removeRenderTarget(targetHost);
           return null;
         }
-        removeRenderTarget(target);
+        removeRenderTarget(targetHost);
         throw error;
       }
 
       if (!requestScope.isCurrentRequest(version)) {
-        await disposeStaleSession(session, target);
+        await disposeStaleSession(session, targetHost);
         return null;
       }
 

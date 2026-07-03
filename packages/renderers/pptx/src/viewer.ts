@@ -1,7 +1,7 @@
 import { renderPptxPostProcessing } from './chart';
 import { resolvePptxEngineOptions, RECOMMENDED_ZIP_LIMITS } from './options';
 import { ensurePptxViewerStyles } from './styles';
-import type { PptxSlideSize, PptxViewerOptions, PptxWorkerMessage } from './types';
+import type { PptxDiagnosticError, PptxSlideSize, PptxViewerOptions, PptxWorkerMessage } from './types';
 import { createPptxWorker } from './worker';
 
 const clamp = (value: number, min: number, max: number) => {
@@ -13,6 +13,39 @@ const toPercent = (value: number | undefined) => {
   return clamp(numeric, 25, 300);
 };
 
+const stringifyErrorDetail = (error: unknown) => {
+  if (error === undefined || error === null) {
+    return '';
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized && serialized !== '{}' ? serialized : String(error);
+  } catch {
+    return String(error);
+  }
+};
+
+const createPptxDiagnosticError = (
+  code: PptxDiagnosticError['code'],
+  stage: string,
+  message: string,
+  detailOrError?: unknown,
+  hint?: string
+): PptxDiagnosticError => ({
+  name: 'PptxDiagnosticError',
+  code,
+  stage,
+  message,
+  detail: stringifyErrorDetail(detailOrError),
+  hint,
+});
+
 const ensureZipWithinLimits = (buffer: ArrayBuffer, options: PptxViewerOptions) => {
   const limits = {
     ...RECOMMENDED_ZIP_LIMITS,
@@ -20,7 +53,13 @@ const ensureZipWithinLimits = (buffer: ArrayBuffer, options: PptxViewerOptions) 
   };
 
   if (limits.maxFileBytes && buffer.byteLength > limits.maxFileBytes) {
-    throw new Error(`PPTX file is too large to preview safely (${buffer.byteLength} bytes).`);
+    throw createPptxDiagnosticError(
+      'PPTX_FILE_TOO_LARGE',
+      'preflight',
+      'PPTX 文件超过浏览器安全预览体积限制。',
+      `${buffer.byteLength} bytes > ${limits.maxFileBytes} bytes`,
+      '请压缩图片、拆分演示文稿，或在业务侧提高 zipLimits.maxFileBytes 后再预览。'
+    );
   }
 };
 
@@ -138,7 +177,7 @@ export class PptxViewer {
 
   async open() {
     ensureZipWithinLimits(this.buffer, this.options);
-    ensurePptxViewerStyles(this.target.ownerDocument || document);
+    ensurePptxViewerStyles(this.target.ownerDocument || document, this.options.styleRoot);
     this.target.replaceChildren(this.scaleBox);
     this.attachResizeObserver();
     this.attachSlideWindowListeners();
@@ -175,15 +214,41 @@ export class PptxViewer {
     this.slideRecords = [];
     this.content.replaceChildren();
     this.content.dataset.renderState = 'loading';
-    this.worker = createPptxWorker(this.options);
+    try {
+      this.worker = createPptxWorker(this.options);
+    } catch (error) {
+      throw createPptxDiagnosticError(
+        'PPTX_WORKER_FAILED',
+        'start-worker',
+        'PPTX Worker 启动失败。',
+        error,
+        '请检查 presentation.workerUrl、Worker 文件是否 200 返回、MIME/CSP/跨域策略是否允许加载。'
+      );
+    }
     this.worker.addEventListener('message', event => this.processMessage(event.data));
-    this.worker.addEventListener('error', event => this.fail(event.error || event.message));
-    this.worker.postMessage({
-      type: 'processPPTX',
-      data: this.buffer,
-      IE11: false,
-      options: resolvePptxEngineOptions(this.options.engineOptions),
-    });
+    this.worker.addEventListener('error', event => this.fail(createPptxDiagnosticError(
+      'PPTX_WORKER_FAILED',
+      'worker-runtime',
+      'PPTX Worker 运行失败。',
+      event.error || event.message,
+      '请检查 Worker 脚本是否完整、浏览器控制台是否有 CSP/MIME/跨域或语法错误。'
+    )));
+    try {
+      this.worker.postMessage({
+        type: 'processPPTX',
+        data: this.buffer,
+        IE11: false,
+        options: resolvePptxEngineOptions(this.options.engineOptions),
+      });
+    } catch (error) {
+      throw createPptxDiagnosticError(
+        'PPTX_WORKER_FAILED',
+        'post-worker-message',
+        'PPTX 数据发送到 Worker 失败。',
+        error,
+        '请确认浏览器支持 Worker 消息传递，并避免传入已被释放或不可克隆的数据。'
+      );
+    }
   }
 
   private processMessage(message: PptxWorkerMessage) {

@@ -144,6 +144,7 @@ import officePreset from '@file-viewer/preset-office'
 const url = ref('/example/archive.zip')
 const options = {
   theme: 'light',
+  styleIsolation: 'shadow',
   preset: officePreset,
   rendererMode: 'replace',
   toolbar: {
@@ -198,6 +199,7 @@ const options = {
 | 选项 | 说明 |
 | --- | --- |
 | `theme` | 预览器主题，支持 `light`、`dark`、`system`。默认 `system`，继续跟随浏览器 `prefers-color-scheme`；浅色业务系统建议显式传 `light`，避免操作系统深色模式把预览区、工具栏或支持主题切换的渲染器自动切成深色 |
+| `styleIsolation` | 样式隔离策略，支持 `auto`、`shadow`、`scoped`、`none`。`auto` 下 Web Component / Web full / IIFE 默认使用 Shadow DOM 强隔离；Vue、React、Svelte、jQuery 默认保持历史兼容。宿主 CSS 不可控时推荐显式传 `shadow`，主题定制使用 `--file-viewer-*` tokens 和 `::part()`，完整说明见 [样式隔离与主题定制](/guide/style-isolation) |
 | `preset` | 通用 preset 装配入口，支持传入 `@file-viewer/preset-lite`、`@file-viewer/preset-office`、`@file-viewer/preset-engineering`、`@file-viewer/preset-all` 的默认导出，也支持 `preset: [officePreset, engineeringPreset]` 数组组合。这个方式不依赖 Vite，适合 Webpack、Rspack、Rollup、Umi、传统多页应用、微前端和内部组件库；`presets` 仅作为早期 2.x 草案的兼容 alias 保留 |
 | `renderers` / `rendererMode` | 按需单 renderer package 或自定义 renderer 装配入口。`rendererMode: 'replace'` 从空 registry 开始，适合与 `preset` / `renderers` 组成清晰的显式能力集；`extend` 会在当前内置集合上追加 |
 | `builtinRenderers` | 高级内置基线开关，支持 `all`、`lite`、`none`。普通快速接入无需设置；只有需要保留历史全量基线、只启用 core 原生低成本链路，或做极细 registry 控制时再使用 |

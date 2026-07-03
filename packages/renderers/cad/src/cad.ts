@@ -249,7 +249,7 @@ const formatNumber = (value: number | undefined, locale = 'zh-CN') => {
 };
 
 const getCadDocumentBaseUrl = (target: HTMLElement) => {
-  return target.ownerDocument?.baseURI || 'http://localhost/';
+  return target.ownerDocument?.baseURI || 'file:///';
 };
 
 type CadFitMatrix = {

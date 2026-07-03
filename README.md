@@ -39,7 +39,7 @@
   <a href="https://hub.docker.com/r/flyfishdev/file-viewer"><img alt="Docker" src="https://img.shields.io/badge/docker-flyfishdev%2Ffile--viewer-2496ed?logo=docker" /></a>
   <img alt="Supported formats" src="https://img.shields.io/badge/formats-206-f59e0b" />
   <img alt="Modular architecture" src="https://img.shields.io/badge/architecture-modular%20renderers-7c3aed" />
-  <img alt="Ecosystem packages" src="https://img.shields.io/badge/npm%20targets-50-0f766e" />
+  <img alt="Ecosystem packages" src="https://img.shields.io/badge/npm%20targets-52-0f766e" />
 </p>
 
 ---
@@ -303,7 +303,7 @@ Preset 选择:
 
 ## 当前 npm 生态
 
-当前版本以 npm registry 的 `latest` dist-tag 为准，共维护 50 个 npm 发布目标: 45 个标准组件/完整 full 包/核心/renderer/preset/工程插件包 + 5 个历史兼容 alias。新项目建议优先使用 `@file-viewer/*` 标准包名；旧项目继续使用 `@flyfish-group/*` 或 `file-viewer3` 时也会拿到同版本能力。
+当前版本以 npm registry 的 `latest` dist-tag 为准，共维护 52 个 npm 发布目标: 46 个标准组件/完整 full 包/核心/renderer/preset/工程插件包 + 6 个历史兼容 alias。新项目建议优先使用 `@file-viewer/*` 标准包名；旧项目继续使用 `@flyfish-group/*` 或 `file-viewer3` 时也会拿到同版本能力。
 
 | 场景                                | 推荐 npm 包                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 历史兼容包                                                                                                                                               | 版本策略 | 说明                                                                                                                                                                    |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -537,6 +537,47 @@ const options = {
 | jQuery `@file-viewer/jquery` | `$(el).fileViewer(ViewerMountOptions & { replace?: boolean })` | `onEvent`、`onStateChange` 或 `getFileViewerController(el).subscribe()` | 插件方法支持 `zoomIn`、`printRenderedHtml`、`searchDocument` 等；`replace:false` 可在同一节点上原地更新。 |
 | Svelte `@file-viewer/svelte` | `ViewerMountOptions` + `className`、`containerStyle` | `on:viewerEvent`、`onEvent`、`onStateChange` | `bind:this` 暴露 controller handle；也提供 `use:fileViewer` action，action 额外支持 `replace`。 |
 
+### 样式隔离与主题定制
+
+推荐在 OA、低代码、微前端、门户和后台系统中优先使用 Pure Web / Web Component 或 full 包默认的 Shadow DOM 强隔离。宿主页面里的 `*`、`button`、`table`、`img`、`svg`、`canvas` 等全局样式不会直接侵入预览器工具栏和正文；预览器也不会把局部 reset 粗暴写到业务页面。
+
+| 模式 | 说明 |
+| --- | --- |
+| `auto` | 默认值。`@file-viewer/web`、`@file-viewer/web-full`、IIFE 和 `<flyfish-file-viewer>` 默认走 Shadow DOM；Vue、React、Svelte、jQuery 为兼容旧项目保持 light DOM，但 renderer 内容可由 core 按需隔离。 |
+| `shadow` | 显式创建 ShadowRoot 作为渲染面，适合宿主 CSS 不可控、微前端混挂、低代码平台和设计系统全局 reset 很强的页面。 |
+| `scoped` | 不创建 ShadowRoot，使用稳定根选择器、`@layer file-viewer` 和局部 reset 约束样式权重，适合需要被外层 CSS 轻度继承但又不想污染页面的场景。 |
+| `none` | 历史 light DOM 行为，保留给依赖深度 class 覆盖、旧主题 CSS 或自动化测试快照的项目。 |
+
+定制优先级建议是：先使用 `--file-viewer-*` CSS 变量覆盖颜色、字体、间距、圆角、工具栏和按钮；需要命中内部结构时再使用稳定 Shadow Parts。当前 Web shell 暴露 `host`、`shell`、`toolbar`、`toolbar-group`、`toolbar-status`、`button`、`input` 和 `content`，后续 renderer 扩展应继续使用 `state-panel`、`watermark` 这类稳定命名。不要依赖内部 class 名，它们只服务实现细节。
+
+```css
+flyfish-file-viewer {
+  --file-viewer-bg: #f7f9fc;
+  --file-viewer-text: #172033;
+  --file-viewer-toolbar-bg: rgba(255, 255, 255, 0.96);
+  --file-viewer-button-color: #154b83;
+  --file-viewer-button-radius: 6px;
+}
+
+flyfish-file-viewer::part(toolbar) {
+  border: 1px solid rgba(20, 60, 100, 0.14);
+}
+
+flyfish-file-viewer::part(button) {
+  font-weight: 600;
+}
+```
+
+框架组件的推荐写法是在 `options` 中显式声明隔离策略：
+
+```ts
+const options = {
+  styleIsolation: 'shadow',
+  theme: 'light',
+  toolbar: { position: 'bottom-right' }
+}
+```
+
 内置工具栏可直接使用，也可以通过 `toolbar:false` 进入 headless 操作模式，自行用组件 ref、hook、controller、action 或 jQuery plugin method 组装业务工具栏。
 
 | 工具栏配置 | 说明 |
@@ -544,12 +585,11 @@ const options = {
 | `toolbar: false` | 隐藏内置工具栏，但不关闭下载、打印、导出、缩放等 controller API，适合完全自定义业务工具栏。 |
 | `toolbar: true` | 使用默认内置工具栏，下载、打印、HTML 导出和缩放按钮都会按能力动态显隐。 |
 | `download` / `print` / `exportHtml` / `zoom` | 表达业务是否允许展示对应按钮；最终仍会结合文件类型、渲染完成状态、导出适配器和缩放 provider 计算真实可用性。 |
-| `order` | 内置工具栏分组顺序，默认 `['search', 'zoom', 'download', 'print', 'exportHtml']`，可传 `['zoom', 'search', 'download', 'print']`；未列出的项会按默认顺序追加，显隐仍由能力和 `items` / 权限控制。 |
-| `position` | `auto`、`top`、`top-center`、`bottom-right`。默认 `auto`，PDF 自动悬浮右下角，其他格式保持顶部靠右；需要顶部水平居中时显式传 `top-center`。 |
+| `position` | `auto`、`top`、`top-center`、`bottom-right`。默认 `auto`，PDF 自动悬浮右下角，其他格式保持顶部靠右；需要顶部水平居中时传 `top-center`。 |
 | `beforeOperation` | 工具栏层统一前置校验，会在 `options.beforeOperation` 后执行。返回 `false` 或抛错都会取消本次操作。 |
 | `beforeDownload` / `beforePrint` / `beforeExportHtml` | 单按钮前置校验；适合下载权限、打印审计、导出水印确认等细粒度业务规则。 |
 
-缩放状态由各格式 renderer 的内部 provider 上报。未传 `options.fit` 时保留各 renderer 历史首屏行为；显式传 `fit:'width'`、`fit:{ mode:'contain' }` 等配置后，core 会通过 renderer 自己的 zoom/view provider 编排适配和 resize，不使用外层 CSS transform。自定义工具栏可调用 `fitToView()` 主动重新适配，并监听 `fit-change`、`zoom-change` / `operation-availability-change`，或读取 `getZoomState()` / `getOperationAvailability()`。
+缩放状态由各格式 renderer 的内部 provider 上报。首屏自适应、容器尺寸变化或 PDF / Word / 图片等异步布局完成后，内置工具栏会显示真实缩放比例，而不是固定显示 `100%`；自定义工具栏也应监听 `zoom-change` / `operation-availability-change`，或读取 `getZoomState()` / `getOperationAvailability()`。
 
 视图状态同步用于投屏、双端协同和恢复阅读进度。所有通过标准 renderer loader 挂载的格式都会获得通用 view-state provider，至少能记录 `renderer`、当前缩放和滚动位置；PDF、XMind、Geo、3D、CAD 等高交互路径会补充页码、导航、画布 pan、地图中心、相机视角或底层视图快照。初始化可传 `options.initialViewState`，运行中监听 `view-state-change`；Pure Web / Vue3 controller 可直接调用 `getViewState()` 和 `applyViewState(state, { source: "api", action: "restore" })`。
 

@@ -264,7 +264,7 @@ const withTimeout = async <T,>(
 const getDocumentBaseUrl = (documentRef: Document) => {
   return documentRef.baseURI ||
     documentRef.URL ||
-    'http://localhost/';
+    'file:///';
 };
 
 const getWorkerConstructor = (documentRef: Document): WorkerConstructor => {

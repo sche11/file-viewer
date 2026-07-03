@@ -21,9 +21,12 @@ const viewerOptions = {
   preset: officePreset,
   rendererMode: 'replace',
   theme: 'light',
+  styleIsolation: 'shadow',
   toolbar: { position: 'bottom-right' }
 }
 ```
+
+Use `styleIsolation:'shadow'` when the host page has aggressive global CSS, low-code resets, or micro-frontend style collisions. Vue 2 packages keep historical compatibility by default. See [Style Isolation And Customization](/en/guide/style-isolation) for tokens and `::part()` customization.
 
 Vite projects can add the plugin to avoid manual preset imports. Installing the package alone is not enough because Vite plugins must be registered once; after registration the plugin auto-discovers installed presets:
 

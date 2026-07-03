@@ -101,6 +101,7 @@ export default {
 - 所有组件包共享同一套 `ViewerMountOptions`、`FileViewerOptions`、生命周期事件、操作回调、搜索、缩放、水印、打印和导出语义。
 - Office、PDF、OFD、Typst、CAD、压缩包、邮件、3D、绘图、数据文件等重型链路按格式异步加载，未命中的格式不会进入首屏。常见业务优先选 `preset-lite`、`preset-office`、`preset-engineering`，极致裁剪再安装单个 renderer。
 - 私有化或内网部署时，运行 `file-viewer-copy-assets` 复制 Worker、WASM、PDF.js、Draw.io、Typst WASM/字体、CAD、SQLite、压缩包和 Office 静态资源，运行时默认不依赖公共 CDN。
+- 样式隔离由同一套 `options.styleIsolation` 控制。Pure Web / IIFE / Web full 默认使用 Shadow DOM，框架组件默认保持兼容；宿主全局 CSS 不可控时传 `styleIsolation:'shadow'`，主题定制使用 `--file-viewer-*` tokens 和 `::part()`。完整说明见 [样式隔离与主题定制](/guide/style-isolation)。
 
 ## 组件属性与定制入口
 

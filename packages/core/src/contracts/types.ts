@@ -9,6 +9,8 @@ export type FileViewerThemeMode = 'light' | 'dark' | 'system';
 
 export type FileViewerLocale = 'auto' | 'zh-CN' | 'en-US' | (string & {});
 
+export type FileViewerStyleIsolation = 'auto' | 'shadow' | 'scoped' | 'none';
+
 export type FileViewerMessageKey =
   | 'toolbar.zoomGroup'
   | 'toolbar.zoomOut'
@@ -627,6 +629,7 @@ export interface FileRenderContext {
   url?: string;
   streamUrl?: string;
   options?: FileViewerOptions;
+  surface?: RenderSurface;
   registerExportAdapter?: (adapter: FileRenderExportAdapter | null) => void;
   onProgressiveRender?: () => void;
   renderNestedBuffer?: (
@@ -875,6 +878,12 @@ export interface FileViewerAiOptions {
 
 export interface FileViewerOptions {
   theme?: FileViewerThemeMode;
+  /**
+   * Controls how aggressively the viewer protects its DOM and CSS from the
+   * host page. `auto` keeps framework integrations compatible while allowing
+   * Web Component integrations to opt into Shadow DOM by default.
+   */
+  styleIsolation?: FileViewerStyleIsolation;
   /**
    * Viewer UI language. `auto` follows the browser language, Chinese browsers
    * resolve to `zh-CN`, and all other languages currently resolve to `en-US`.
@@ -1308,8 +1317,10 @@ export interface NormalizedFileViewerSource {
 }
 
 export interface RenderSurface {
+  host?: HTMLElement;
   container: HTMLElement;
   shadowRoot?: ShadowRoot;
+  styleIsolation?: Exclude<FileViewerStyleIsolation, 'auto'>;
 }
 
 export interface RendererCapability {

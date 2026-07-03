@@ -18,6 +18,7 @@
   <a href="/guide/format-fidelity">格式完整度</a>
   <a href="/guide/on-demand-renderers">按需渲染架构</a>
   <a href="/guide/usage">组件用法</a>
+  <a href="/guide/style-isolation">样式隔离</a>
   <a href="/guide/distribution">发布分发</a>
 </div>
 
@@ -66,6 +67,10 @@
     <p>最小化接入只安装命中格式的 renderer；组合接入优先使用 preset-lite、preset-office、preset-engineering 或 preset-all，通过 options.preset 稳定注入；Vite 项目可再用 @file-viewer/vite-plugin 自动发现 preset。</p>
   </div>
   <div class="doc-card">
+    <h3>确认样式隔离策略</h3>
+    <p>Web Component / IIFE 默认使用 Shadow DOM；框架组件可通过 options.styleIsolation 选择 shadow、scoped 或 none，并用 CSS tokens 与 ::part 定制主题。</p>
+  </div>
+  <div class="doc-card">
     <h3>准备发布分发</h3>
     <p>开源分发说明了 npm 包、私有化 Worker/WASM viewer assets、文档静态产物和开源总仓库之间的交付关系。</p>
   </div>
@@ -110,6 +115,7 @@
 | 想单独使用 PPTX 渲染引擎 | [PPTX 引擎接入](/guide/ecosystem#pptx) |
 | 想了解统一 options 和事件 | [组件用法](/guide/usage) |
 | 想了解参数和事件 | [组件用法](/guide/usage) |
+| 想解决宿主 CSS 样式侵入 | [样式隔离与主题定制](/guide/style-isolation) |
 | 想下载源码、release 或了解支持 | [发布与开源分发](/guide/distribution) |
 
 <div class="doc-note">

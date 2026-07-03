@@ -186,7 +186,7 @@ const getTargetWindow = (target: HTMLDivElement) => {
 const getDocumentBaseUrl = (target: HTMLDivElement) => {
   return target.ownerDocument.baseURI ||
     target.ownerDocument.URL ||
-    'http://localhost/';
+    'file:///';
 };
 
 const callListener = (listener: SpreadsheetMessageListener, event: Event) => {

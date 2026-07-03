@@ -103,6 +103,8 @@ Standard component packages depend on the lightweight core foundation by default
 Install only the renderer packages your product needs, use `@file-viewer/preset-lite` / `@file-viewer/preset-office` / `@file-viewer/preset-engineering` for product-shaped bundles, or pass `@file-viewer/preset-all` when you want the complete official demo capability matrix.
 For example, PowerPoint preview is provided by `@file-viewer/renderer-presentation`, which loads the native `@file-viewer/pptx` engine only when a PPTX/PPTM/POTX/POTM/PPSX/PPSM file is opened.
 
+Style isolation is controlled by the shared `options.styleIsolation` field. Pure Web / IIFE / Web full entries default to Shadow DOM, while framework packages keep compatibility by default. Use `styleIsolation:'shadow'` when host global CSS is uncontrolled, and customize with `--file-viewer-*` tokens plus `::part()`. See [Style Isolation And Customization](/en/guide/style-isolation).
+
 ## Vite Auto Assembly
 
 Use the Vite plugin when your app wants a complete developer experience without hand-writing every renderer import. The default setup auto-discovers installed presets; explicit `formats` and `scan:true` are only needed for strict custom cuts or source-hint driven assembly:

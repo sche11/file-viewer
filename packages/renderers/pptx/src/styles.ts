@@ -46,13 +46,23 @@ ${legacyPptxCss}
 
 const PPTX_STYLE_ID = 'flyfish-pptx-native-style';
 
-export const ensurePptxViewerStyles = (documentRef: Document) => {
-  if (documentRef.getElementById(PPTX_STYLE_ID)) {
+export const ensurePptxViewerStyles = (
+  documentRef: Document,
+  root: Document | ShadowRoot = documentRef
+) => {
+  if (root instanceof Document && root.getElementById(PPTX_STYLE_ID)) {
+    return;
+  }
+  if (!(root instanceof Document) && root.querySelector(`#${PPTX_STYLE_ID}`)) {
     return;
   }
 
   const style = documentRef.createElement('style');
   style.id = PPTX_STYLE_ID;
   style.textContent = pptxViewerCss;
-  (documentRef.head || documentRef.documentElement).appendChild(style);
+  if (root instanceof Document) {
+    (root.head || root.documentElement).appendChild(style);
+    return;
+  }
+  root.appendChild(style);
 };

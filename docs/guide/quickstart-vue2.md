@@ -28,9 +28,12 @@ const viewerOptions = {
   preset: officePreset,
   rendererMode: 'replace',
   theme: 'light',
+  styleIsolation: 'shadow',
   toolbar: { position: 'bottom-right' }
 }
 ```
+
+宿主页面有强全局 CSS、低代码 reset 或微前端样式串扰时，推荐传 `styleIsolation:'shadow'`。Vue2 包默认保持历史兼容；完整隔离模式、tokens 和 `::part()` 定制见 [样式隔离与主题定制](/guide/style-isolation)。
 
 Vite 项目可以额外加入插件，插件会自动发现已安装的 `@file-viewer/preset-*` 并省去手动 import preset。注意：只安装插件包不会让 Vite 自动运行，仍需要在 `vite.config.ts` 注册一次插件：
 

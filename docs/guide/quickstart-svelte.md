@@ -33,6 +33,7 @@ npm install @file-viewer/svelte-full
     preset: officePreset,
     rendererMode: 'replace',
     theme: 'light',
+    styleIsolation: 'shadow',
     toolbar: { position: 'bottom-right' },
     archive: { cache: true }
   }
@@ -50,6 +51,8 @@ npm install @file-viewer/svelte-full
   />
 </section>
 ```
+
+宿主 CSS 不可控时可传 `styleIsolation:'shadow'`，让 renderer 内容进入隔离渲染根。Svelte 包默认保持兼容；tokens 和 `::part()` 主题定制见 [样式隔离与主题定制](/guide/style-isolation)。
 
 full 包写法只替换包名，不需要手动 import preset：
 

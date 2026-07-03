@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import type { Mesh, Object3D, Scene, WebGLRenderer } from 'three'
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -153,6 +153,42 @@ const sponsorUrl = 'https://dev.flyfish.group/sponsor?source=github'
 const studioUrl = 'https://flyfish.dev/'
 const commercialUrl = 'https://product.flyfish.group/'
 const commercialDemoUrl = 'https://office.flyfish.dev/'
+const siteRootUrl = 'https://file-viewer.app/'
+const siteEnglishUrl = `${siteRootUrl}en/`
+const sitePreviewImageUrl = `${siteRootUrl}home-hero-premium.webp`
+
+type SiteMetadata = {
+  lang: string
+  canonical: string
+  title: string
+  description: string
+  ogLocale: string
+  ogLocaleAlternate: string
+  imageAlt: string
+}
+
+const siteMetadata = {
+  zh: {
+    lang: 'zh-CN',
+    canonical: siteRootUrl,
+    title: 'Flyfish File Viewer - 浏览器里的多格式文件预览超级组件',
+    description:
+      'Flyfish File Viewer 是面向业务系统的纯前端多格式文件预览超级组件，覆盖 Office、PDF、OFD、Typst、XMind、CAD、EDA、压缩包、邮件、媒体、代码、3D、地理数据等 206 个文件扩展名。',
+    ogLocale: 'zh_CN',
+    ogLocaleAlternate: 'en_US',
+    imageAlt: 'Flyfish File Viewer 多格式文件预览官网界面'
+  },
+  en: {
+    lang: 'en',
+    canonical: siteEnglishUrl,
+    title: 'Flyfish File Viewer - Browser-native multi-format file preview',
+    description:
+      'Flyfish File Viewer is a browser-native, offline-first, self-hosted multi-format file preview component for business systems, covering Office, PDF, OFD, Typst, XMind, CAD, EDA, archives, email, media, code, 3D, and geospatial files.',
+    ogLocale: 'en_US',
+    ogLocaleAlternate: 'zh_CN',
+    imageAlt: 'Flyfish File Viewer multi-format file preview website'
+  }
+} satisfies Record<Locale, SiteMetadata>
 
 hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('javascript', javascript)
@@ -1047,7 +1083,71 @@ const primaryNavItems = computed<NavItem[]>(() => [
   { id: 'support', label: currentCopy.value.nav.support }
 ])
 
+function resolveLocaleFromPathname(pathname: string): Locale | undefined {
+  const normalizedPathname = pathname.toLowerCase()
+  if (normalizedPathname === '/en' || normalizedPathname.startsWith('/en/')) {
+    return 'en'
+  }
+  if (normalizedPathname === '/zh' || normalizedPathname.startsWith('/zh/')) {
+    return 'zh'
+  }
+  return undefined
+}
+
+function resolvePathForLocale(nextLocale: Locale) {
+  return nextLocale === 'en' ? '/en/' : '/'
+}
+
+function syncBrowserPathForLocale(nextLocale: Locale) {
+  const pathLocale = resolveLocaleFromPathname(window.location.pathname)
+  if ((nextLocale === 'zh' && pathLocale !== 'en') || pathLocale === nextLocale) {
+    return
+  }
+
+  const nextPath = resolvePathForLocale(nextLocale)
+  const nextUrl = `${nextPath}${window.location.search}${window.location.hash}`
+  window.history.replaceState(null, '', nextUrl)
+}
+
+function setMetaContent(selector: string, content: string) {
+  const element = document.querySelector<HTMLMetaElement>(selector)
+  if (element) {
+    element.content = content
+  }
+}
+
+function setLinkHref(selector: string, href: string) {
+  const element = document.querySelector<HTMLLinkElement>(selector)
+  if (element) {
+    element.href = href
+  }
+}
+
+function updateDocumentMetadata(nextLocale: Locale) {
+  const metadata = siteMetadata[nextLocale]
+  document.documentElement.lang = metadata.lang
+  document.title = metadata.title
+  setLinkHref('link[rel="canonical"]', metadata.canonical)
+  setMetaContent('meta[name="description"]', metadata.description)
+  setMetaContent('meta[property="og:title"]', metadata.title)
+  setMetaContent('meta[property="og:description"]', metadata.description)
+  setMetaContent('meta[property="og:url"]', metadata.canonical)
+  setMetaContent('meta[property="og:image"]', sitePreviewImageUrl)
+  setMetaContent('meta[property="og:image:secure_url"]', sitePreviewImageUrl)
+  setMetaContent('meta[property="og:image:alt"]', metadata.imageAlt)
+  setMetaContent('meta[property="og:locale"]', metadata.ogLocale)
+  setMetaContent('meta[property="og:locale:alternate"]', metadata.ogLocaleAlternate)
+  setMetaContent('meta[name="twitter:title"]', metadata.title)
+  setMetaContent('meta[name="twitter:description"]', metadata.description)
+  setMetaContent('meta[name="twitter:image"]', sitePreviewImageUrl)
+}
+
 function resolveInitialLocale(): Locale {
+  const pathLocale = resolveLocaleFromPathname(window.location.pathname)
+  if (pathLocale) {
+    return pathLocale
+  }
+
   const stored = window.localStorage.getItem(localeStorageKey)
   if (stored === 'zh' || stored === 'en') {
     return stored
@@ -1060,8 +1160,10 @@ function resolveInitialLocale(): Locale {
 }
 
 function toggleLocale() {
-  locale.value = isZh.value ? 'en' : 'zh'
-  window.localStorage.setItem(localeStorageKey, locale.value)
+  const nextLocale = isZh.value ? 'en' : 'zh'
+  locale.value = nextLocale
+  window.localStorage.setItem(localeStorageKey, nextLocale)
+  syncBrowserPathForLocale(nextLocale)
 }
 
 function selectQuickStart(index: number) {
@@ -1560,8 +1662,14 @@ function setDocsFrameActive(active: boolean) {
   }, 5000)
 }
 
+watch(locale, (nextLocale) => {
+  updateDocumentMetadata(nextLocale)
+})
+
 onMounted(async () => {
   locale.value = resolveInitialLocale()
+  syncBrowserPathForLocale(locale.value)
+  updateDocumentMetadata(locale.value)
   void loadGithubStarCount()
   await nextTick()
   topbarResizeObserver = new ResizeObserver(requestPageNavStateUpdate)

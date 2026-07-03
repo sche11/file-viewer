@@ -14,6 +14,7 @@
 | Run the viewer in a project | [Quickstart](/en/guide/quickstart) |
 | Pick the right npm package | [Ecosystem packages](/en/guide/ecosystem) |
 | Choose minimal imports or composed presets | [2.1.0 modular import paths](/en/guide/ecosystem#_2-1-0-modular-import-paths) |
+| Keep host CSS from leaking into the viewer | [Style isolation and customization](/en/guide/style-isolation) |
 | Check format coverage | [Supported formats](/en/guide/formats) |
 | Understand npm, GitHub, releases, and self-hosted assets | [Distribution](/en/guide/distribution) |
 
@@ -32,6 +33,8 @@ Flyfish Viewer is not trying to replace specialist editors. It gives business pr
 The project keeps a pure TypeScript core under `@file-viewer/core`, split renderer packages for heavier formats, native component packages for Web Components, Vue, React, jQuery, and Svelte, and product-shaped presets for common capability sets.
 
 The 2.1.0 architecture is modular by default: use minimal renderer imports when you need one exact format, or choose `preset-lite`, `preset-office`, `preset-engineering`, or `preset-all` when your product needs a composed capability set. In Vite projects, `@file-viewer/vite-plugin` auto-discovers installed presets and injects the capability layer, so most teams do not hand-write renderer imports.
+
+For pages with uncontrolled global CSS, use the Web Component / IIFE default Shadow DOM isolation or pass `options.styleIsolation:'shadow'` from framework packages. Theme customization should use `--file-viewer-*` tokens and stable `::part()` surfaces.
 
 For heavy users that need everything immediately:
 

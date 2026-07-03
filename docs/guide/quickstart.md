@@ -7,15 +7,16 @@
   先选生态组件，再按业务文件类型选择 preset 或 renderer；跑通后再进入按需装配、离线资源和工具栏定制。
 </p>
 
-## 三步接入
+## 四步接入
 
 | 步骤 | 做什么 | 最短答案 |
 | --- | --- | --- |
 | 1 | 选生态组件 | 最轻入口用 `@file-viewer/web` / `@file-viewer/vue3` / `@file-viewer/react` 等标准包；一步到位用 `@file-viewer/web-full` / `@file-viewer/vue3-full` / `@file-viewer/react-full` 等 full 包 |
 | 2 | 选格式能力 | 标准包按需注入 `preset-lite`、`preset-office`、`preset-engineering` 或 `preset-all`；full 包默认已启用完整矩阵 |
 | 3 | 传入文件和 options | `url="/files/demo.pdf"` 或 `file={file}`，标准包把 `preset` 放进 `options`，full 包可直接传主题、工具栏、水印等业务配置 |
+| 4 | 确认样式隔离 | 宿主 CSS 不可控时优先 Web Component / full 默认 Shadow DOM；框架组件可传 `options.styleIsolation:'shadow'` |
 
-本页只保留最短可运行路径。完整 options、renderer 包清单和工具栏/水印/打印/搜索等参数见 [组件用法](/guide/usage)，按需装配和 Vite 插件细节见 [模块化与按需装配](/guide/on-demand-renderers)。
+本页只保留最短可运行路径。完整 options、renderer 包清单和工具栏/水印/打印/搜索等参数见 [组件用法](/guide/usage)，样式隔离与主题定制见 [样式隔离与主题定制](/guide/style-isolation)，按需装配和 Vite 插件细节见 [模块化与按需装配](/guide/on-demand-renderers)。
 
 ## 先选接入路线
 

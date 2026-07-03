@@ -7,15 +7,16 @@
   Pick the native component package first, then add the preset or renderer that matches your file types; after that, tune on-demand assembly, offline assets, and toolbar behavior.
 </p>
 
-## Three-step Integration
+## Four-step Integration
 
 | Step | Decision | Fast answer |
 | --- | --- | --- |
 | 1 | Pick the component package | Use standard packages such as `@file-viewer/web`, `@file-viewer/vue3`, or `@file-viewer/react` for the lightest entry; use full packages such as `@file-viewer/web-full`, `@file-viewer/vue3-full`, or `@file-viewer/react-full` for one-step complete capability. |
 | 2 | Pick the capability layer | Standard packages receive `preset-lite`, `preset-office`, `preset-engineering`, or `preset-all` through options; full packages enable the complete matrix by default. |
 | 3 | Pass the source and options | Use `url="/files/demo.pdf"` or a real `File`; standard packages pass a preset through `options`, while full packages can start with theme, toolbar, watermark, and business options only. |
+| 4 | Confirm style isolation | Prefer the Web Component / full default Shadow DOM when host CSS is uncontrolled; framework packages can pass `options.styleIsolation:'shadow'`. |
 
-This page keeps the shortest runnable paths. See [Component Options](/en/guide/usage) for the full API, renderer package matrix, toolbar, watermark, print, search, lifecycle, and guard options. See [Modular Assembly](/en/guide/on-demand-renderers) for on-demand renderers and the Vite plugin.
+This page keeps the shortest runnable paths. See [Component Options](/en/guide/usage) for the full API, renderer package matrix, toolbar, watermark, print, search, lifecycle, and guard options. See [Style Isolation And Customization](/en/guide/style-isolation) for Shadow DOM, tokens, and parts. See [Modular Assembly](/en/guide/on-demand-renderers) for on-demand renderers and the Vite plugin.
 
 <div class="doc-callout">
   <strong>Mobile note:</strong> for H5 and mobile browsers, give the viewer host a stable height such as <code>height:100dvh; min-height:0</code>, and prefer <code>toolbar.position:'bottom-right'</code>. React Native should load a WebView-based H5 viewer route; the DOM component cannot mount directly into native RN views. See the <a href="/en/guide/quickstart-react#mobile-h5-and-react-native-webview">React mobile example</a>.

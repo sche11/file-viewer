@@ -32,6 +32,7 @@ const options = {
   preset: officePreset,
   rendererMode: 'replace',
   theme: 'light',
+  styleIsolation: 'shadow',
   toolbar: { position: 'bottom-right' }
 }
 ```
@@ -41,6 +42,8 @@ const options = {
 ```vue
 <file-viewer url="/files/demo.docx" :options="options" />
 ```
+
+`styleIsolation:'shadow'` 适合宿主 CSS 不可控的后台、低代码和微前端页面。Vue3 默认保持历史 light DOM 兼容；样式隔离、CSS tokens 和 `::part()` 定制完整说明见 [样式隔离与主题定制](/guide/style-isolation)。
 
 需要完整 Demo 能力时，把 `@file-viewer/preset-office` 换成 `@file-viewer/preset-all`，并把 `options.preset` 指向全量 preset。
 

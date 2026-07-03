@@ -39,7 +39,7 @@
   <a href="https://hub.docker.com/r/flyfishdev/file-viewer"><img alt="Docker" src="https://img.shields.io/badge/docker-flyfishdev%2Ffile--viewer-2496ed?logo=docker" /></a>
   <img alt="Supported formats" src="https://img.shields.io/badge/formats-206-f59e0b" />
   <img alt="Modular architecture" src="https://img.shields.io/badge/architecture-modular%20renderers-7c3aed" />
-  <img alt="Ecosystem packages" src="https://img.shields.io/badge/npm%20targets-50-0f766e" />
+  <img alt="Ecosystem packages" src="https://img.shields.io/badge/npm%20targets-52-0f766e" />
 </p>
 
 ---
@@ -303,7 +303,7 @@ Internationalization, theme, watermark, toolbar, search, print, export, lifecycl
 
 ## Current npm Ecosystem
 
-The current version follows the npm registry `latest` dist-tag. The ecosystem publishes 50 npm targets: 45 standard component / full package / core / renderer / preset / tooling packages and 5 historical aliases. New integrations should prefer the `@file-viewer/*` standard package names; existing applications using `@flyfish-group/*` or `file-viewer3` continue to receive the same versioned capability set.
+The current version follows the npm registry `latest` dist-tag. The ecosystem publishes 52 npm targets: 46 standard component / full package / core / renderer / preset / tooling packages and 6 historical aliases. New integrations should prefer the `@file-viewer/*` standard package names; existing applications using `@flyfish-group/*` or `file-viewer3` continue to receive the same versioned capability set.
 
 | Scenario                                   | Recommended package                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Historical alias                                                                                                                                         | Version policy | Notes                                                                                                                                                                                                                       |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -549,6 +549,47 @@ Every ecosystem package exposes a native integration surface. Vanilla JavaScript
 | jQuery `@file-viewer/jquery` | `$(el).fileViewer(ViewerMountOptions & { replace?: boolean })` | `onEvent`, `onStateChange`, or `getFileViewerController(el).subscribe()` | Plugin methods include `zoomIn`, `printRenderedHtml`, and `searchDocument`; `replace:false` updates the same node in place. |
 | Svelte `@file-viewer/svelte` | `ViewerMountOptions` plus `className` and `containerStyle` | `on:viewerEvent`, `onEvent`, `onStateChange` | `bind:this` exposes the controller handle; the `use:fileViewer` action is also available and adds `replace`. |
 
+### Style Isolation And Theme Customization
+
+For OA systems, low-code shells, micro-frontends, portals, and admin products, prefer the strong Shadow DOM isolation used by Pure Web / Web Component and full packages by default. Host-page global rules for `*`, `button`, `table`, `img`, `svg`, `canvas`, and similar selectors should not leak into the viewer toolbar or rendered content, and viewer resets should not pollute the host page.
+
+| Mode | Description |
+| --- | --- |
+| `auto` | Default. `@file-viewer/web`, `@file-viewer/web-full`, IIFE, and `<flyfish-file-viewer>` use Shadow DOM by default. Vue, React, Svelte, and jQuery keep light-DOM compatibility for existing projects while renderer content can still be isolated by core. |
+| `shadow` | Creates an explicit ShadowRoot render surface. Use it when host CSS is uncontrolled, micro-frontends are mixed, low-code platforms inject global resets, or design systems have aggressive base styles. |
+| `scoped` | Does not create a ShadowRoot. Uses a stable root selector, `@layer file-viewer`, and local resets to constrain cascade impact while keeping controlled inheritance from the host. |
+| `none` | Historical light-DOM behavior for projects that depend on deep class overrides, old theme CSS, or snapshot tests. |
+
+Customization should start with `--file-viewer-*` CSS variables for color, typography, spacing, radius, toolbar, and button styling. Use stable Shadow Parts only when a specific internal surface needs styling. The current Web shell exposes `host`, `shell`, `toolbar`, `toolbar-group`, `toolbar-status`, `button`, `input`, and `content`; renderer extensions should keep using stable names such as `state-panel` and `watermark`. Do not depend on internal class names; they are implementation details.
+
+```css
+flyfish-file-viewer {
+  --file-viewer-bg: #f7f9fc;
+  --file-viewer-text: #172033;
+  --file-viewer-toolbar-bg: rgba(255, 255, 255, 0.96);
+  --file-viewer-button-color: #154b83;
+  --file-viewer-button-radius: 6px;
+}
+
+flyfish-file-viewer::part(toolbar) {
+  border: 1px solid rgba(20, 60, 100, 0.14);
+}
+
+flyfish-file-viewer::part(button) {
+  font-weight: 600;
+}
+```
+
+Framework packages can opt into renderer isolation through the shared options object:
+
+```ts
+const options = {
+  styleIsolation: 'shadow',
+  theme: 'light',
+  toolbar: { position: 'bottom-right' }
+}
+```
+
 The built-in toolbar can be used as-is, or hidden with `toolbar:false` so your own UI can call the same ref, hook, controller, action, or jQuery plugin APIs.
 
 | Toolbar config | Description |
@@ -556,12 +597,11 @@ The built-in toolbar can be used as-is, or hidden with `toolbar:false` so your o
 | `toolbar: false` | Hides the built-in toolbar without disabling controller APIs such as download, print, export, and zoom. Use this for a fully custom business toolbar. |
 | `toolbar: true` | Uses the default built-in toolbar. Download, print, HTML export, and zoom buttons are still shown only when the active renderer supports them. |
 | `download` / `print` / `exportHtml` / `zoom` | Expresses whether the host allows a button. Final availability is still computed from file type, render readiness, export adapter, and zoom provider state. |
-| `order` | Built-in toolbar group order. Default is `['search', 'zoom', 'download', 'print', 'exportHtml']`; pass `['zoom', 'search', 'download', 'print']` to move zoom first. Missing entries are appended in default order, while visibility still follows capabilities plus `items` / permissions. |
-| `position` | `auto`, `top`, `top-center`, or `bottom-right`. The default `auto` floats PDF actions at bottom right and keeps other formats top-right; use `top-center` for a horizontally centered top toolbar. |
+| `position` | `auto`, `top`, `top-center`, or `bottom-right`. The default `auto` floats PDF actions at bottom right and keeps other formats top-right; use `top-center` for a centered top toolbar. |
 | `beforeOperation` | Toolbar-level preflight that runs after `options.beforeOperation`. Returning `false` or throwing cancels the operation. |
 | `beforeDownload` / `beforePrint` / `beforeExportHtml` | Operation-specific preflight for download permission, print audit, export confirmation, and similar business rules. |
 
-Zoom state is reported by each renderer provider. When `options.fit` is omitted, every renderer keeps its historical first-screen behavior. When you pass `fit:'width'`, `fit:{ mode:'contain' }`, or another explicit fit option, core coordinates fitting and resize through the renderer's own zoom/view provider instead of applying an outer CSS transform. Custom toolbars can call `fitToView()` to refit on demand and listen to `fit-change`, `zoom-change` / `operation-availability-change`, or read `getZoomState()` / `getOperationAvailability()`.
+Zoom state is reported by each renderer provider. After first-screen fit, container resize, or asynchronous PDF / Word / image layout, built-in toolbars show the real scale instead of assuming `100%`. Custom toolbars should listen to `zoom-change` / `operation-availability-change`, or read `getZoomState()` / `getOperationAvailability()`.
 
 View-state sync is designed for projection systems, remote-control displays, side-by-side review, and reading-position restore. Every standard renderer path registers a generic provider that records at least `renderer`, zoom, and scroll position; PDF, XMind, Geo, 3D, and CAD add page, navigation, canvas pan, map center, camera, or native view snapshots. Pass `options.initialViewState` for first render, listen to `view-state-change` while running, and call `getViewState()` / `applyViewState(state, { source: "api", action: "restore" })` on Pure Web / Vue3 controllers when an imperative restore API is needed.
 

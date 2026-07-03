@@ -595,7 +595,7 @@ pnpm build-only
 - Typst 浏览器 WASM 渲染链路: <https://github.com/myriad-dreamin/typst.ts>
 - diagrams.net / draw.io 离线 viewer 和 XML 格式参考: <https://github.com/jgraph/drawio>
 - Excalidraw 官方 restore / export utilities: <https://docs.excalidraw.com/docs/@excalidraw/excalidraw/api/utils>
-- libarchive 流式归档格式能力: <https://www.libarchive.org/>
+- libarchive.js 本地 Worker/WASM：发布前由 `pnpm archive:copy-assets` 从当前 lockfile 固定的 `libarchive.js` 包同步到 `vendor/libarchive/`，运行时不依赖公网资源。
 - WebODF / ODF 浏览器渲染参考: <https://webodf.org/>
 - OrCAD / Allegro 开源解析器路线: <https://github.com/Werni2A/OpenOrCadParser>、<https://github.com/Werni2A/OpenAllegroParser>
 - GDSII 格式与 JS 解析参考: <https://layouteditor.org/layout/file-formats/gdsii>、<https://github.com/TinyTapeout/gdsii>

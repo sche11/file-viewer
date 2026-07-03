@@ -40,7 +40,30 @@ export interface PptxSlideSize {
   [key: string]: unknown;
 }
 
+export type PptxDiagnosticErrorCode =
+  | 'PPTX_FILE_EMPTY'
+  | 'PPTX_FILE_TOO_LARGE'
+  | 'PPTX_INVALID_ZIP'
+  | 'PPTX_MISSING_CONTENT_TYPES'
+  | 'PPTX_MISSING_PRESENTATION'
+  | 'PPTX_NO_SLIDES'
+  | 'PPTX_MISSING_SLIDE'
+  | 'PPTX_SLIDE_RENDER_FAILED'
+  | 'PPTX_WORKER_FAILED'
+  | 'PPTX_PARSE_FAILED'
+  | (string & {});
+
+export interface PptxDiagnosticError {
+  name: 'PptxDiagnosticError';
+  code: PptxDiagnosticErrorCode;
+  stage?: string;
+  message: string;
+  detail?: string;
+  hint?: string;
+}
+
 export interface PptxViewerOptions extends PptxWorkerFactoryOptions {
+  styleRoot?: ShadowRoot;
   fitMode?: PptxFitMode;
   zoomPercent?: number;
   zipLimits?: PptxZipLimits;

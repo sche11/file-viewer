@@ -3,19 +3,174 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="application-name" content="Flyfish File Viewer" />
+    <meta name="apple-mobile-web-app-title" content="Flyfish File Viewer" />
+    <meta name="format-detection" content="telephone=no,address=no,email=no" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta
+      name="googlebot"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta
+      name="bingbot"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
     <meta
       name="description"
-      content="Flyfish File Viewer 是面向业务系统的纯前端多格式文件预览超级组件，覆盖 Office、PDF、OFD、Typst、XMind、CAD、EDA、压缩包、邮件、媒体、代码、3D、地理数据等 199+ 文件扩展名。"
+      content="Flyfish File Viewer 是面向业务系统的纯前端多格式文件预览超级组件，覆盖 Office、PDF、OFD、Typst、XMind、CAD、EDA、压缩包、邮件、媒体、代码、3D、地理数据等 206 个文件扩展名。"
+    />
+    <meta
+      name="keywords"
+      content="File Viewer, Flyfish File Viewer, 文件预览, 文档预览, Vue 文件预览, React 文件预览, Web Component 文件预览, Office viewer, PDF viewer, DOCX preview, PPTX preview, XLSX preview, OFD viewer, CAD viewer, DWG viewer, DXF viewer, XMind viewer, archive viewer, offline document preview, private deployment"
     />
     <meta name="theme-color" content="#1f9f67" />
-    <meta property="og:title" content="Flyfish File Viewer" />
+    <link rel="canonical" href="https://file-viewer.app/" />
+    <link rel="alternate" hreflang="zh-CN" href="https://file-viewer.app/" />
+    <link rel="alternate" hreflang="en" href="https://file-viewer.app/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://file-viewer.app/" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="preload" as="image" href="/home-hero-premium.webp" fetchpriority="high" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flyfish File Viewer" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://file-viewer.app/" />
+    <meta property="og:title" content="Flyfish File Viewer - 浏览器里的多格式文件预览超级组件" />
     <meta
       property="og:description"
-      content="One viewer. Every business file. Native components for Vue, React, Web, jQuery, Svelte and more."
+      content="纯前端、离线优先、可私有化部署的多格式文件预览组件，覆盖 Office、PDF、OFD、Typst、CAD、EDA、压缩包、邮件、媒体、代码、3D 与地理数据。"
     />
+    <meta property="og:image" content="https://file-viewer.app/home-hero-premium.webp" />
+    <meta property="og:image:secure_url" content="https://file-viewer.app/home-hero-premium.webp" />
+    <meta property="og:image:type" content="image/webp" />
+    <meta property="og:image:width" content="1823" />
+    <meta property="og:image:height" content="863" />
+    <meta property="og:image:alt" content="Flyfish File Viewer 多格式文件预览官网界面" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Flyfish File Viewer - 浏览器里的多格式文件预览超级组件" />
+    <meta
+      name="twitter:description"
+      content="纯前端、离线优先、可私有化部署的多格式文件预览组件，覆盖 Office、PDF、OFD、Typst、CAD、EDA、压缩包、邮件、媒体、代码、3D 与地理数据。"
+    />
+    <meta name="twitter:image" content="https://file-viewer.app/home-hero-premium.webp" />
     <title>Flyfish File Viewer - 浏览器里的多格式文件预览超级组件</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://file-viewer.app/#organization",
+            "name": "Flyfish Dev",
+            "url": "https://flyfish.dev/",
+            "logo": "https://file-viewer.app/logo.png",
+            "sameAs": [
+              "https://github.com/flyfish-dev/file-viewer",
+              "https://www.npmjs.com/search?q=%40file-viewer"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://file-viewer.app/#website",
+            "name": "Flyfish File Viewer",
+            "url": "https://file-viewer.app/",
+            "inLanguage": ["zh-CN", "en"],
+            "publisher": {
+              "@id": "https://file-viewer.app/#organization"
+            }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://file-viewer.app/#software",
+            "name": "Flyfish File Viewer",
+            "alternateName": ["File Viewer", "Flyfish Viewer"],
+            "url": "https://file-viewer.app/",
+            "image": "https://file-viewer.app/home-hero-premium.webp",
+            "description": "浏览器原生、离线优先、可私有化部署的多格式文件预览组件生态，覆盖 Office、PDF、OFD、Typst、CAD、EDA、压缩包、邮件、媒体、代码、3D 与地理数据。",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Web Browser",
+            "runtimePlatform": "Web Browser",
+            "programmingLanguage": "TypeScript",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "codeRepository": "https://github.com/flyfish-dev/file-viewer",
+            "downloadUrl": "https://github.com/flyfish-dev/file-viewer/releases",
+            "featureList": [
+              "纯前端文件预览，无需服务端转换",
+              "Vue、React、Web Component、Svelte、jQuery 和 Vanilla JS 标准组件",
+              "lite、office、engineering、all preset 按需装配",
+              "PDF 搜索、缩放、旋转、打印和目录导航",
+              "Office、OFD、CAD、EDA、Typst、XMind、压缩包、邮件、代码、媒体、3D 和地理数据预览",
+              "Worker/WASM 离线资产本地加载",
+              "私有化部署、Docker 和 GitHub Release 分发"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            },
+            "publisher": {
+              "@id": "https://file-viewer.app/#organization"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://file-viewer.app/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Flyfish File Viewer 是否需要服务端转换文件？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "开源 File Viewer 以浏览器原生预览为核心，尽量在前端完成格式识别、渲染、搜索、缩放、打印和导出，适合离线部署与企业内网集成。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "支持哪些前端框架和接入方式？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "File Viewer 提供 Vanilla JS、Web Component、Vue 3、Vue 2.7、Vue 2.6、React、React Legacy、Svelte、jQuery、CDN/IIFE、Vite Plugin 和 full packages 等接入路径。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "如何选择轻量包、preset 和 full 包？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "轻量生态组件只包含基础壳和 core 能力；需要具体格式时可通过 lite、office、engineering 或 all preset 注入；full 包面向一步到位集成，默认包含完整预览能力。"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
+    <noscript>
+      <section>
+        <h1>Flyfish File Viewer - 浏览器里的多格式文件预览超级组件</h1>
+        <p>
+          Flyfish File Viewer 是纯前端、离线优先、可私有化部署的文件预览组件生态，支持
+          Office、PDF、OFD、Typst、XMind、CAD、EDA、压缩包、邮件、媒体、代码、3D、地理数据等业务文件。
+        </p>
+        <p>
+          关键入口：
+          <a href="https://demo.file-viewer.app/">在线 Demo</a>、
+          <a href="https://doc.file-viewer.app/">官方文档</a>、
+          <a href="https://github.com/flyfish-dev/file-viewer">GitHub 开源总仓</a>、
+          <a href="https://www.npmjs.com/search?q=%40file-viewer">npm 生态包</a>。
+        </p>
+      </section>
+    </noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

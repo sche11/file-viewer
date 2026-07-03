@@ -69,7 +69,7 @@
 - Typst 官方生态中，`typst.ts` 明确定位为把 Typst 编译/渲染带到 JavaScript 和浏览器 WASM 环境: <https://github.com/myriad-dreamin/typst.ts>
 - diagrams.net 官方文档推荐把 `viewer-static.min.js` 从仓库复制到企业可访问位置自托管，适合内网离线场景: <https://www.drawio.com/docs/integrations/atlassian/confluence/customise/configure-javascript-viewer-drawio-confluence-server/>
 - diagrams.net 官方集成文档说明 embed/viewer 模式通过 iframe/window 和 HTML5 Messaging API 控制，企业离线部署应自托管官方静态资源: <https://jgraph.github.io/drawio-integration/>
-- Autodesk 官方查看器页面明确提供 DWG / DWF / DXF 等 2D/3D 设计文件查看路线，可作为 CAD 预览能力和真实样例来源的外部口径: <https://www.autodesk.com/viewers>
+- Autodesk 官方在线 Viewer 明确提供 2D / 3D 设计文件查看路线，可作为 CAD 预览能力和真实样例来源的外部口径: <https://viewer.autodesk.com/>
 - XMind 官方 `xmind-viewer` 能解析 `.xmind` 并输出 SVG，但其 npm 依赖不适合成为浏览器预览器默认安装链路，因此 viewer 继续使用轻量解析器 + 自有只读交互画布: <https://github.com/xmindltd/xmind-viewer>
 - XMind 官方 SDK 主要面向创建/读写 XMind 文件，可作为格式结构参考: <https://github.com/xmindltd/xmind-sdk-js>
 - SimpleMindMap 文档也确认 `.xmind` 可以按 ZIP 解包并读取 `content.json` 转换为脑图数据: <https://wanglin2.github.io/mind-map-docs/en/api/xmind.html>

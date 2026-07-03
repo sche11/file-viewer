@@ -21,9 +21,12 @@ const viewerOptions = {
   preset: officePreset,
   rendererMode: 'replace',
   theme: 'light',
+  styleIsolation: 'shadow',
   toolbar: { position: 'bottom-right' }
 }
 ```
+
+Use `styleIsolation:'shadow'` when host global CSS is uncontrolled, low-code resets are present, or micro-frontends share the page. The React package keeps light-DOM compatibility by default. See [Style Isolation And Customization](/en/guide/style-isolation) for tokens and `::part()` customization.
 
 Vite projects can add the plugin once to avoid manual preset imports. Vite still requires a one-line plugin registration; after that, `fileViewerRenderers({ copyAssets:true })` auto-discovers installed `@file-viewer/preset-*` packages:
 

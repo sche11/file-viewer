@@ -853,10 +853,17 @@ const extensionOf = (target: string) => {
   return dotIndex === -1 ? '' : clean.slice(dotIndex + 1).toLowerCase()
 }
 
+const localUrlBase = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+  return 'file:///'
+}
+
 const sampleUrlKey = (target: string) => {
   const clean = target.split(/[?#]/)[0] || target
   try {
-    return decodeURIComponent(new URL(clean, 'https://demo.file-viewer.app').pathname)
+    return decodeURIComponent(new URL(clean, localUrlBase()).pathname)
   } catch {
     const path = clean.startsWith('/') ? clean : `/${clean}`
     return decodeURIComponent(path)
@@ -873,10 +880,10 @@ const normalizeDemoUrl = (target: string) => {
     return target
   }
   try {
-    const parsed = new URL(target, window.location.origin)
+    const parsed = new URL(target, localUrlBase())
     const isRelative = !/^[a-z][a-z\d+\-.]*:/i.test(target)
-    const isDemoOrigin = parsed.origin === window.location.origin || parsed.hostname === 'demo.file-viewer.app'
-    if (!isRelative && !isDemoOrigin) {
+    const isLocalOrigin = typeof window === 'undefined' || parsed.origin === window.location.origin
+    if (!isRelative && !isLocalOrigin) {
       return target
     }
     return `${normalizedPath}${parsed.search}${parsed.hash}`

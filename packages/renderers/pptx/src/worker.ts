@@ -12,7 +12,7 @@ const resolveViteDevPptxWorkerUrl = (baseUrl: URL) => new URL(
   '/node_modules/@file-viewer/pptx/dist/worker/pptx.worker.js',
   canResolveAbsolutePathFrom(baseUrl)
     ? baseUrl
-    : new URL(typeof location !== 'undefined' ? location.href : 'http://localhost/')
+    : new URL(typeof location !== 'undefined' ? location.href : 'file:///')
 );
 
 const resolveViteOptimizedPptxWorkerUrl = () => {

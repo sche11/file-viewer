@@ -1,0 +1,21 @@
+{
+  "name": "Flyfish File Viewer",
+  "short_name": "File Viewer",
+  "description": "Browser-native, offline-first, self-hosted multi-format file preview components for business systems.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fbf8",
+  "theme_color": "#1f9f67",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "108x108",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer", "productivity", "business"],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}

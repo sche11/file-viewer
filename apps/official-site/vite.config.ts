@@ -3,6 +3,8 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+const resolveSiteFile = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -18,6 +20,12 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    chunkSizeWarningLimit: 900
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      input: {
+        main: resolveSiteFile('./index.html'),
+        en: resolveSiteFile('./en/index.html')
+      }
+    }
   }
 })

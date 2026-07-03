@@ -69,6 +69,33 @@ viewer.zoomIn()
 
 元素容器需要有明确高度，预览器会填满组件本身。
 
+## 样式隔离与主题定制
+
+`<flyfish-file-viewer>`、`@file-viewer/web-full` 和 IIFE 入口默认使用 Shadow DOM 隔离组件壳、工具栏和预览内容，适合宿主页面存在全局 reset、低代码样式、微前端样式串扰或旧后台 CSS 的场景。需要历史 light DOM 行为时，显式设置 `style-isolation="none"`：
+
+```html
+<flyfish-file-viewer
+  src="/files/demo.pdf"
+  style-isolation="none"
+  style="display:block;height:720px"
+></flyfish-file-viewer>
+```
+
+推荐通过 CSS tokens 和 Shadow Parts 做受控定制：
+
+```css
+flyfish-file-viewer {
+  --file-viewer-toolbar-bg: rgba(255, 255, 255, 0.96);
+  --file-viewer-button-color: #154b83;
+}
+
+flyfish-file-viewer::part(toolbar) {
+  border-radius: 999px;
+}
+```
+
+完整隔离模式、tokens、parts 和 hostile CSS 验证方法见 [样式隔离与主题定制](/guide/style-isolation)。
+
 如果项目使用 Vite，可以再加入 `@file-viewer/vite-plugin`。插件会自动发现已安装的 `@file-viewer/preset-*` 并注入 renderer，Custom Element 和 `mountViewer` 都能直接获得对应格式能力，业务代码可以省去上面的 preset import。注意：只安装插件包不会让 Vite 自动运行，仍需要在 `vite.config.ts` 注册一次：
 
 ```bash

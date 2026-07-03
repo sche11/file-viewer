@@ -17,6 +17,7 @@ export const viewerOptions = {
   preset: officePreset,
   rendererMode: 'replace',
   theme: 'light',
+  styleIsolation: 'shadow',
   toolbar: {
     position: 'bottom-right',
     download: true,
@@ -50,6 +51,7 @@ export const viewerOptions = {
 | Option area | Purpose |
 | --- | --- |
 | `theme` | Viewer theme: `light`, `dark`, or `system`. Default is `system`; pass `light` when embedding in a fixed light business UI. |
+| `styleIsolation` | Style isolation mode: `auto`, `shadow`, `scoped`, or `none`. With `auto`, Web Component / Web full / IIFE entries use Shadow DOM by default; Vue, React, Svelte, and jQuery keep historical compatibility. Use `shadow` when host CSS is uncontrolled, and customize with `--file-viewer-*` tokens plus `::part()`. See [Style Isolation And Customization](/en/guide/style-isolation). |
 | `preset` | Bundler-neutral preset assembly. Pass the default export from `@file-viewer/preset-lite`, `@file-viewer/preset-office`, `@file-viewer/preset-engineering`, or `@file-viewer/preset-all`; compose with `preset: [officePreset, engineeringPreset]`. `presets` is kept only as a compatibility alias for early 2.x drafts. |
 | `renderers` / `rendererMode` | Exact renderer or custom renderer assembly. `rendererMode:'replace'` starts from an empty registry, so `preset` / `renderers` define the active capability set; `extend` appends to the current built-in baseline. |
 | `builtinRenderers` | Advanced built-in baseline switch: `all`, `lite`, or `none`. Most quick starts do not need it. |

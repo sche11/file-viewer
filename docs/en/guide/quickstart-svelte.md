@@ -33,6 +33,7 @@ npm install @file-viewer/svelte-full
     preset: officePreset,
     rendererMode: 'replace',
     theme: 'light',
+    styleIsolation: 'shadow',
     toolbar: { position: 'bottom-right' },
     archive: { cache: true }
   }
@@ -50,6 +51,8 @@ npm install @file-viewer/svelte-full
   />
 </section>
 ```
+
+Pass `styleIsolation:'shadow'` when host CSS is uncontrolled and renderer content should use an isolated render root. The Svelte package keeps compatibility by default. See [Style Isolation And Customization](/en/guide/style-isolation) for tokens and `::part()` customization.
 
 The full package only changes the import:
 
