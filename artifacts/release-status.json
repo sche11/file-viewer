@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T16:56:47.773Z",
+  "generatedAt": "2026-07-05T17:00:42.544Z",
   "version": "2.1.22",
   "sourcePolicy": "private-complete-original-workspace",
   "openSourcePolicy": "public-open-source-main-repository",
@@ -8,23 +8,23 @@
     "repository": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "policy": "private-complete-original-workspace",
-    "authoritativeCommit": "d678aef97752ba64c4dc7b7cf2a3a858b6b5fbdb",
+    "authoritativeCommit": "236156a255c1cfe092305f85a6a490cadc056aaa",
     "localBranch": "main",
-    "localCommit": "d678aef97752ba64c4dc7b7cf2a3a858b6b5fbdb",
+    "localCommit": "236156a255c1cfe092305f85a6a490cadc056aaa",
     "inSync": true,
     "note": "Private Gitea main is the complete original aggregate workspace. The local checkout branch is only the execution context and can be transitional during branch cutover."
   },
   "local": {
     "branch": "main",
-    "commit": "d678aef97752ba64c4dc7b7cf2a3a858b6b5fbdb",
-    "shortCommit": "d678aef9",
-    "dirty": true
+    "commit": "236156a255c1cfe092305f85a6a490cadc056aaa",
+    "shortCommit": "236156a2",
+    "dirty": false
   },
   "sourceRemote": {
     "url": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "ok": true,
-    "hash": "d678aef97752ba64c4dc7b7cf2a3a858b6b5fbdb",
+    "hash": "236156a255c1cfe092305f85a6a490cadc056aaa",
     "error": ""
   },
   "openSourceMain": {
@@ -32,7 +32,7 @@
       "url": "https://github.com/flyfish-dev/file-viewer",
       "branch": "main",
       "ok": true,
-      "hash": "34472481ea95077ad564f75fb28f3250cd93de69",
+      "hash": "b26e302d5257048ab6f013330961c309a355e80c",
       "error": ""
     },
     "gitee": {
@@ -45,7 +45,7 @@
     "inSync": false,
     "syncMode": "stale",
     "treeChecked": true,
-    "referenceTree": "a0db4c020329b3862cabf9c8809d01689a5370c5",
+    "referenceTree": "6edf606e861431d0f89bcdb096688f362bb0ac8a",
     "giteeTree": "ef9e54e70ed3110034a0103cb80e8fee613104c3",
     "treeError": "",
     "reportHashNote": "The open-source main repository mirrors the current public source tree and records the private source commit in the public commit body for traceability. The observed remote hash can trail until that mirror commit is pushed. Gitee can intentionally use a shallow snapshot commit; inSync is true when the file tree matches even if commit hashes differ. Use pnpm audit:ecosystem-status for live remote heads."
@@ -735,7 +735,6 @@
     }
   ],
   "gaps": [
-    "local source worktree has uncommitted changes",
     "GitHub Release v2.1.22 missing",
     "@file-viewer/core npm 2.1.21 !== 2.1.22",
     "@file-viewer/renderer-pdf npm 2.1.21 !== 2.1.22",
@@ -790,11 +789,10 @@
     "@file-viewer/svelte-full npm 2.1.21 !== 2.1.22"
   ],
   "gapSummary": {
-    "total": 53,
+    "total": 52,
     "externalBlockers": 52,
-    "localActionable": 1,
+    "localActionable": 0,
     "byChannel": {
-      "source-worktree": 1,
       "github-release": 1,
       "npm": 51
     },
@@ -802,19 +800,9 @@
       "github-release",
       "npm"
     ],
-    "localActionableChannels": [
-      "source-worktree"
-    ]
+    "localActionableChannels": []
   },
   "gapDetails": [
-    {
-      "id": "source-worktree-local-source-worktree-has-uncommitted-changes",
-      "channel": "source-worktree",
-      "scope": "local",
-      "externalBlocker": false,
-      "message": "local source worktree has uncommitted changes",
-      "nextAction": "Commit or clean the local source worktree, then rerun the release audit."
-    },
     {
       "id": "github-release-github-release-v2.1.22-missing",
       "channel": "github-release",
@@ -1234,7 +1222,6 @@
   ],
   "nextActions": [
     "Run `npm login` / passkey in an interactive terminal, then `pnpm release:ecosystem:publish`.",
-    "Create or update the GitHub Release assets, then rerun `pnpm release:public`.",
-    "Commit and push the local source/public repository changes, then regenerate the release status report."
+    "Create or update the GitHub Release assets, then rerun `pnpm release:public`."
   ]
 }
