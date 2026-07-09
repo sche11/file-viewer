@@ -174,8 +174,11 @@ export const FileViewer = Vue.extend({
     downloadOriginalFile() {
       return getVmHandle(toVm(this)).downloadOriginalFile()
     },
-    printRenderedHtml() {
-      return getVmHandle(toVm(this)).printRenderedHtml()
+    printRenderedHtml(...args: Parameters<ViewerControllerHandle['printRenderedHtml']>) {
+      return getVmHandle(toVm(this)).printRenderedHtml(...args)
+    },
+    printWithMask(...args: Parameters<ViewerControllerHandle['printWithMask']>) {
+      return getVmHandle(toVm(this)).printWithMask(...args)
     },
     exportRenderedHtml() {
       return getVmHandle(toVm(this)).exportRenderedHtml()

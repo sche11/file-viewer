@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T01:09:55.445Z",
+  "generatedAt": "2026-07-09T02:20:26.302Z",
   "version": "2.1.23",
   "sourcePolicy": "private-complete-original-workspace",
   "openSourcePolicy": "public-open-source-main-repository",
@@ -8,31 +8,31 @@
     "repository": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "policy": "private-complete-original-workspace",
-    "authoritativeCommit": "fcf6ca91596f601539036c42edb423c1090c52e4",
+    "authoritativeCommit": "",
     "localBranch": "main",
-    "localCommit": "5279b5798e03f274e530f5c7a5dfc4e4b296ffbb",
+    "localCommit": "9fcb5762cbfb5244cf1ebb17a0413f07229dab74",
     "inSync": false,
     "note": "Private Gitea main is the complete original aggregate workspace. The local checkout branch is only the execution context and can be transitional during branch cutover."
   },
   "local": {
     "branch": "main",
-    "commit": "5279b5798e03f274e530f5c7a5dfc4e4b296ffbb",
-    "shortCommit": "5279b579",
-    "dirty": false
+    "commit": "9fcb5762cbfb5244cf1ebb17a0413f07229dab74",
+    "shortCommit": "9fcb5762",
+    "dirty": true
   },
   "sourceRemote": {
     "url": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
-    "ok": true,
-    "hash": "fcf6ca91596f601539036c42edb423c1090c52e4",
-    "error": ""
+    "ok": false,
+    "hash": "",
+    "error": "Timed out after 5000ms"
   },
   "openSourceMain": {
     "github": {
       "url": "https://github.com/flyfish-dev/file-viewer",
       "branch": "main",
       "ok": true,
-      "hash": "8023803e29998b1d87ee5205d85519f302cca058",
+      "hash": "967c28bc2df14cd0a6de659eff9ff37ae562deff",
       "error": ""
     },
     "gitee": {
@@ -45,9 +45,9 @@
     "inSync": false,
     "syncMode": "unchecked",
     "treeChecked": false,
-    "referenceTree": "7d86af88d5690bf8e07efe956b783819402aeb3c",
+    "referenceTree": "cf5712f462ff29c87d72d68eeb4a68daffc920ee",
     "giteeTree": "",
-    "treeError": "local public repository 62f45b5bd305 does not match GitHub 8023803e2999",
+    "treeError": "local public repository 6b1e92226db9 does not match GitHub 967c28bc2df1",
     "reportHashNote": "The open-source main repository mirrors the current public source tree and records the private source commit in the public commit body for traceability. The observed remote hash can trail until that mirror commit is pushed. Gitee can intentionally use a shallow snapshot commit; inSync is true when the file tree matches even if commit hashes differ. Use pnpm audit:ecosystem-status for live remote heads."
   },
   "githubRelease": {
@@ -652,9 +652,9 @@
     {
       "packageName": "@file-viewer/vue2.7",
       "expectedVersion": "2.1.23",
-      "publishedVersion": "2.1.23",
-      "ok": true,
-      "error": ""
+      "publishedVersion": null,
+      "ok": false,
+      "error": "Timed out after 8000ms"
     },
     {
       "packageName": "@file-viewer/vue2.7-full",
@@ -735,31 +735,55 @@
     }
   ],
   "gaps": [
-    "local HEAD 5279b579 does not match origin/main fcf6ca91596f"
+    "source remote https://git.flyfish.dev/flyfish-group/file-viewer.git missing main",
+    "local source worktree has uncommitted changes",
+    "@file-viewer/vue2.7 npm unpublished !== 2.1.23"
   ],
   "gapSummary": {
-    "total": 1,
-    "externalBlockers": 0,
+    "total": 3,
+    "externalBlockers": 2,
     "localActionable": 1,
     "byChannel": {
-      "source-worktree": 1
+      "source-remote": 1,
+      "source-worktree": 1,
+      "npm": 1
     },
-    "externalBlockerChannels": [],
+    "externalBlockerChannels": [
+      "npm",
+      "source-remote"
+    ],
     "localActionableChannels": [
       "source-worktree"
     ]
   },
   "gapDetails": [
     {
-      "id": "source-worktree-local-head-5279b579-does-not-match-origin-main-fcf6ca91596f",
+      "id": "source-remote-source-remote-https-git.flyfish.dev-flyfish-group-file-viewer.git-missing-main",
+      "channel": "source-remote",
+      "scope": "private-gitea",
+      "externalBlocker": true,
+      "message": "source remote https://git.flyfish.dev/flyfish-group/file-viewer.git missing main",
+      "nextAction": "Restore the private Gitea source branch or push the expected release source."
+    },
+    {
+      "id": "source-worktree-local-source-worktree-has-uncommitted-changes",
       "channel": "source-worktree",
       "scope": "local",
       "externalBlocker": false,
-      "message": "local HEAD 5279b579 does not match origin/main fcf6ca91596f",
+      "message": "local source worktree has uncommitted changes",
       "nextAction": "Commit or clean the local source worktree, then rerun the release audit."
+    },
+    {
+      "id": "npm-@file-viewer-vue2.7-npm-unpublished-2.1.23",
+      "channel": "npm",
+      "scope": "package-registry",
+      "externalBlocker": true,
+      "message": "@file-viewer/vue2.7 npm unpublished !== 2.1.23",
+      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
     }
   ],
   "nextActions": [
+    "Run `npm login` / passkey in an interactive terminal, then `pnpm release:ecosystem:publish`.",
     "Commit and push the local source/public repository changes, then regenerate the release status report."
   ]
 }

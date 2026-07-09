@@ -182,6 +182,7 @@ export {
   buildExportHtmlDocument,
   collectDocumentStyles,
   prepareFileViewerRenderedContentForSnapshot,
+  inlineFileViewerBlobUrlsInHtml,
   replaceFileViewerCanvasWithImages,
   resolveFileViewerPrintStyle,
   triggerFileViewerBlobDownload,
@@ -804,6 +805,19 @@ export type {
   FileViewerWatermarkPresentationState,
   FileViewerWatermarkStyle,
 } from './features/watermark';
+export {
+  buildFileViewerPrintMaskOverlayHtml,
+  normalizeFileViewerPrintMaskOptions,
+  normalizeFileViewerPrintMaskRegion,
+  FILE_VIEWER_PRINT_MASK_STYLE,
+} from './features/printMask';
+export {
+  openFileViewerPrintMaskDesignerAsync,
+} from './features/printMaskLoader';
+export type {
+  FileViewerPrintMaskDesignerResult,
+  OpenFileViewerPrintMaskDesignerOptions,
+} from './features/printMaskDesigner';
 export {
   cancelFileViewerPreviewRequest,
   DEFAULT_FILE_VIEWER_STREAMING_PDF_FILENAME,

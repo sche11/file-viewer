@@ -79,8 +79,12 @@
     return handle.downloadOriginalFile()
   }
 
-  export function printRenderedHtml() {
-    return handle.printRenderedHtml()
+  export function printRenderedHtml(...args) {
+    return handle.printRenderedHtml(...args)
+  }
+
+  export function printWithMask(...args) {
+    return handle.printWithMask(...args)
   }
 
   export function exportRenderedHtml() {

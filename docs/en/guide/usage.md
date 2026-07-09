@@ -64,8 +64,8 @@ export const viewerOptions = {
 | `preset` | Bundler-neutral preset assembly. Pass the default export from `@file-viewer/preset-lite`, `@file-viewer/preset-office`, `@file-viewer/preset-engineering`, or `@file-viewer/preset-all`; compose with `preset: [officePreset, engineeringPreset]`. `presets` is kept only as a compatibility alias for early 2.x drafts. |
 | `renderers` / `rendererMode` | Exact renderer or custom renderer assembly. `rendererMode:'replace'` starts from an empty registry, so `preset` / `renderers` define the active capability set; `extend` appends to the current built-in baseline. |
 | `builtinRenderers` | Advanced built-in baseline switch: `all`, `lite`, or `none`. Most quick starts do not need it. |
-| `toolbar` | Built-in operation bar visibility, position, grouped actions, key-based items, permission gates, and button-specific guards. |
-| `watermark` | Text or image watermark source, opacity, spacing, size, rotation, color, and toggle behavior. |
+| `toolbar` | Built-in operation bar visibility, position, grouped actions, key-based items, permission gates, and button-specific guards. The print control stays a single compact button with a dropdown for **Print now** and **Mask & print**. |
+| `watermark` | Text or image watermark source, opacity, spacing, size, rotation, color, and toggle behavior. Enabled watermarks are included in print output. |
 | `search` | Document search, highlighted matches, next / previous navigation, whole-word and case-sensitive behavior. |
 | `ai` | Text chunk collection for vectorization, source tracing, source-aware highlighting, and audit workflows. It does not call a cloud model by itself. |
 | `archive` | Safe extraction limits, IndexedDB cache behavior, worker timeout, nested preview, and self-hosted libarchive paths. |
@@ -174,6 +174,13 @@ const options = {
 ```
 
 Built-in operation keys are `download`, `print`, `export-html`, `zoom-in`, `zoom-out`, and `zoom-reset`. `toolbar.items` only controls the built-in toolbar UI, so teams can replace selected buttons with their own native controls. `toolbar.permissions` is a hard gate: a `false` value blocks both the built-in toolbar and direct controller / ref API calls before custom `beforeOperation` hooks run. Returning `false` from any guard cancels the operation.
+
+Print delivery notes:
+
+- `printRenderedHtml()` prints the full rendered document and keeps the current watermark when `options.watermark` is enabled.
+- `printWithMask()` opens the black-cover mask designer, then prints with the chosen regions under the watermark. The designer is loaded asynchronously inside core, so installing a component package is enough—no extra subpath alias is required.
+- Custom toolbars can call either API directly; `printRenderedHtml({ mask })` also accepts precomputed cover regions.
+- Export / print HTML inlines ephemeral `blob:` image URLs as portable `data:` URLs, so DOCX figures remain visible after download or in the print window.
 
 Component teardown follows the host framework lifecycle. Vue 3 / Vue 2 component unmount, React unmount, Web Component `disconnectedCallback`, Svelte action `destroy`, and jQuery plugin `destroy` all enter the same controller teardown path: active loading is cancelled, the renderer session is destroyed, rendered DOM is cleared, zoom/search/view-state observers are stopped, and `unload-start` / `unload-complete` fire with `reason: "component-unmount"`. In Element Plus `el-dialog destroy-on-close`, route switches, tab closing, or `v-if` removal, host code does not need to clear the viewer container manually.
 

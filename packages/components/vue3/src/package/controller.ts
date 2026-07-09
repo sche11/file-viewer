@@ -27,6 +27,7 @@ import {
   type FileViewerOperationContext,
   type FileViewerOptions,
   type FileViewerPdfOptions,
+  type FileViewerPrintOptions,
   type FileViewerSpreadsheetOptions,
   type FileViewerPublicApi,
   type FileViewerSource,
@@ -134,7 +135,8 @@ export interface ViewerController {
   destroy(): void;
   getApi(): FileViewerPublicApi | FileViewerInstance | null;
   downloadOriginalFile(): Promise<void>;
-  printRenderedHtml(): Promise<void>;
+  printRenderedHtml(options?: FileViewerPrintOptions): Promise<void>;
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
   exportRenderedHtml(): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState | null>;
   zoomOut(): Promise<FileViewerZoomState | null>;
@@ -170,7 +172,8 @@ export interface ViewerControllerHandle {
   getController(): ViewerController | null;
   getApi(): FileViewerPublicApi | FileViewerInstance | null;
   downloadOriginalFile(): Promise<void>;
-  printRenderedHtml(): Promise<void>;
+  printRenderedHtml(options?: FileViewerPrintOptions): Promise<void>;
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
   exportRenderedHtml(): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState | null>;
   zoomOut(): Promise<FileViewerZoomState | null>;
@@ -320,8 +323,11 @@ export const createViewerControllerHandle = (
   downloadOriginalFile() {
     return getController()?.downloadOriginalFile() ?? Promise.resolve();
   },
-  printRenderedHtml() {
-    return getController()?.printRenderedHtml() ?? Promise.resolve();
+  printRenderedHtml(options?: FileViewerPrintOptions) {
+    return getController()?.printRenderedHtml(options) ?? Promise.resolve();
+  },
+  printWithMask(options?: FileViewerPrintOptions) {
+    return getController()?.printWithMask(options) ?? Promise.resolve();
   },
   exportRenderedHtml() {
     return getController()?.exportRenderedHtml() ?? Promise.resolve();
@@ -576,8 +582,11 @@ export const mountViewer = (
     downloadOriginalFile() {
       return callApi(instance, api => api.download(), undefined);
     },
-    printRenderedHtml() {
-      return callApi(instance, api => api.print(), undefined);
+    printRenderedHtml(options?: FileViewerPrintOptions) {
+      return callApi(instance, api => api.print(options), undefined);
+    },
+    printWithMask(options?: FileViewerPrintOptions) {
+      return callApi(instance, api => api.printWithMask(options), undefined);
     },
     exportRenderedHtml() {
       return callApi(

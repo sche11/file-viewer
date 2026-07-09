@@ -55,6 +55,7 @@ export interface FileViewerSvelteActionReturn {
   reload: ViewerControllerHandle['reload']
   downloadOriginalFile: ViewerControllerHandle['downloadOriginalFile']
   printRenderedHtml: ViewerControllerHandle['printRenderedHtml']
+  printWithMask: ViewerControllerHandle['printWithMask']
   exportRenderedHtml: ViewerControllerHandle['exportRenderedHtml']
   zoomIn: ViewerControllerHandle['zoomIn']
   zoomOut: ViewerControllerHandle['zoomOut']
@@ -147,6 +148,7 @@ export const fileViewer = (
     reload: handle.reload,
     downloadOriginalFile: handle.downloadOriginalFile,
     printRenderedHtml: handle.printRenderedHtml,
+    printWithMask: handle.printWithMask,
     exportRenderedHtml: handle.exportRenderedHtml,
     zoomIn: handle.zoomIn,
     zoomOut: handle.zoomOut,

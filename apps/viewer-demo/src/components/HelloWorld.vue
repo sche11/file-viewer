@@ -109,6 +109,7 @@ const controlPanelRef = ref<HTMLElement | null>(null)
 const sampleMenuPlacement = ref<'bottom' | 'top'>('bottom')
 const sampleMenuMaxHeight = ref('min(52vh, 520px)')
 const watermarkEnabled = ref(false)
+const printMenuOpen = ref(false)
 const fitMode = ref<FileViewerFitMode | 'default'>('default')
 const runtimeOptions = shallowRef<FileViewerOptions>({})
 const mobileControlsOpen = ref(false)
@@ -203,6 +204,9 @@ const demoCopyMap: Record<DemoLocale, Record<string, string>> = {
     downloadTitle: '下载原始文件',
     print: '打印',
     printTitle: '打印完整渲染内容',
+    printDirect: '直接打印',
+    printMask: '掩膜打印',
+    printMaskTitle: '遮盖敏感区域后再打印',
     exportHtml: 'HTML',
     exportHtmlTitle: '导出当前渲染后的 HTML',
     watermark: '水印',
@@ -263,6 +267,9 @@ const demoCopyMap: Record<DemoLocale, Record<string, string>> = {
     downloadTitle: 'Download original file',
     print: 'Print',
     printTitle: 'Print complete rendered content',
+    printDirect: 'Print now',
+    printMask: 'Mask & print',
+    printMaskTitle: 'Cover sensitive areas before printing',
     exportHtml: 'HTML',
     exportHtmlTitle: 'Export rendered HTML',
     watermark: 'Watermark',
@@ -1225,6 +1232,29 @@ async function copyIntegrationSnippet() {
   }, 1600)
 }
 
+function closePrintMenu() {
+  printMenuOpen.value = false
+}
+
+function togglePrintMenu() {
+  if (viewerActionDisabled.value) {
+    return
+  }
+  printMenuOpen.value = !printMenuOpen.value
+}
+
+async function printDirect() {
+  closePrintMenu()
+  mobileActionsOpen.value = false
+  await fileViewerRef.value?.printRenderedHtml()
+}
+
+async function printWithMask() {
+  closePrintMenu()
+  mobileActionsOpen.value = false
+  await fileViewerRef.value?.printWithMask()
+}
+
 function triggerViewerAction(action: ViewerAction) {
   mobileActionsOpen.value = false
   if (action === 'download') {
@@ -1232,7 +1262,7 @@ function triggerViewerAction(action: ViewerAction) {
     return
   }
   if (action === 'print') {
-    void fileViewerRef.value?.printRenderedHtml()
+    void printDirect()
     return
   }
   if (action === 'exportHtml') {
@@ -1294,6 +1324,7 @@ async function openMobileControls(mode: 'link' | 'upload' | 'samples' = 'link') 
   input.value = mode !== 'upload'
   mobileControlsOpen.value = true
   mobileActionsOpen.value = false
+  closePrintMenu()
   if (mode === 'samples') {
     samplePickerOpen.value = true
     expandedSampleGroupIndex.value = activeSampleGroupIndex.value >= 0 ? activeSampleGroupIndex.value : 0
@@ -1313,12 +1344,15 @@ function toggleMobileActions() {
   mobileActionsOpen.value = !mobileActionsOpen.value
   if (mobileActionsOpen.value) {
     mobileControlsOpen.value = false
+  } else {
+    closePrintMenu()
   }
 }
 
 function toggleWatermark() {
   watermarkEnabled.value = !watermarkEnabled.value
   mobileActionsOpen.value = false
+  closePrintMenu()
 }
 
 async function nextViewerSearch() {
@@ -1889,16 +1923,51 @@ function updateSampleMenuGeometry() {
                 >
                   {{ demoCopy.download }}
                 </button>
-                <button
+                <div
                   v-if='visibleExternalToolbar.print'
-                  type='button'
-                  class='viewer-tool-button'
-                  :disabled='viewerActionDisabled'
-                  :title='demoCopy.printTitle'
-                  @click='triggerViewerAction("print")'
+                  class='viewer-print-menu'
+                  :data-open='printMenuOpen ? "true" : "false"'
+                  @focusout='event => {
+                    const next = event.relatedTarget as Node | null
+                    if (!next || !(event.currentTarget as HTMLElement).contains(next)) {
+                      closePrintMenu()
+                    }
+                  }'
                 >
-                  {{ demoCopy.print }}
-                </button>
+                  <button
+                    type='button'
+                    class='viewer-tool-button'
+                    :disabled='viewerActionDisabled'
+                    :title='demoCopy.printTitle'
+                    :aria-haspopup='true'
+                    :aria-expanded='printMenuOpen'
+                    @click='togglePrintMenu'
+                  >
+                    {{ demoCopy.print }}
+                  </button>
+                  <div class='viewer-print-menu-panel' role='menu'>
+                    <button
+                      type='button'
+                      role='menuitem'
+                      class='viewer-tool-button'
+                      :disabled='viewerActionDisabled'
+                      :title='demoCopy.printTitle'
+                      @click='printDirect'
+                    >
+                      {{ demoCopy.printDirect }}
+                    </button>
+                    <button
+                      type='button'
+                      role='menuitem'
+                      class='viewer-tool-button'
+                      :disabled='viewerActionDisabled'
+                      :title='demoCopy.printMaskTitle'
+                      @click='printWithMask'
+                    >
+                      {{ demoCopy.printMask }}
+                    </button>
+                  </div>
+                </div>
                 <button
                   v-if='visibleExternalToolbar.exportHtml'
                   type='button'
@@ -2015,14 +2084,29 @@ function updateSampleMenuGeometry() {
             >
               {{ demoCopy.download }}
             </button>
-            <button
+            <div
               v-if='visibleExternalToolbar.print'
-              type='button'
-              :disabled='viewerActionDisabled'
-              @click='triggerViewerAction("print")'
+              class='viewer-print-menu'
+              :data-open='printMenuOpen ? "true" : "false"'
             >
-              {{ demoCopy.print }}
-            </button>
+              <button
+                type='button'
+                :disabled='viewerActionDisabled'
+                :aria-haspopup='true'
+                :aria-expanded='printMenuOpen'
+                @click='togglePrintMenu'
+              >
+                {{ demoCopy.print }}
+              </button>
+              <div class='viewer-print-menu-panel' role='menu'>
+                <button type='button' role='menuitem' :disabled='viewerActionDisabled' @click='printDirect'>
+                  {{ demoCopy.printDirect }}
+                </button>
+                <button type='button' role='menuitem' :disabled='viewerActionDisabled' @click='printWithMask'>
+                  {{ demoCopy.printMask }}
+                </button>
+              </div>
+            </div>
             <button
               v-if='visibleExternalToolbar.exportHtml'
               type='button'
@@ -3503,6 +3587,40 @@ function updateSampleMenuGeometry() {
   background: rgba(255, 255, 255, 0.66);
 }
 
+.viewer-print-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.viewer-print-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 118px;
+  padding: 4px;
+  border: 1px solid rgba(20, 35, 53, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viewer-print-menu[data-open='true'] .viewer-print-menu-panel {
+  display: flex;
+}
+
+.viewer-print-menu-panel .viewer-tool-button,
+.viewer-print-menu-panel button {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 8px;
+}
+
 .viewer-tool-button {
   height: var(--demo-viewer-tool-height);
   flex-shrink: 0;
@@ -4496,6 +4614,38 @@ function updateSampleMenuGeometry() {
     gap: 6px;
     padding: 8px;
     border-radius: 20px;
+    overflow: visible;
+  }
+
+  .mobile-action-panel .viewer-print-menu {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mobile-action-panel .viewer-print-menu > button {
+    width: 100%;
+  }
+
+  .mobile-action-panel .viewer-print-menu-panel {
+    top: auto;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    z-index: 70;
+    min-width: min(148px, calc(100vw - 32px));
+    max-width: calc(100vw - 24px);
+    padding: 6px;
+    border-radius: 14px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
+  }
+
+  .mobile-action-panel .viewer-print-menu-panel button {
+    height: 38px;
+    justify-content: center;
+    text-align: center;
   }
 
   .mobile-action-panel button {

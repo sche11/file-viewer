@@ -29,7 +29,8 @@ export default class FileViewer extends SvelteComponentTyped<
   update(options?: ViewerMountOptions): Promise<void>
   reload(): Promise<void>
   downloadOriginalFile(): ReturnType<ViewerControllerHandle['downloadOriginalFile']>
-  printRenderedHtml(): ReturnType<ViewerControllerHandle['printRenderedHtml']>
+  printRenderedHtml(...args: Parameters<ViewerControllerHandle['printRenderedHtml']>): ReturnType<ViewerControllerHandle['printRenderedHtml']>
+  printWithMask(...args: Parameters<ViewerControllerHandle['printWithMask']>): ReturnType<ViewerControllerHandle['printWithMask']>
   exportRenderedHtml(): ReturnType<ViewerControllerHandle['exportRenderedHtml']>
   zoomIn(): ReturnType<ViewerControllerHandle['zoomIn']>
   zoomOut(): ReturnType<ViewerControllerHandle['zoomOut']>

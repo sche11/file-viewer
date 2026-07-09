@@ -44,6 +44,7 @@ export type JQueryFileViewerMethod =
   | 'update'
   | 'downloadOriginalFile'
   | 'printRenderedHtml'
+  | 'printWithMask'
   | 'exportRenderedHtml'
   | 'zoomIn'
   | 'zoomOut'
@@ -162,7 +163,12 @@ const callControllerMethod = (
   }
 
   if (method === 'printRenderedHtml') {
-    controller.printRenderedHtml()
+    controller.printRenderedHtml(...(args as Parameters<ViewerController['printRenderedHtml']>))
+    return
+  }
+
+  if (method === 'printWithMask') {
+    controller.printWithMask(...(args as Parameters<ViewerController['printWithMask']>))
     return
   }
 

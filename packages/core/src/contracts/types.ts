@@ -20,6 +20,14 @@ export type FileViewerMessageKey =
   | 'toolbar.downloadTitle'
   | 'toolbar.print'
   | 'toolbar.printTitle'
+  | 'toolbar.printDirect'
+  | 'toolbar.printMask'
+  | 'toolbar.printMaskTitle'
+  | 'toolbar.printMaskAdd'
+  | 'toolbar.printMaskClear'
+  | 'toolbar.printMaskCancel'
+  | 'toolbar.printMaskConfirm'
+  | 'toolbar.printMaskHint'
   | 'toolbar.exportHtml'
   | 'toolbar.exportHtmlTitle'
   | 'toolbar.search'
@@ -1289,7 +1297,8 @@ export interface FileViewerComponentEmits {
 export interface FileViewerPublicApi {
   destroy(): void;
   downloadOriginalFile(): Promise<void>;
-  printRenderedHtml(): Promise<void>;
+  printRenderedHtml(options?: FileViewerPrintOptions): Promise<void>;
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
   exportRenderedHtml(): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState>;
   zoomOut(): Promise<FileViewerZoomState>;
@@ -1325,12 +1334,29 @@ export interface FileViewerExportHtmlOptions {
   watermarkInlineStyle?: string;
 }
 
+/** Normalized print-mask rectangle in percent of the rendered content box. */
+export interface FileViewerPrintMaskRegion {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface FileViewerPrintMaskOptions {
+  /** Solid black cover blocks, matching common OFD/business redaction UX. */
+  regions?: FileViewerPrintMaskRegion[];
+  /** Fill color for print masks. Defaults to opaque black. */
+  color?: string;
+}
+
 export interface FileViewerPrintOptions {
   autoPrint?: boolean;
   openWindow?: () => Window | null;
   printWindow?: Window | null;
   title?: string;
   watermarkInlineStyle?: string;
+  /** Optional print-time cover masks applied above content and below watermark. */
+  mask?: FileViewerPrintMaskOptions | null;
 }
 
 export interface FileViewerSource {
@@ -1481,6 +1507,8 @@ export interface FileViewerInstance {
   download(options?: FileViewerDownloadOptions): Promise<void>;
   exportHtml(options?: FileViewerExportHtmlOptions): Promise<string>;
   print(options?: FileViewerPrintOptions): Promise<void>;
+  /** Open the async print-mask designer, then print with the chosen covers. */
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState>;
   zoomOut(): Promise<FileViewerZoomState>;
   resetZoom(): Promise<FileViewerZoomState>;

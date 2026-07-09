@@ -212,7 +212,7 @@ const options = {
 | `preset` | 通用 preset 装配入口，支持传入 `@file-viewer/preset-lite`、`@file-viewer/preset-office`、`@file-viewer/preset-engineering`、`@file-viewer/preset-all` 的默认导出，也支持 `preset: [officePreset, engineeringPreset]` 数组组合。这个方式不依赖 Vite，适合 Webpack、Rspack、Rollup、Umi、传统多页应用、微前端和内部组件库；`presets` 仅作为早期 2.x 草案的兼容 alias 保留 |
 | `renderers` / `rendererMode` | 按需单 renderer package 或自定义 renderer 装配入口。`rendererMode: 'replace'` 从空 registry 开始，适合与 `preset` / `renderers` 组成清晰的显式能力集；`extend` 会在当前内置集合上追加 |
 | `builtinRenderers` | 高级内置基线开关，支持 `all`、`lite`、`none`。普通快速接入无需设置；只有需要保留历史全量基线、只启用 core 原生低成本链路，或做极细 registry 控制时再使用 |
-| `toolbar` | `true`、`false` 或对象；声明是否显示下载原文件、打印完整渲染结果、导出渲染后 HTML 和统一缩放按钮。传 `false` 会隐藏内置工具栏，但 ref / controller 上的下载、打印、导出、缩放 API 仍可用于自定义业务工具栏。`toolbar.order` 可按 `search`、`zoom`、`download`、`print`、`exportHtml` 调整内置工具栏分组顺序，默认 `['search', 'zoom', 'download', 'print', 'exportHtml']`，未列出的项会按默认顺序追加；`toolbar.items` 可按 `download`、`print`、`export-html`、`zoom-in`、`zoom-out`、`zoom-reset` 精确控制内置按钮显隐；`toolbar.permissions` 使用同一套 key 做强权限控制，设为 `false` 时内置按钮和外部 API 调用都会被拦截。`toolbar.zoom` 可单独关闭缩放按钮组；真实缩放能力由各渲染器 provider 决定，Excel 等虚拟表格会通过内部列宽、行高和字体重排适配缩放，不会被外层 CSS 强行缩放。`toolbar.position` 支持 `auto`、`top`、`top-center`、`bottom-right`，默认 `auto`，PDF 会自动悬浮到右下角以避开自身导航栏，其他格式保持顶部靠右；需要顶部水平居中时传 `top-center`。打印按钮还会结合当前文件类型、渲染完成状态和导出适配器动态显隐，Excel 等虚拟表格链路会隐藏打印按钮 |
+| `toolbar` | `true`、`false` 或对象；声明是否显示下载原文件、打印完整渲染结果、导出渲染后 HTML 和统一缩放按钮。传 `false` 会隐藏内置工具栏，但 ref / controller 上的下载、打印、导出、缩放 API 仍可用于自定义业务工具栏。`toolbar.order` 可按 `search`、`zoom`、`download`、`print`、`exportHtml` 调整内置工具栏分组顺序，默认 `['search', 'zoom', 'download', 'print', 'exportHtml']`，未列出的项会按默认顺序追加；`toolbar.items` 可按 `download`、`print`、`export-html`、`zoom-in`、`zoom-out`、`zoom-reset` 精确控制内置按钮显隐；`toolbar.permissions` 使用同一套 key 做强权限控制，设为 `false` 时内置按钮和外部 API 调用都会被拦截。`toolbar.zoom` 可单独关闭缩放按钮组；真实缩放能力由各渲染器 provider 决定，Excel 等虚拟表格会通过内部列宽、行高和字体重排适配缩放，不会被外层 CSS 强行缩放。`toolbar.position` 支持 `auto`、`top`、`top-center`、`bottom-right`，默认 `auto`，PDF 会自动悬浮到右下角以避开自身导航栏，其他格式保持顶部靠右；需要顶部水平居中时传 `top-center`。打印入口保持紧凑单按钮，点击后下拉可选「直接打印」或「掩膜打印」；打印按钮还会结合当前文件类型、渲染完成状态和导出适配器动态显隐，Excel 等虚拟表格链路会隐藏打印按钮 |
 | `fit` | 显式内容适配策略。未传时保持各 renderer 历史首屏行为；传字符串时支持 `'auto'`、`'contain'`、`'cover'`、`'width'`、`'height'`、`'actual'`、`'scale-down'`，传对象时可配置 `{ mode, resize, padding, minScale, maxScale }`。`resize` 默认 `'until-interaction'`：首屏和容器变化自动适配，用户手动缩放、平移或调用 `applyViewState()` 后停止覆盖；`'always'` 会持续跟随容器，`'initial'` 只做首屏。自定义工具栏可调用 `fitToView('width')` 主动重新适配 |
 | `watermark` | `true`、文字配置或图片配置；支持 `text`、`image`、`opacity`、`rotate`、`gapX/gapY`、`width/height`、字体和颜色 |
 | `search` | `true`、`false` 或对象；控制搜索能力。对象支持 `caseSensitive`、`wholeWord`、`maxMatches`、`debounce`、`className` 和 `activeClassName`。Word、Markdown、代码等文本类格式使用通用 DOM 高亮，PDF 等特殊格式可以走渲染器原生搜索提供器，避免污染文本层或 canvas |
@@ -514,11 +514,14 @@ Vanilla JS / Pure Web、React、jQuery 和 Svelte 接入时，搜索和定位仍
 ## 打印、导出和水印的交付行为
 
 - 下载原文件会保留用户传入的原始二进制内容，不会把渲染后的页面反向写回文件。
-- 打印会生成只包含预览内容和水印的独立打印窗口，不带 Demo 侧边栏、示例选择器或操作工具条。
+- 打印会生成只包含预览内容和水印的独立打印窗口，不带 Demo 侧边栏、示例选择器或操作工具条；开启 `options.watermark` 后，打印输出会附带同一套水印样式（`print-color-adjust: exact`）。
+- 内置工具栏的「打印」保持紧凑单按钮：点击后下拉可选「直接打印」或「掩膜打印」。掩膜打印会打开拖拽黑块设计器，确认后把遮盖块叠在内容之上、水印之下再打印；设计器由 core 内部异步加载，安装组件即可开箱使用，无需额外配置子路径 alias。
+- 自定义工具栏可调用 `printRenderedHtml()` 直接打印，或 `printWithMask()` 进入掩膜设计后再打印；也可向 `printRenderedHtml({ mask })` 传入已有遮盖区域。
 - PDF 打印和导出 HTML 使用 PDF 专属导出适配器逐页生成完整页面，和当前滚动位置、当前可见页、导航窗格显隐状态都解耦，避免只输出当前页或被滚动容器截断。
 - Word 打印和导出会清理预览阶段的缩放、绝对定位、滚动容器和 Demo 全局布局样式，把 `.docx` / `.doc` 还原成完整白色文档内容，避免只打印当前视口或第一页。
 - 图片、Markdown、代码、PPTX、OFD、CAD、绘图、XMind、UMD、OLB/DRA/GDS/OASIS 等可以稳定克隆当前渲染结果的格式会保留打印按钮；Excel 当前使用 `styled-exceljs` + `e-virt-table` 虚拟渲染，完整工作表不会一次性存在于 DOM 中，因此表格、压缩包、邮件、EPUB、音视频、3D / 模型等更适合交互查看或原文件下载的格式会隐藏打印按钮。
 - 导出 HTML 会尽量克隆当前渲染结果，并把 canvas 转成图片，保证图纸、绘图、文档和代码在离线 HTML 中仍有可读内容。
+- DOCX 等预览链路若使用会话级 `blob:` 图片地址，导出/打印时会自动内联为 `data:` URL，避免下载后的 HTML 或打印窗口出现图片空白。
 - 水印会同时参与预览、打印和 HTML 导出。文字水印适合内部资料、审批流和归档场景；图片水印适合品牌 Logo 或业务系统标识。
 
 ## 典型切换方式

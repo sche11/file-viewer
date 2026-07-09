@@ -46,10 +46,14 @@ const viewerLabels = computed(() => {
     downloadTitle: t('toolbar.downloadTitle'),
     print: t('toolbar.print'),
     printTitle: t('toolbar.printTitle'),
+    printDirect: t('toolbar.printDirect'),
+    printMask: t('toolbar.printMask'),
+    printMaskTitle: t('toolbar.printMaskTitle'),
     exportHtml: t('toolbar.exportHtml'),
     exportHtmlTitle: t('toolbar.exportHtmlTitle')
   }
 })
+const printMenuOpen = ref(false)
 const {
   refreshDocumentIndex,
   clearDocumentState,
@@ -291,7 +295,8 @@ const {
 const {
   downloadOriginalFile,
   exportRenderedHtml,
-  printRenderedHtml
+  printRenderedHtml,
+  printWithMask
 } = useViewerExport({
   activeExportAdapter,
   currentBuffer,
@@ -322,6 +327,27 @@ const resetZoomByUser = async () => {
   return resetZoom()
 }
 
+const closePrintMenu = () => {
+  printMenuOpen.value = false
+}
+
+const togglePrintMenu = () => {
+  if (toolbarDisabled.value) {
+    return
+  }
+  printMenuOpen.value = !printMenuOpen.value
+}
+
+const printDirect = async () => {
+  closePrintMenu()
+  await printRenderedHtml()
+}
+
+const printWithMaskAction = async () => {
+  closePrintMenu()
+  await printWithMask()
+}
+
 const destroyViewer = () => {
   cancelPreview('component-unmount')
   resetLoading()
@@ -336,6 +362,7 @@ const publicApi = useViewerPublicApi({
   },
   downloadOriginalFile,
   printRenderedHtml,
+  printWithMask,
   exportRenderedHtml,
   zoomIn: zoomInByUser,
   zoomOut: zoomOutByUser,
@@ -457,15 +484,49 @@ useViewerPreviewLifecycle({
           >
             {{ viewerLabels.download }}
           </button>
-          <button
+          <div
             v-else-if='toolbarItem === "print" && visibleToolbar.print'
-            type='button'
-            :disabled='toolbarDisabled'
-            :title='viewerLabels.printTitle'
-            @click='printRenderedHtml'
+            class='viewer-print-menu'
+            :data-open='printMenuOpen ? "true" : "false"'
+            @focusout='event => {
+              const next = event.relatedTarget as Node | null
+              if (!next || !(event.currentTarget as HTMLElement).contains(next)) {
+                closePrintMenu()
+              }
+            }'
           >
-            {{ viewerLabels.print }}
-          </button>
+            <button
+              type='button'
+              :disabled='toolbarDisabled'
+              :title='viewerLabels.printTitle'
+              :aria-label='viewerLabels.printTitle'
+              :aria-haspopup='true'
+              :aria-expanded='printMenuOpen'
+              @click='togglePrintMenu'
+            >
+              {{ viewerLabels.print }}
+            </button>
+            <div class='viewer-print-menu-panel' role='menu'>
+              <button
+                type='button'
+                role='menuitem'
+                :disabled='toolbarDisabled'
+                :title='viewerLabels.printTitle'
+                @click='printDirect'
+              >
+                {{ viewerLabels.printDirect }}
+              </button>
+              <button
+                type='button'
+                role='menuitem'
+                :disabled='toolbarDisabled'
+                :title='viewerLabels.printMaskTitle'
+                @click='printWithMaskAction'
+              >
+                {{ viewerLabels.printMask }}
+              </button>
+            </div>
+          </div>
           <button
             v-else-if='toolbarItem === "exportHtml" && visibleToolbar.exportHtml'
             type='button'
@@ -650,6 +711,45 @@ useViewerPreviewLifecycle({
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
+}
+
+.viewer-print-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.viewer-print-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 118px;
+  padding: 4px;
+  border: 1px solid rgba(20, 35, 53, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viewer-print-menu[data-open='true'] .viewer-print-menu-panel {
+  display: flex;
+}
+
+.viewer-print-menu-panel button {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 8px;
+}
+
+.viewer-actions--floating .viewer-print-menu-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+  z-index: 50;
 }
 
 .viewer-actions--floating button {
@@ -950,7 +1050,14 @@ useViewerPreviewLifecycle({
     max-width: calc(100% - 20px);
     gap: 4px;
     padding: 5px;
-    overflow-x: auto;
+    overflow: visible;
+  }
+
+  .viewer-actions--floating .viewer-print-menu-panel {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    min-width: min(148px, calc(100vw - 32px));
   }
 
   .viewer-actions--floating button {

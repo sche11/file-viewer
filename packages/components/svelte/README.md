@@ -343,7 +343,8 @@ const options = {
 | --- | --- |
 | `load` / `update` / `reload` / `destroy` | 命令式控制文档加载、参数更新、重新加载和销毁。 |
 | `downloadOriginalFile()` | 下载原始文件，遵循 toolbar 与 `beforeOperation` 权限校验。 |
-| `printRenderedHtml()` | 打印当前完整渲染内容，优先使用各格式的高保真打印适配器。 |
+| `printRenderedHtml(options?)` | 打印当前完整渲染内容，优先使用各格式的高保真打印适配器；开启水印时会一并输出，也可传入 `mask` 遮盖区域。 |
+| `printWithMask(options?)` | 打开掩膜设计器拖拽黑色遮盖块，确认后打印；设计器由 core 异步加载，组件开箱即用。 |
 | `exportRenderedHtml()` | 导出当前渲染后的 HTML，用于归档、审计和离线查看。 |
 | `zoomIn()` / `zoomOut()` / `resetZoom()` | 调用当前格式自己的缩放 provider，避免外层 CSS 缩放导致坐标偏移。 |
 | `searchDocument()` / `nextSearchResult()` / `previousSearchResult()` | 打开文档级搜索并在命中之间导航，保持高亮状态。 |

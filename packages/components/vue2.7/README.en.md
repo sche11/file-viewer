@@ -348,7 +348,8 @@ View-state sync is designed for projection systems, remote-control displays, sid
 | --- | --- |
 | `load` / `update` / `reload` / `destroy` | Imperatively load, update, reload, and destroy the viewer. |
 | `downloadOriginalFile()` | Downloads the original file while respecting toolbar and `beforeOperation` checks. |
-| `printRenderedHtml()` | Prints the complete rendered document using the best available per-format print adapter. |
+| `printRenderedHtml(options?)` | Prints the complete rendered document using the best available per-format print adapter. Enabled watermarks are included; pass `mask` for cover regions. |
+| `printWithMask(options?)` | Opens the black-cover mask designer, then prints. The designer is async-loaded inside core and works out of the box with component packages. |
 | `exportRenderedHtml()` | Exports rendered HTML for archiving, audit, or offline review. |
 | `zoomIn()` / `zoomOut()` / `resetZoom()` | Uses the active renderer zoom provider instead of outer CSS transforms that can break coordinates. |
 | `searchDocument()` / `nextSearchResult()` / `previousSearchResult()` | Runs document-level search and navigates highlighted matches. |
