@@ -601,6 +601,16 @@ export interface FileViewerPdfOptions {
   cMapUrl?: string;
   wasmUrl?: string;
   standardFontDataUrl?: string;
+  /**
+   * Enables the self-hosted CJK fallback used when a PDF references a font
+   * such as Microsoft YaHei without embedding the font data. Defaults to true.
+   */
+  cjkFontFallback?: boolean;
+  /**
+   * Directory containing `noto-sans-sc.css`, its `files/` font shards, and
+   * the bundled font license. The path is resolved against the document base.
+   */
+  cjkFontFallbackPath?: string;
 }
 
 export interface FileViewerDocxOptions {

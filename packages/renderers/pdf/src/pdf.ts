@@ -46,6 +46,11 @@ import {
   resolveFileViewerPdfAssetUrls,
 } from '@file-viewer/core/assets';
 import { pdfViewerStyle } from './pdfStyles.js';
+import {
+  createPdfCjkFontFallbackManager,
+  type PdfCjkFontFallbackManager,
+  type PdfTextContentPage,
+} from './pdfFontFallback.js';
 
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_URL =
   DEFAULT_FILE_VIEWER_PDF_WORKER_PATH;
@@ -88,10 +93,17 @@ type PdfResource = {
 };
 type ConsoleLike = {
   error: (...data: unknown[]) => void;
+  warn: (...data: unknown[]) => void;
 };
 type PdfJsConsoleErrorSuppression = {
   originalError: ConsoleLike['error'];
   patchedError: ConsoleLike['error'];
+  depth: number;
+  restoreTimer: number | undefined;
+};
+type PdfJsConsoleWarningSuppression = {
+  originalWarn: ConsoleLike['warn'];
+  patchedWarn: ConsoleLike['warn'];
   depth: number;
   restoreTimer: number | undefined;
 };
@@ -112,6 +124,7 @@ interface PdfFlattenedOutlineItem {
 }
 
 const pdfJsConsoleErrorSuppressions = new WeakMap<ConsoleLike, PdfJsConsoleErrorSuppression>();
+const pdfJsConsoleWarningSuppressions = new WeakMap<ConsoleLike, PdfJsConsoleWarningSuppression>();
 
 const createStyle = (documentRef: Document) => {
   const style = documentRef.createElement('style');
@@ -283,6 +296,68 @@ const suppressPdfJsDestroyedTransportPageInitErrors = (view: Window) => {
   };
 };
 
+const isPdfJsMissingSystemFontWarning = (args: unknown[]) => {
+  const [message] = args;
+  return typeof message === 'string' &&
+    /^(?:Warning:\s*)?Cannot load system font: .+installing it could help to improve PDF rendering\.$/.test(message);
+};
+
+const suppressPdfJsMissingSystemFontWarnings = (view: Window) => {
+  const consoleRef = (
+    (view as Window & { console?: ConsoleLike }).console ||
+    globalThis.console
+  ) as ConsoleLike | undefined;
+  if (!consoleRef || typeof consoleRef.warn !== 'function') {
+    return () => {};
+  }
+
+  let suppression = pdfJsConsoleWarningSuppressions.get(consoleRef);
+  if (!suppression) {
+    const originalWarn = consoleRef.warn;
+    suppression = {
+      originalWarn,
+      patchedWarn: (...args: unknown[]) => {
+        if (isPdfJsMissingSystemFontWarning(args)) {
+          return;
+        }
+        return originalWarn.apply(consoleRef, args);
+      },
+      depth: 0,
+      restoreTimer: undefined,
+    };
+    pdfJsConsoleWarningSuppressions.set(consoleRef, suppression);
+    consoleRef.warn = suppression.patchedWarn;
+  } else if (suppression.restoreTimer !== undefined) {
+    view.clearTimeout(suppression.restoreTimer);
+    suppression.restoreTimer = undefined;
+  }
+
+  suppression.depth += 1;
+  let released = false;
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    const current = pdfJsConsoleWarningSuppressions.get(consoleRef);
+    if (!current) {
+      return;
+    }
+    current.depth = Math.max(0, current.depth - 1);
+    if (current.depth || current.restoreTimer !== undefined) {
+      return;
+    }
+    current.restoreTimer = view.setTimeout(() => {
+      current.restoreTimer = undefined;
+      if (current.depth || consoleRef.warn !== current.patchedWarn) {
+        return;
+      }
+      consoleRef.warn = current.originalWarn;
+      pdfJsConsoleWarningSuppressions.delete(consoleRef);
+    }, PDF_JS_DESTROY_CONSOLE_SUPPRESSION_MS);
+  };
+};
+
 const isConfiguredUrl = (value: string | URL | undefined) => {
   return value !== undefined && value !== null && String(value).trim().length > 0;
 };
@@ -352,6 +427,7 @@ export default async function renderPdf(
     throw new Error(t('pdf.error.browserWindow'));
   }
   const options = context?.options?.pdf;
+  const cjkFontFallbackEnabled = options?.cjkFontFallback !== false;
   const initialViewState = options?.initialViewState || context?.options?.initialViewState || null;
   const navigationEnabled = options?.navigation !== false;
   const toolbarVisible = options?.toolbar !== false;
@@ -398,6 +474,10 @@ export default async function renderPdf(
   }> = [];
   const pdfThumbnails = new Map<number, string>();
   const pendingPdfThumbnails = new Set<number>();
+  const pdfCjkFontFallbackPageLoads = new Map<number, Promise<boolean>>();
+  const pdfCjkFontFallbackRenderHandledPages = new Set<number>();
+  let pdfCjkFontFallbackManager: PdfCjkFontFallbackManager | null = null;
+  let restorePdfJsMissingSystemFontWarnings = () => {};
 
   const pdfContext = {
     viewer: null as PDFViewer | null,
@@ -407,6 +487,21 @@ export default async function renderPdf(
     resource: null as PdfResource | null,
     document: null as PdfDocumentProxy | null,
     search: '',
+  };
+
+  const ensurePdfPageCjkFontFallback = (
+    pageNumber: number,
+    page: PdfTextContentPage
+  ) => {
+    if (!pdfCjkFontFallbackManager) {
+      return Promise.resolve(false);
+    }
+    let pending = pdfCjkFontFallbackPageLoads.get(pageNumber);
+    if (!pending) {
+      pending = pdfCjkFontFallbackManager.ensurePage(page);
+      pdfCjkFontFallbackPageLoads.set(pageNumber, pending);
+    }
+    return pending;
   };
 
   const root = createElement(documentRef, 'div', 'pdf-shell');
@@ -587,6 +682,10 @@ export default async function renderPdf(
       if (destroyed || pdfContext.document !== pdfDocument) {
         return;
       }
+      await ensurePdfPageCjkFontFallback(
+        pageNumber,
+        page as unknown as PdfTextContentPage
+      );
 
       const baseViewport = page.getViewport({
         scale: PixelsPerInch.PDF_TO_CSS_UNITS,
@@ -607,7 +706,7 @@ export default async function renderPdf(
 
       canvas.width = Math.max(1, Math.ceil(renderViewport.width));
       canvas.height = Math.max(1, Math.ceil(renderViewport.height));
-      await page.render({ canvasContext, viewport: renderViewport }).promise;
+      await page.render({ canvas, canvasContext, viewport: renderViewport }).promise;
       if (destroyed || pdfContext.document !== pdfDocument) {
         return;
       }
@@ -1470,6 +1569,10 @@ export default async function renderPdf(
       }
 
       const page = await pdfDocument.getPage(pageNumber);
+      await ensurePdfPageCjkFontFallback(
+        pageNumber,
+        page as unknown as PdfTextContentPage
+      );
       const baseViewport = page.getViewport({
         scale: PixelsPerInch.PDF_TO_CSS_UNITS,
         rotation: currentRotation,
@@ -1489,7 +1592,7 @@ export default async function renderPdf(
 
       canvas.width = Math.ceil(renderViewport.width);
       canvas.height = Math.ceil(renderViewport.height);
-      await page.render({ canvasContext, viewport: renderViewport }).promise;
+      await page.render({ canvas, canvasContext, viewport: renderViewport }).promise;
 
       const pageTitle = t('pdf.export.pageTitle', { title: exportOptions.title, page: pageNumber });
       const pageStyle = [
@@ -1510,6 +1613,11 @@ export default async function renderPdf(
 
   const loadFile = async () => {
     const requestVersion = ++loadVersion;
+    restorePdfJsMissingSystemFontWarnings();
+    restorePdfJsMissingSystemFontWarnings = () => {};
+    pdfCjkFontFallbackManager = null;
+    pdfCjkFontFallbackPageLoads.clear();
+    pdfCjkFontFallbackRenderHandledPages.clear();
     loadStatus = 'loading';
     errorMessage = '';
     pdfContext.document = null;
@@ -1540,6 +1648,7 @@ export default async function renderPdf(
         linkService: pdfLinkService,
         findController: pdfFindController,
         l10n: new GenericL10n(resolvedLocale),
+        enableAutoLinking: false,
       });
       pdfContext.viewer = pdfViewer;
       pdfContext.linkService = pdfLinkService;
@@ -1594,7 +1703,38 @@ export default async function renderPdf(
           emitViewStateChange('zoom-change', 'viewer');
         }
       });
-      eventBus.on('pagerendered', scheduleLegacyPageDimensionPatch);
+      eventBus.on('pagerendered', ({ pageNumber }: { pageNumber: number }) => {
+        scheduleLegacyPageDimensionPatch();
+        if (
+          !pdfCjkFontFallbackManager ||
+          pdfCjkFontFallbackRenderHandledPages.has(pageNumber)
+        ) {
+          return;
+        }
+        pdfCjkFontFallbackRenderHandledPages.add(pageNumber);
+        const pdfDocument = pdfContext.document;
+        const alreadyPrepared = pdfCjkFontFallbackPageLoads.has(pageNumber);
+        if (!pdfDocument || alreadyPrepared) {
+          return;
+        }
+        void pdfDocument.getPage(pageNumber)
+          .then(page => ensurePdfPageCjkFontFallback(
+            pageNumber,
+            page as unknown as PdfTextContentPage
+          ))
+          .then(fontLoaded => {
+            if (
+              fontLoaded &&
+              !destroyed &&
+              pdfContext.document === pdfDocument
+            ) {
+              pdfContext.viewer?.refresh();
+            }
+          })
+          .catch(error => {
+            console.warn('[file-viewer] Unable to inspect a PDF page for CJK font fallback.', error);
+          });
+      });
 
       if (!context?.streamUrl && !buffer.byteLength) {
         throw new Error(t('pdf.error.missingSource'));
@@ -1605,6 +1745,16 @@ export default async function renderPdf(
         options,
         documentRef.baseURI || documentRef.URL
       );
+      if (cjkFontFallbackEnabled) {
+        pdfCjkFontFallbackManager = createPdfCjkFontFallbackManager({
+          documentRef,
+          fontAssetPath: pdfAssets.cjkFontFallbackPath,
+          onWarning: (message, error) => {
+            console.warn(`[file-viewer] ${message}`, error || '');
+          },
+        });
+        restorePdfJsMissingSystemFontWarnings = suppressPdfJsMissingSystemFontWarnings(targetWindow);
+      }
       const source = context?.streamUrl
         ? {
             url: context.streamUrl,
@@ -1618,10 +1768,12 @@ export default async function renderPdf(
         ...source,
         worker: worker || undefined,
         cMapUrl: pdfAssets.cMapUrl,
+        wasmUrl: pdfAssets.wasmUrl,
         standardFontDataUrl: pdfAssets.standardFontDataUrl,
         useWorkerFetch: true,
         cMapPacked: true,
         enableXfa: true,
+        fontExtraProperties: cjkFontFallbackEnabled,
       });
       resource = { loadingTask, worker };
       pdfContext.resource = resource;
@@ -1638,6 +1790,16 @@ export default async function renderPdf(
       pageCount = pdfDocument.numPages;
       currentPage = 1;
       pdfContext.document = pdfDocument;
+      if (pdfCjkFontFallbackManager && pageCount > 0) {
+        const firstPage = await pdfDocument.getPage(1);
+        await ensurePdfPageCjkFontFallback(
+          1,
+          firstPage as unknown as PdfTextContentPage
+        );
+        if (destroyed || requestVersion !== loadVersion || pdfContext.document !== pdfDocument) {
+          return;
+        }
+      }
       context?.registerExportAdapter?.({
         includeDocumentStyles: false,
         printStyle: buildPdfPrintStyle,
@@ -1728,6 +1890,11 @@ export default async function renderPdf(
     unmount() {
       destroyed = true;
       loadVersion += 1;
+      restorePdfJsMissingSystemFontWarnings();
+      restorePdfJsMissingSystemFontWarnings = () => {};
+      pdfCjkFontFallbackManager = null;
+      pdfCjkFontFallbackPageLoads.clear();
+      pdfCjkFontFallbackRenderHandledPages.clear();
       targetWindow.cancelAnimationFrame(fitFrame);
       targetWindow.cancelAnimationFrame(pageDimensionFrame);
       targetWindow.cancelAnimationFrame(scrollStateFrame);

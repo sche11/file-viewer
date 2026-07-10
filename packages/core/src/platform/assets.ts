@@ -21,6 +21,7 @@ export const DEFAULT_FILE_VIEWER_PDF_WORKER_PATH = 'vendor/pdf/pdf.worker.mjs';
 export const DEFAULT_FILE_VIEWER_PDF_CMAP_PATH = 'vendor/pdf/cmaps/';
 export const DEFAULT_FILE_VIEWER_PDF_WASM_PATH = 'vendor/pdf/wasm/';
 export const DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH = 'vendor/pdf/standard_fonts/';
+export const DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH = 'vendor/pdf/fonts/';
 export const DEFAULT_FILE_VIEWER_DRAWIO_VIEWER_SCRIPT_PATH = 'vendor/drawio/viewer-static.min.js';
 export const DEFAULT_FILE_VIEWER_DRAWIO_ASSET_PATH = 'vendor/drawio/';
 export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH = 'wasm/cad/';
@@ -61,6 +62,7 @@ export interface ResolvedFileViewerPdfAssetUrls {
   cMapUrl: string;
   wasmUrl: string;
   standardFontDataUrl: string;
+  cjkFontFallbackPath: string;
 }
 
 export type FileViewerRendererAssetKind =
@@ -87,6 +89,7 @@ export type FileViewerRendererAssetOptionPath =
   | 'pdf.cMapUrl'
   | 'pdf.wasmUrl'
   | 'pdf.standardFontDataUrl'
+  | 'pdf.cjkFontFallbackPath'
   | 'presentation.workerUrl'
   | 'spreadsheet.workerUrl'
   | 'typst.compilerWasmUrl'
@@ -174,10 +177,10 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         rendererId: 'pdf',
         kind: 'wasm-directory',
         target: 'public',
-        required: false,
+        required: true,
         defaultPath: DEFAULT_FILE_VIEWER_PDF_WASM_PATH,
         optionPath: 'pdf.wasmUrl',
-        description: 'Optional PDF.js WebAssembly helper directory when the bundled PDF.js version ships one.',
+        description: 'PDF.js WebAssembly helpers for image decoding and fully self-hosted PDF rendering.',
       },
       {
         id: 'pdf-standard-fonts',
@@ -188,6 +191,16 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         defaultPath: DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
         optionPath: 'pdf.standardFontDataUrl',
         description: 'PDF.js standard font data used when PDF files reference base fonts.',
+      },
+      {
+        id: 'pdf-cjk-font-fallback',
+        rendererId: 'pdf',
+        kind: 'directory',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH,
+        optionPath: 'pdf.cjkFontFallbackPath',
+        description: 'Self-hosted Noto Sans SC variable font shards used for missing unembedded CJK fonts.',
       },
     ],
   },
@@ -417,7 +430,7 @@ export const resolveFileViewerCadAssetUrls = (
 };
 
 export const resolveFileViewerPdfAssetUrls = (
-  options?: Pick<FileViewerPdfOptions, 'workerUrl' | 'cMapUrl' | 'wasmUrl' | 'standardFontDataUrl'> | null,
+  options?: Pick<FileViewerPdfOptions, 'workerUrl' | 'cMapUrl' | 'wasmUrl' | 'standardFontDataUrl' | 'cjkFontFallbackPath'> | null,
   documentBaseUrl?: string
 ): ResolvedFileViewerPdfAssetUrls => {
   return {
@@ -433,6 +446,11 @@ export const resolveFileViewerPdfAssetUrls = (
     standardFontDataUrl: resolveFileViewerAssetUrl(
       options?.standardFontDataUrl,
       DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
+      { documentBaseUrl }
+    ),
+    cjkFontFallbackPath: resolveFileViewerAssetUrl(
+      options?.cjkFontFallbackPath,
+      DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH,
       { documentBaseUrl }
     ),
   };
@@ -574,6 +592,8 @@ const getRendererAssetOptionValue = (
       return options?.pdf?.wasmUrl;
     case 'pdf.standardFontDataUrl':
       return options?.pdf?.standardFontDataUrl;
+    case 'pdf.cjkFontFallbackPath':
+      return options?.pdf?.cjkFontFallbackPath;
     case 'presentation.workerUrl':
       return options?.presentation?.workerUrl;
     case 'spreadsheet.workerUrl':
