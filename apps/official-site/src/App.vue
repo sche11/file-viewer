@@ -267,7 +267,7 @@ const copy = {
       eyebrow: '浏览器原生文件预览超级组件',
       title: '把复杂文件，变成产品里的即时体验。',
       subtitle:
-        'Flyfish File Viewer 以纯 TypeScript core 为底座，把 Office、PDF、OFD、Typst、XMind、CAD、EDA、压缩包、邮件、电子书、Mermaid、PlantUML、Git patch/bundle、PSD 图层、代码、媒体、3D 与数据资产带进浏览器。XMind 与绘图类格式支持拖拽平移和缩放，标准 GDSII 支持 SVG 版图预览；Vanilla JS / Pure Web、Vue、React、jQuery、Svelte 等标准组件保持同一套参数、事件、搜索、缩放、打印、导出、水印与私有化部署体验，并可通过 lite / office / engineering / all preset 按产品形态装配。',
+        '一个组件，把 Office、PDF、OFD、CAD、Typst、XMind、压缩包、邮件、代码、媒体与 3D 等复杂文件直接带进浏览器。纯前端、离线优先、按需加载，支持 Vanilla JS、Vue、React、Svelte 与企业私有化部署。',
       primary: '立即体验',
       secondary: '阅读文档',
       commercial: '了解商业版',
@@ -315,7 +315,7 @@ const copy = {
       eyebrow: 'Browser-native file preview super component',
       title: 'Turn complex files into instant product experiences.',
       subtitle:
-        'Flyfish File Viewer uses a framework-neutral TypeScript core to bring Office, PDF, OFD, Typst, XMind, CAD, EDA, archives, email, ebooks, Mermaid, PlantUML, Git patch/bundle, PSD layers, code, media, 3D models, and data assets into the browser. XMind and diagram formats support drag panning and zooming, standard GDSII gets an SVG layout preview, and Vanilla JavaScript / Pure Web, Vue, React, jQuery, and Svelte components share the same options, events, search, zoom, print, export, watermark, and self-hosted deployment model with lite / office / engineering / all presets.',
+        'One component brings Office, PDF, OFD, CAD, Typst, XMind, archives, email, code, media, and 3D assets directly into the browser. Frontend-only, offline-first, and loaded on demand for Vanilla JavaScript, Vue, React, Svelte, and private enterprise deployment.',
       primary: 'Try the Demo',
       secondary: 'Read the Docs',
       commercial: 'Commercial Edition',
@@ -1389,48 +1389,72 @@ async function initHeroScene(): Promise<HeroSceneController> {
     canvas,
     alpha: true,
     antialias: true,
-    powerPreference: 'low-power'
+    depth: true,
+    stencil: false,
+    powerPreference: 'high-performance'
   })
   renderer.outputColorSpace = THREE.SRGBColorSpace
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.08
+  renderer.setClearColor(0x000000, 0)
 
   const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100)
-  camera.position.set(0, 0.7, 7.4)
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100)
+  camera.position.set(0, 0.5, 7.8)
 
-  const ambient = new THREE.AmbientLight(0xffffff, 1.5)
-  const key = new THREE.DirectionalLight(0xefffff, 3.2)
-  key.position.set(3.8, 4.8, 5.4)
-  const rim = new THREE.PointLight(0x22d3ee, 3.2, 14)
-  rim.position.set(-3.7, 1.6, 3.4)
-  const warm = new THREE.PointLight(0xffc766, 1.8, 12)
-  warm.position.set(2.8, -2.2, 2.8)
-  scene.add(ambient, key, rim, warm)
+  const ambient = new THREE.HemisphereLight(0xe9fff8, 0x071526, 2.2)
+  const key = new THREE.DirectionalLight(0xf4fffd, 3.6)
+  key.position.set(4.6, 5.6, 6.2)
+  const rim = new THREE.PointLight(0x2dd4bf, 4.4, 15)
+  rim.position.set(-4.2, 1.2, 3.8)
+  scene.add(ambient, key, rim)
 
   const rig = new THREE.Group()
   scene.add(rig)
 
-  const pageGeometry = new THREE.BoxGeometry(2.78, 3.72, 0.032, 16, 16, 1)
-  const pageMaterials = [
-    new THREE.MeshPhysicalMaterial({ color: 0xf8fffb, roughness: 0.52, metalness: 0.04, transparent: true, opacity: 0.9 }),
-    new THREE.MeshPhysicalMaterial({ color: 0xe9f9ff, roughness: 0.5, metalness: 0.06, transparent: true, opacity: 0.86 }),
-    new THREE.MeshPhysicalMaterial({ color: 0xfaf6ff, roughness: 0.54, metalness: 0.05, transparent: true, opacity: 0.84 })
-  ]
-  const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x8ae6d0, transparent: true, opacity: 0.38 })
-  const pages: Mesh[] = []
+  const coreField = new THREE.Group()
+  coreField.position.set(0, 0.08, -2.05)
+  const corePlateGeometry = new THREE.CylinderGeometry(2.38, 2.38, 0.055, 6)
+  const corePlate = new THREE.Mesh(
+    corePlateGeometry,
+    new THREE.MeshBasicMaterial({ color: 0x153f4b, transparent: true, opacity: 0.34, side: THREE.DoubleSide })
+  )
+  corePlate.rotation.x = Math.PI / 2
+  corePlate.scale.x = 0.94
+  const corePlateEdge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(corePlateGeometry),
+    new THREE.LineBasicMaterial({ color: 0x4ee5c2, transparent: true, opacity: 0.2 })
+  )
+  corePlateEdge.rotation.copy(corePlate.rotation)
+  corePlateEdge.scale.copy(corePlate.scale)
+  coreField.add(corePlate, corePlateEdge)
+  scene.add(coreField)
 
-  for (let index = 0; index < 8; index += 1) {
+  const pageGeometry = new THREE.BoxGeometry(2.86, 3.82, 0.045)
+  const pageMaterials = [
+    new THREE.MeshStandardMaterial({ color: 0xf6fffb, roughness: 0.4, metalness: 0.02, transparent: true, opacity: 0.94 }),
+    new THREE.MeshStandardMaterial({ color: 0xe7fbff, roughness: 0.44, metalness: 0.03, transparent: true, opacity: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xf6f1ff, roughness: 0.46, metalness: 0.03, transparent: true, opacity: 0.88 })
+  ]
+  const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x90f3dd, transparent: true, opacity: 0.46 })
+  const pages: Mesh[] = []
+  const pageBasePositions: Array<{ x: number; y: number; z: number }> = []
+
+  for (let index = 0; index < 7; index += 1) {
     const page = new THREE.Mesh(pageGeometry, pageMaterials[index % pageMaterials.length])
-    page.position.set((index - 3.5) * 0.13, 0.14 - index * 0.035, -index * 0.22)
-    page.rotation.set(-0.08 + index * 0.012, -0.38 + index * 0.02, -0.08)
+    const basePosition = {
+      x: (index - 3) * 0.14,
+      y: 0.16 - index * 0.034,
+      z: -index * 0.23
+    }
+    pageBasePositions.push(basePosition)
+    page.position.set(basePosition.x, basePosition.y, basePosition.z)
+    page.rotation.set(-0.07 + index * 0.01, -0.34 + index * 0.018, -0.065)
     pages.push(page)
     rig.add(page)
 
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(pageGeometry), edgeMaterial)
-    edge.position.copy(page.position)
-    edge.rotation.copy(page.rotation)
-    edge.scale.copy(page.scale)
-    rig.add(edge)
+    page.add(edge)
   }
 
   const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x25d692, transparent: true, opacity: 0.58 })
@@ -1443,11 +1467,16 @@ async function initHeroScene(): Promise<HeroSceneController> {
     { x: -0.35, y: -0.22, z: 0.14, w: 1.42, h: 0.16, material: violetMaterial },
     { x: 0.58, y: -0.78, z: 0.16, w: 0.86, h: 0.16, material: amberMaterial }
   ]
+  const panelBlocks: Mesh[] = []
 
-  panelItems.forEach((item) => {
+  panelItems.forEach((item, index) => {
     const block = new THREE.Mesh(new THREE.BoxGeometry(item.w, item.h, 0.04), item.material)
     block.position.set(item.x, item.y, item.z)
     block.rotation.set(-0.08, -0.35, -0.08)
+    block.userData.baseX = item.x
+    block.userData.baseScaleX = 0.92 + index * 0.018
+    block.scale.x = block.userData.baseScaleX
+    panelBlocks.push(block)
     rig.add(block)
   })
 
@@ -1463,10 +1492,11 @@ async function initHeroScene(): Promise<HeroSceneController> {
     new THREE.Vector3(1.58, -1.46, 0.02),
     new THREE.Vector3(2.34, -0.92, -0.28)
   ]
-  const rail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(railPoints), railMaterial)
+  const railCurve = new THREE.CatmullRomCurve3(railPoints, false, 'catmullrom', 0.36)
+  const rail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(railCurve.getPoints(72)), railMaterial)
   railGroup.add(rail)
 
-  const nodeGeometry = new THREE.SphereGeometry(0.065, 20, 12)
+  const nodeGeometry = new THREE.SphereGeometry(0.065, 12, 8)
   const nodeMaterials = [
     new THREE.MeshBasicMaterial({ color: 0x28d989 }),
     new THREE.MeshBasicMaterial({ color: 0x39d8ff }),
@@ -1478,23 +1508,53 @@ async function initHeroScene(): Promise<HeroSceneController> {
     railGroup.add(node)
     return node
   })
+  const flowTracer = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 12, 8),
+    new THREE.MeshBasicMaterial({ color: 0xe9fff8, transparent: true, opacity: 0.94 })
+  )
+  railGroup.add(flowTracer)
 
   const ringGroup = new THREE.Group()
   scene.add(ringGroup)
   const ringOne = new THREE.Mesh(
-    new THREE.TorusGeometry(2.36, 0.012, 10, 120),
+    new THREE.TorusGeometry(2.36, 0.012, 6, 96),
     new THREE.MeshBasicMaterial({ color: 0x1fbf8a, transparent: true, opacity: 0.36 })
   )
   const ringTwo = new THREE.Mesh(
-    new THREE.TorusGeometry(3.06, 0.008, 10, 144),
+    new THREE.TorusGeometry(3.06, 0.008, 6, 112),
     new THREE.MeshBasicMaterial({ color: 0x55d7ff, transparent: true, opacity: 0.28 })
   )
   ringOne.rotation.set(1.08, 0.36, -0.44)
   ringTwo.rotation.set(1.22, -0.28, 0.35)
   ringGroup.add(ringOne, ringTwo)
 
+  const orbitNodeGroup = new THREE.Group()
+  const orbitNodeGeometry = new THREE.BoxGeometry(0.58, 0.38, 0.04)
+  const orbitNodeSpecs = [
+    { position: [-2.58, 1.24, -0.46], color: 0x2dd4bf },
+    { position: [2.66, 0.92, -0.72], color: 0x38bdf8 },
+    { position: [-2.46, -1.54, -0.2], color: 0xa78bfa },
+    { position: [2.52, -1.38, -0.4], color: 0xf6c453 }
+  ] as const
+  const orbitNodes = orbitNodeSpecs.map((spec, index) => {
+    const node = new THREE.Mesh(
+      orbitNodeGeometry,
+      new THREE.MeshBasicMaterial({
+        color: spec.color,
+        transparent: true,
+        opacity: 0.78
+      })
+    )
+    node.position.set(spec.position[0], spec.position[1], spec.position[2])
+    node.rotation.set(-0.08, index % 2 === 0 ? 0.24 : -0.24, (index - 1.5) * 0.05)
+    node.userData.baseY = spec.position[1]
+    orbitNodeGroup.add(node)
+    return node
+  })
+  scene.add(orbitNodeGroup)
+
   const particles = new THREE.BufferGeometry()
-  const particleCount = 96
+  const particleCount = 72
   const positions = new Float32Array(particleCount * 3)
   for (let index = 0; index < particleCount; index += 1) {
     const angle = index * 1.618
@@ -1513,12 +1573,87 @@ async function initHeroScene(): Promise<HeroSceneController> {
   let frameId = 0
   let isRunning = false
   let isDisposed = false
+  let playRequested = false
+  let lastFrameTime = performance.now()
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  const pointerTarget = new THREE.Vector2()
+  const pointerCurrent = new THREE.Vector2()
+  const cameraTarget = new THREE.Vector2()
+
+  const handlePointerMove = (event: PointerEvent) => {
+    if (motionQuery.matches) return
+    const bounds = stage.getBoundingClientRect()
+    pointerTarget.set(
+      ((event.clientX - bounds.left) / Math.max(1, bounds.width)) * 2 - 1,
+      -(((event.clientY - bounds.top) / Math.max(1, bounds.height)) * 2 - 1)
+    )
+  }
+
+  const handlePointerLeave = () => {
+    pointerTarget.set(0, 0)
+  }
+
+  const renderFrame = (time: number) => {
+    const delta = Math.min(0.05, Math.max(1 / 240, (time - lastFrameTime) / 1000))
+    lastFrameTime = time
+    const elapsed = motionQuery.matches ? 1.1 : time * 0.001
+    const pointerDamping = motionQuery.matches ? 20 : 7.5
+    pointerCurrent.x = THREE.MathUtils.damp(pointerCurrent.x, pointerTarget.x, pointerDamping, delta)
+    pointerCurrent.y = THREE.MathUtils.damp(pointerCurrent.y, pointerTarget.y, pointerDamping, delta)
+    cameraTarget.set(pointerCurrent.x * 0.18, 0.5 + pointerCurrent.y * 0.12)
+
+    rig.rotation.y = Math.sin(elapsed * 0.34) * 0.085 + pointerCurrent.x * 0.16
+    rig.rotation.x = Math.sin(elapsed * 0.27) * 0.026 - pointerCurrent.y * 0.075
+    rig.position.y = Math.sin(elapsed * 0.46) * 0.045
+    coreField.rotation.z = -elapsed * 0.018
+    coreField.rotation.y = Math.sin(elapsed * 0.22) * 0.028
+    ringGroup.rotation.z = elapsed * 0.075
+    ringGroup.rotation.y = Math.sin(elapsed * 0.24) * 0.05 + pointerCurrent.x * 0.04
+    railGroup.position.y = Math.sin(elapsed * 0.82) * 0.038
+    orbitNodeGroup.rotation.z = Math.sin(elapsed * 0.18) * 0.025
+    particleField.rotation.y = elapsed * 0.045
+    particleField.rotation.z = Math.sin(elapsed * 0.2) * 0.035
+
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.x, 5.5, delta)
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.y, 5.5, delta)
+    camera.lookAt(0, 0.1, 0)
+
+    pages.forEach((page, index) => {
+      const base = pageBasePositions[index]
+      const wave = Math.sin(elapsed * 0.58 + index * 0.68)
+      page.position.x = base.x + wave * 0.012
+      page.position.y = base.y + wave * 0.008
+      page.position.z = base.z + wave * 0.024
+      page.rotation.z = -0.065 + Math.sin(elapsed * 0.42 + index * 0.84) * 0.009
+    })
+    panelBlocks.forEach((block, index) => {
+      const shimmer = 1 + Math.sin(elapsed * 1.18 + index * 0.78) * 0.035
+      block.scale.x = block.userData.baseScaleX * shimmer
+      block.position.x = block.userData.baseX + Math.sin(elapsed * 0.72 + index) * 0.012
+    })
+    nodes.forEach((node, index) => {
+      const pulse = 1 + Math.sin(elapsed * 1.75 + index * 0.72) * 0.16
+      node.scale.setScalar(pulse)
+    })
+    flowTracer.position.copy(railCurve.getPoint((elapsed * 0.095) % 1))
+    orbitNodes.forEach((node, index) => {
+      node.position.y = node.userData.baseY + Math.sin(elapsed * 0.62 + index * 1.3) * 0.075
+      node.rotation.z += delta * (index % 2 === 0 ? 0.05 : -0.045)
+    })
+
+    stage.style.setProperty('--hero-pointer-x', `${(pointerCurrent.x * 8).toFixed(2)}px`)
+    stage.style.setProperty('--hero-pointer-y', `${(-pointerCurrent.y * 7).toFixed(2)}px`)
+    renderer.render(scene, camera)
+  }
 
   const resize = () => {
     const width = Math.max(320, stage.clientWidth)
     const height = Math.max(420, stage.clientHeight)
+    const pixelRatioCap = width < 720 ? 1.35 : width * height > 520000 ? 1.5 : 1.65
+    const renderScale = width * height > 420000 ? 0.82 : 1
+    renderer.setPixelRatio(Math.max(0.82, Math.min(window.devicePixelRatio || 1, pixelRatioCap) * renderScale))
     renderer.setSize(width, height, false)
+    camera.position.z = width / height < 0.9 ? 9.1 : 7.8
     camera.aspect = width / height
     camera.updateProjectionMatrix()
     if (!isRunning && !isDisposed) {
@@ -1529,29 +1664,6 @@ async function initHeroScene(): Promise<HeroSceneController> {
   const resizeObserver = new ResizeObserver(resize)
   resizeObserver.observe(stage)
 
-  const renderFrame = (time: number) => {
-    const speed = motionQuery.matches ? 0.16 : 1
-    const elapsed = time * 0.001 * speed
-    rig.rotation.y = Math.sin(elapsed * 0.45) * 0.12
-    rig.rotation.x = Math.sin(elapsed * 0.32) * 0.035
-    ringGroup.rotation.z = elapsed * 0.1
-    ringGroup.rotation.y = Math.sin(elapsed * 0.28) * 0.06
-    railGroup.position.y = Math.sin(elapsed * 1.1) * 0.045
-    particleField.rotation.y = elapsed * 0.06
-    particleField.rotation.z = Math.sin(elapsed * 0.25) * 0.045
-
-    pages.forEach((page, index) => {
-      page.position.z = -index * 0.22 + Math.sin(elapsed * 0.7 + index * 0.72) * 0.018
-      page.rotation.z = -0.08 + Math.sin(elapsed * 0.5 + index) * 0.012
-    })
-    nodes.forEach((node, index) => {
-      const pulse = 1 + Math.sin(elapsed * 2.2 + index * 0.7) * 0.18
-      node.scale.setScalar(pulse)
-    })
-
-    renderer.render(scene, camera)
-  }
-
   const animate = (time: number) => {
     if (!isRunning || isDisposed) {
       return
@@ -1561,19 +1673,62 @@ async function initHeroScene(): Promise<HeroSceneController> {
     frameId = window.requestAnimationFrame(animate)
   }
 
-  const start = () => {
-    if (isRunning || isDisposed) {
+  const startLoop = () => {
+    if (isRunning || isDisposed || motionQuery.matches) {
       return
     }
     isRunning = true
+    lastFrameTime = performance.now()
     frameId = window.requestAnimationFrame(animate)
   }
 
-  const stop = () => {
+  const stopLoop = () => {
     isRunning = false
     window.cancelAnimationFrame(frameId)
     frameId = 0
   }
+
+  const start = () => {
+    playRequested = true
+    if (motionQuery.matches) {
+      renderFrame(performance.now())
+      return
+    }
+    startLoop()
+  }
+
+  const stop = () => {
+    playRequested = false
+    stopLoop()
+  }
+
+  const handleMotionPreferenceChange = () => {
+    pointerTarget.set(0, 0)
+    stopLoop()
+    if (playRequested) {
+      start()
+    } else {
+      renderFrame(performance.now())
+    }
+  }
+
+  const handleContextLost = (event: Event) => {
+    event.preventDefault()
+    stopLoop()
+    heroCanvasReady.value = false
+  }
+
+  const handleContextRestored = () => {
+    resize()
+    heroCanvasReady.value = true
+    if (playRequested) startLoop()
+  }
+
+  stage.addEventListener('pointermove', handlePointerMove, { passive: true })
+  stage.addEventListener('pointerleave', handlePointerLeave)
+  motionQuery.addEventListener('change', handleMotionPreferenceChange)
+  canvas.addEventListener('webglcontextlost', handleContextLost)
+  canvas.addEventListener('webglcontextrestored', handleContextRestored)
 
   resize()
   renderFrame(performance.now())
@@ -1586,6 +1741,11 @@ async function initHeroScene(): Promise<HeroSceneController> {
       isDisposed = true
       stop()
       resizeObserver.disconnect()
+      stage.removeEventListener('pointermove', handlePointerMove)
+      stage.removeEventListener('pointerleave', handlePointerLeave)
+      motionQuery.removeEventListener('change', handleMotionPreferenceChange)
+      canvas.removeEventListener('webglcontextlost', handleContextLost)
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored)
       disposeScene(scene, renderer)
       renderer.forceContextLoss()
       heroCanvasReady.value = false
@@ -1845,9 +2005,12 @@ onBeforeUnmount(() => {
         <h1>
           <template v-if="isZh">
             <span class="hero-title-line">把复杂文件，</span>
-            <span class="hero-title-line">变成产品里的即时体验。</span>
+            <span class="hero-title-line hero-title-accent">变成产品里的即时体验。</span>
           </template>
-          <template v-else>{{ currentCopy.hero.title }}</template>
+          <template v-else>
+            <span class="hero-title-line">Complex files.</span>
+            <span class="hero-title-line hero-title-accent">Instant experiences.</span>
+          </template>
         </h1>
         <p class="hero-subtitle">{{ currentCopy.hero.subtitle }}</p>
         <div class="hero-actions">
@@ -1886,6 +2049,12 @@ onBeforeUnmount(() => {
             <span class="hero-static-node hero-static-node-three"></span>
           </div>
           <canvas ref="heroCanvas" class="three-canvas" aria-hidden="true"></canvas>
+          <div class="hero-format-cloud" aria-hidden="true">
+            <span class="hero-format-pill hero-format-pdf">PDF</span>
+            <span class="hero-format-pill hero-format-office">DOCX</span>
+            <span class="hero-format-pill hero-format-cad">CAD</span>
+            <span class="hero-format-pill hero-format-data">3D</span>
+          </div>
           <div class="hero-signal hero-signal-top">
             <FileSpreadsheet :size="18" />
             <span>{{ isZh ? '统一预览链路' : 'Unified preview pipeline' }}</span>
