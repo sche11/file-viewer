@@ -56,6 +56,9 @@ export default defineConfig(ctx => {
     }
   }
   config.build = {
+    // The demo already renders an inline boot shell. Avoid Vite/Rolldown eagerly
+    // preloading the dynamically imported viewer shell and every shared helper.
+    modulePreload: false,
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('index.html', import.meta.url)),

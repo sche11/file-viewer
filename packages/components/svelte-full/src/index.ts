@@ -9,6 +9,9 @@ import {
   type ViewerOptions
 } from '@file-viewer/svelte/action'
 
+// Keep both Svelte's component entry types and its action/controller API
+// available from the full package, matching the standard package surface.
+export * from '@file-viewer/svelte'
 export * from '@file-viewer/svelte/action'
 
 export const fileViewerFullPreset = allRenderers
