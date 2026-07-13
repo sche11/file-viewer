@@ -11,17 +11,17 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md"><strong>简体中文</strong></a>
+</p>
+
+<p align="center">
   <a href="https://demo.file-viewer.app/"><strong>Live Demo</strong></a> ·
   <a href="https://doc.file-viewer.app/"><strong>Documentation</strong></a> ·
   <a href="#quick-start"><strong>Quick Start</strong></a> ·
   <a href="examples"><strong>Runnable Examples</strong></a> ·
-  <a href="https://doc.file-viewer.app/guide/formats"><strong>Format Matrix (206 Extensions)</strong></a> ·
+  <a href="https://doc.file-viewer.app/guide/formats"><strong>Format Matrix</strong></a> ·
   <a href="https://github.com/flyfish-dev/file-viewer/releases"><strong>GitHub Releases</strong></a> ·
   <a href="https://github.com/sponsors/wybaby168"><strong>GitHub Sponsors</strong></a>
-</p>
-
-<p align="center">
-  <strong>English</strong> · <a href="README.zh-CN.md"><strong>简体中文</strong></a>
 </p>
 
 <p align="center">
