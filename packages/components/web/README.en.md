@@ -52,7 +52,7 @@ Stable parts include `host`, `shell`, `toolbar`, `toolbar-group`, `toolbar-statu
 Use the asset copy command when you need to self-host workers, WASM files, and static examples:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 No-build or legacy admin pages can copy `dist/flyfish-file-viewer-web.iife.js` and load it through a plain script tag:

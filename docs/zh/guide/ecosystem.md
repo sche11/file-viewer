@@ -561,7 +561,7 @@ npm install @file-viewer/pptx
 所有生态包都可以使用同一套离线资源复制流程:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 发布后确认这些路径能直接访问，并且 `.wasm`、`.mjs`、Worker 脚本不会被网关回退为 HTML:

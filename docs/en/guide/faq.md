@@ -13,7 +13,7 @@ Confirm the host container has a stable height and the file has a recognizable e
 Run:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 Then confirm your server returns the correct MIME type for `.wasm`, `.js`, fonts, and JSON manifests. Strict CSP deployments should serve all viewer assets from the same trusted origin.

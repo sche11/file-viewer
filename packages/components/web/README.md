@@ -52,7 +52,7 @@ flyfish-file-viewer::part(toolbar) {
 如需自托管 Worker、WASM 和静态示例资源，可以使用资源复制命令:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 无构建工具或传统后台页面可以复制 `dist/flyfish-file-viewer-web.iife.js` 并直接用普通 `<script>` 引入:

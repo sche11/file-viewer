@@ -1,9 +1,9 @@
 {
   "version": "2.1.27",
   "package": "@flyfish-group/file-viewer-workspace",
-  "generatedAt": "2026-07-13T09:20:12.561Z",
+  "generatedAt": "2026-07-13T10:09:06.478Z",
   "sourceBranch": "main",
-  "sourceCommit": "28d36813",
+  "sourceCommit": "dccf25b4",
   "corePackage": {
     "packageName": "@file-viewer/core",
     "description": "Framework-neutral modular TypeScript file preview core with format registry, renderer orchestration, lifecycle APIs, search, zoom, print, and export.",
@@ -19,6 +19,7 @@
   "ecosystemPackages": {
     "@file-viewer/core": "2.1.27",
     "@file-viewer/thumbnail": "2.1.27",
+    "file-viewer-copy-assets": "2.1.27",
     "@file-viewer/renderer-pdf": "2.1.27",
     "@file-viewer/renderer-ofd": "2.1.27",
     "@file-viewer/renderer-presentation": "2.1.27",
@@ -168,6 +169,23 @@
       "artifactIncluded": false,
       "repositoryIncluded": false,
       "downloadUrl": "https://github.com/flyfish-dev/file-viewer/releases/download/v2.1.27/file-viewer-thumbnail-2.1.27.tgz",
+      "artifactDuplicateOf": null,
+      "artifactNote": null,
+      "github": "https://github.com/flyfish-dev/file-viewer",
+      "gitee": "https://gitee.com/flyfish-dev/file-viewer",
+      "entryFormats": [],
+      "historicalPackages": []
+    },
+    {
+      "name": "file-viewer-copy-assets",
+      "version": "2.1.27",
+      "kind": "utility",
+      "framework": null,
+      "packageDir": "packages/tools/copy-assets",
+      "tarball": "file-viewer-copy-assets-2.1.27.tgz",
+      "artifactIncluded": false,
+      "repositoryIncluded": false,
+      "downloadUrl": "https://github.com/flyfish-dev/file-viewer/releases/download/v2.1.27/file-viewer-copy-assets-2.1.27.tgz",
       "artifactDuplicateOf": null,
       "artifactNote": null,
       "github": "https://github.com/flyfish-dev/file-viewer",

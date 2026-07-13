@@ -227,7 +227,7 @@ The CDN full bundle is ideal for POCs, classic admin pages, and public productio
 For intranet or strict-CSP deployments, copy runtime assets into your own public directory:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 The command verifies worker, WASM, PDF, CAD, Typst, Archive, Data, DOCX, Spreadsheet, PPTX, and Draw.io assets. Runtime options such as `options.pdf.workerUrl`, `options.presentation.workerUrl`, `options.archive.wasmUrl`, `options.docx.workerUrl`, `options.typst.compilerWasmUrl`, and `options.drawing.viewerScriptUrl` can point to self-hosted URLs.

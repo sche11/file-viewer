@@ -47,4 +47,4 @@ This avoids pretending that every format supports the same operations. Word and 
 2. Try the sample closest to your production files.
 3. Test your own file through upload or URL.
 4. Use the [comparison demo](https://demo.file-viewer.app/compare.html) for contract, report, and generated-output review.
-5. If your deployment is offline or CSP-restricted, run `npx file-viewer-copy-assets ./public/file-viewer` and point renderer assets to your own static path.
+5. If your deployment is offline or CSP-restricted, run `npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer` and point renderer assets to your own static path.

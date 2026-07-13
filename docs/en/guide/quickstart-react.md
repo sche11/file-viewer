@@ -155,4 +155,4 @@ React Native cannot mount the DOM component directly. Use a `WebView` that loads
 
 ## Vite And Assets
 
-For production bundles, use `@file-viewer/vite-plugin` or run `npx file-viewer-copy-assets ./public/file-viewer` so worker/WASM assets stay self-hosted.
+For production bundles, use `@file-viewer/vite-plugin` or run `npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer` so worker/WASM assets stay self-hosted.

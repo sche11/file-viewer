@@ -3,6 +3,7 @@ packages:
   - packages/thumbnail
   - packages/renderers/*
   - packages/presets/*
+  - packages/tools/*
   - packages/components/*
   - packages/compat/*
   - apps/*

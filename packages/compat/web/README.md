@@ -56,7 +56,7 @@ viewer.name = 'contract.pdf'
 浏览器不能直接解析 `@flyfish-group/file-viewer-web` 这种裸包名；没有构建工具时请使用静态 URL、IIFE 全局包，或配置 import map。Worker、WASM 和示例资源可以通过复制命令自托管:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 `options` 会透传给共享预览底座，可配置主题、下载/打印/导出 HTML 操作栏、文字或图片水印、搜索高亮、AI 友好文本切片、统一缩放，以及压缩包预览的 Worker、IndexedDB 缓存和体积上限。生命周期、操作能力变化、搜索状态和当前位置会通过 `onEvent` 回传给宿主，适合记录加载耗时、审计下载/打印尝试、搜索命中、页码/行号、AI 切片和溯源状态。

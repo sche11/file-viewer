@@ -56,7 +56,7 @@ No-build projects can self-host the IIFE bundle. It exposes `window.FlyfishFileV
 Browsers cannot resolve a bare package name such as `@flyfish-group/file-viewer-web` without a build tool. Use a static URL, the IIFE global bundle, or an import map. Workers, WASM files, and examples can be self-hosted with:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 `options` are passed to the shared core and cover theme, toolbar operations, watermarking, search, AI-friendly text chunks, unified zoom, archive workers, IndexedDB cache, and size limits. Lifecycle, operation availability, search state, and document location updates are emitted through `onEvent`.

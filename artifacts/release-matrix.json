@@ -18,7 +18,7 @@
     "standardPackagePresetPolicy": "explicit-preset-all"
   },
   "counts": {
-    "packages": 53,
+    "packages": 54,
     "componentTargets": 16,
     "surfaces": 10,
     "renderChains": 27,
@@ -29,7 +29,7 @@
   },
   "packageGroups": {
     "core": 1,
-    "utility": 1,
+    "utility": 2,
     "renderer": 24,
     "preset": 5,
     "compatibility": 6,
@@ -244,6 +244,26 @@
       "version": "2.1.27",
       "packageDir": "packages/thumbnail",
       "tarball": "file-viewer-thumbnail-2.1.27.tgz",
+      "publicSource": true,
+      "releaseArtifact": {
+        "includeTarball": true
+      },
+      "targetPackage": null,
+      "releaseVersion": null,
+      "github": "https://github.com/flyfish-dev/file-viewer",
+      "gitee": "https://gitee.com/flyfish-dev/file-viewer",
+      "sourceRepository": null,
+      "releaseGroup": "utility",
+      "blocking": true,
+      "entryFormats": []
+    },
+    {
+      "id": "copy-assets-cli",
+      "kind": "utility",
+      "packageName": "file-viewer-copy-assets",
+      "version": "2.1.27",
+      "packageDir": "packages/tools/copy-assets",
+      "tarball": "file-viewer-copy-assets-2.1.27.tgz",
       "publicSource": true,
       "releaseArtifact": {
         "includeTarball": true

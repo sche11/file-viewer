@@ -77,7 +77,7 @@ pnpm verify:npm-install-smoke
 如果报错来自 archive、CAD、Typst 等重型资源路径，可以复制并自托管资源:
 
 ```bash
-npx file-viewer-copy-assets ./public/vendor/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/vendor/file-viewer
 ```
 
 ## 为什么带查询参数的下载地址有时识别不到格式

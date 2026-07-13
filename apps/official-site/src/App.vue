@@ -846,7 +846,7 @@ export default defineConfig({
     href: `${docsUrl}guide/distribution`,
     tone: 'cyan',
     icon: Boxes,
-    code: `npx file-viewer-copy-assets ./public/file-viewer
+    code: `npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 
 # Then serve these files from your own domain.
 # Configure paths only when your static prefix is custom:

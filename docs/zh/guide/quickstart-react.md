@@ -206,7 +206,7 @@ pnpm dev:components
 React 标准接入不需要额外配置静态页面地址。只有当你希望固定 Worker、WASM 或示例文件的访问路径时，才需要复制资源:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 压缩包、CAD、Typst 等重型格式都会按需加载；部署路径特殊时，可以在 `options.archive`、`options.typst` 或 CAD 相关参数中指定自托管资源地址。

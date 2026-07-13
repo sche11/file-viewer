@@ -379,7 +379,7 @@ Passing a filename with an extension is important because the viewer uses it to 
 Most web apps can install the package and run. For intranet, strict CSP, offline, or custom static-prefix deployments, copy viewer assets into your app:
 
 ```bash
-npx file-viewer-copy-assets ./public/file-viewer
+npx --yes file-viewer-copy-assets@2.1.27 ./public/file-viewer
 ```
 
 The copy command verifies PDF, archive, DOCX, spreadsheet, Draw.io, CAD, Typst, SQLite, Worker, WASM, and vendor assets. Runtime options let you point each renderer to your own static paths.
