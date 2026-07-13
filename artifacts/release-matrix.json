@@ -18,7 +18,7 @@
     "standardPackagePresetPolicy": "explicit-preset-all"
   },
   "counts": {
-    "packages": 52,
+    "packages": 53,
     "componentTargets": 16,
     "surfaces": 10,
     "renderChains": 27,
@@ -29,6 +29,7 @@
   },
   "packageGroups": {
     "core": 1,
+    "utility": 1,
     "renderer": 24,
     "preset": 5,
     "compatibility": 6,
@@ -233,6 +234,26 @@
       "gitee": null,
       "sourceRepository": "https://github.com/flyfish-dev/file-viewer-core",
       "releaseGroup": "core",
+      "blocking": true,
+      "entryFormats": []
+    },
+    {
+      "id": "thumbnail",
+      "kind": "utility",
+      "packageName": "@file-viewer/thumbnail",
+      "version": "2.1.26",
+      "packageDir": "packages/thumbnail",
+      "tarball": "file-viewer-thumbnail-2.1.26.tgz",
+      "publicSource": true,
+      "releaseArtifact": {
+        "includeTarball": true
+      },
+      "targetPackage": null,
+      "releaseVersion": null,
+      "github": "https://github.com/flyfish-dev/file-viewer",
+      "gitee": "https://gitee.com/flyfish-dev/file-viewer",
+      "sourceRepository": null,
+      "releaseGroup": "utility",
       "blocking": true,
       "entryFormats": []
     },

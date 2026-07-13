@@ -230,7 +230,7 @@
         "id": { "type": "string" },
         "kind": {
           "type": "string",
-          "enum": ["core", "renderer", "preset", "compatibility", "standard-wrapper"]
+          "enum": ["core", "utility", "renderer", "preset", "compatibility", "standard-wrapper"]
         },
         "packageName": { "type": "string" },
         "version": { "type": "string" },
@@ -245,7 +245,7 @@
         "sourceRepository": { "type": ["string", "null"] },
         "releaseGroup": {
           "type": "string",
-          "enum": ["core", "renderer", "preset", "compatibility", "component-standard", "component-full"]
+          "enum": ["core", "utility", "renderer", "preset", "compatibility", "component-standard", "component-full"]
         },
         "blocking": { "type": "boolean" },
         "entryFormats": { "$ref": "#/$defs/stringArray" }

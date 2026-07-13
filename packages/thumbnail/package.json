@@ -4,7 +4,13 @@
   "private": false,
   "type": "module",
   "description": "High-performance browser thumbnail generation for Flyfish File Viewer.",
-  "keywords": ["file-viewer", "thumbnail", "preview", "batch", "browser"],
+  "keywords": [
+    "file-viewer",
+    "thumbnail",
+    "preview",
+    "batch",
+    "browser"
+  ],
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -25,7 +31,12 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "README.en.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "node scripts/clean-dist.mjs && tsc -b tsconfig.json --force",
     "type-check": "tsc -b tsconfig.json && tsc -p tsconfig.test.json --noEmit",

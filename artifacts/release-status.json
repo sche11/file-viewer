@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-10T13:42:45.077Z",
+  "generatedAt": "2026-07-13T01:58:06.548Z",
   "version": "2.1.26",
   "sourcePolicy": "private-complete-original-workspace",
   "openSourcePolicy": "public-open-source-main-repository",
@@ -8,23 +8,23 @@
     "repository": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "policy": "private-complete-original-workspace",
-    "authoritativeCommit": "6a782989750852f63745a3abfd613dd4f271c0b1",
+    "authoritativeCommit": "1d1ba3777e3bfa265143ffe05dc9980cbb68c613",
     "localBranch": "main",
-    "localCommit": "6a782989750852f63745a3abfd613dd4f271c0b1",
+    "localCommit": "1d1ba3777e3bfa265143ffe05dc9980cbb68c613",
     "inSync": true,
     "note": "Private Gitea main is the complete original aggregate workspace. The local checkout branch is only the execution context and can be transitional during branch cutover."
   },
   "local": {
     "branch": "main",
-    "commit": "6a782989750852f63745a3abfd613dd4f271c0b1",
-    "shortCommit": "6a782989",
+    "commit": "1d1ba3777e3bfa265143ffe05dc9980cbb68c613",
+    "shortCommit": "1d1ba377",
     "dirty": false
   },
   "sourceRemote": {
     "url": "https://git.flyfish.dev/flyfish-group/file-viewer.git",
     "branch": "main",
     "ok": true,
-    "hash": "6a782989750852f63745a3abfd613dd4f271c0b1",
+    "hash": "1d1ba3777e3bfa265143ffe05dc9980cbb68c613",
     "error": ""
   },
   "openSourceMain": {
@@ -32,7 +32,7 @@
       "url": "https://github.com/flyfish-dev/file-viewer",
       "branch": "main",
       "ok": true,
-      "hash": "f1efd237ff27e4d3e8f7219179d0c105a33eb15e",
+      "hash": "0c858c6635e8f218c3623f1e4c1faf1bdf1ab718",
       "error": ""
     },
     "gitee": {
@@ -43,11 +43,11 @@
       "error": ""
     },
     "inSync": false,
-    "syncMode": "stale",
-    "treeChecked": true,
-    "referenceTree": "2c87c61a37b5dd786ac0d79a1e2aeeae89062864",
-    "giteeTree": "046199725fd352ea12626050e095d5b646815aa1",
-    "treeError": "",
+    "syncMode": "unchecked",
+    "treeChecked": false,
+    "referenceTree": "5a9e1709d78972bafc8ae813d6c6c6050a0e85a2",
+    "giteeTree": "",
+    "treeError": "local public repository 92fa1f853b64 does not match GitHub 0c858c6635e8",
     "reportHashNote": "The open-source main repository mirrors the current public source tree and records the private source commit in the public commit body for traceability. The observed remote hash can trail until that mirror commit is pushed. Gitee can intentionally use a shallow snapshot commit; inSync is true when the file tree matches even if commit hashes differ. Use pnpm audit:ecosystem-status for live remote heads."
   },
   "githubRelease": {
@@ -375,6 +375,13 @@
       "publishedVersion": "2.1.26",
       "ok": true,
       "error": ""
+    },
+    {
+      "packageName": "@file-viewer/thumbnail",
+      "expectedVersion": "2.1.26",
+      "publishedVersion": null,
+      "ok": false,
+      "error": "npm warn Unknown user config \"shamefully-hoist\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"auto-install-peers\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown user config \"strict-peer-dependencies\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@file-viewer%2fthumbnail - Not found\nnpm error 404\nnpm error 404  The requested resource '@file-viewer/thumbnail@*' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: <npm-debug-log>"
     },
     {
       "packageName": "@file-viewer/renderer-pdf",
@@ -734,17 +741,32 @@
       "error": ""
     }
   ],
-  "gaps": [],
+  "gaps": [
+    "@file-viewer/thumbnail npm unpublished !== 2.1.26"
+  ],
   "gapSummary": {
-    "total": 0,
-    "externalBlockers": 0,
+    "total": 1,
+    "externalBlockers": 1,
     "localActionable": 0,
-    "byChannel": {},
-    "externalBlockerChannels": [],
+    "byChannel": {
+      "npm": 1
+    },
+    "externalBlockerChannels": [
+      "npm"
+    ],
     "localActionableChannels": []
   },
-  "gapDetails": [],
+  "gapDetails": [
+    {
+      "id": "npm-@file-viewer-thumbnail-npm-unpublished-2.1.26",
+      "channel": "npm",
+      "scope": "package-registry",
+      "externalBlocker": true,
+      "message": "@file-viewer/thumbnail npm unpublished !== 2.1.26",
+      "nextAction": "Complete npm login/passkey and publish the ecosystem packages."
+    }
+  ],
   "nextActions": [
-    "Release channels are aligned. Keep this report attached to the GitHub Release for downstream verification."
+    "Run `npm login` / passkey in an interactive terminal, then `pnpm release:ecosystem:publish`."
   ]
 }

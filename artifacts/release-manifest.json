@@ -1,9 +1,9 @@
 {
   "version": "2.1.26",
   "package": "@flyfish-group/file-viewer-workspace",
-  "generatedAt": "2026-07-10T12:21:47.283Z",
+  "generatedAt": "2026-07-13T01:58:01.394Z",
   "sourceBranch": "main",
-  "sourceCommit": "6a782989",
+  "sourceCommit": "1d1ba377",
   "corePackage": {
     "packageName": "@file-viewer/core",
     "description": "Framework-neutral modular TypeScript file preview core with format registry, renderer orchestration, lifecycle APIs, search, zoom, print, and export.",
@@ -18,6 +18,7 @@
   },
   "ecosystemPackages": {
     "@file-viewer/core": "2.1.26",
+    "@file-viewer/thumbnail": "2.1.26",
     "@file-viewer/renderer-pdf": "2.1.26",
     "@file-viewer/renderer-ofd": "2.1.26",
     "@file-viewer/renderer-presentation": "2.1.26",
@@ -147,6 +148,21 @@
       "artifactNote": null,
       "github": null,
       "gitee": null,
+      "entryFormats": [],
+      "historicalPackages": []
+    },
+    {
+      "name": "@file-viewer/thumbnail",
+      "version": "2.1.26",
+      "kind": "utility",
+      "framework": null,
+      "packageDir": "packages/thumbnail",
+      "tarball": "file-viewer-thumbnail-2.1.26.tgz",
+      "artifactIncluded": true,
+      "artifactDuplicateOf": null,
+      "artifactNote": null,
+      "github": "https://github.com/flyfish-dev/file-viewer",
+      "gitee": "https://gitee.com/flyfish-dev/file-viewer",
       "entryFormats": [],
       "historicalPackages": []
     },
