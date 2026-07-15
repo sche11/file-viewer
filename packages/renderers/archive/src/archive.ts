@@ -1,6 +1,7 @@
 import {
   resolveFileViewerArchiveWasmUrl,
   resolveFileViewerArchiveWorkerUrl,
+  resolveFileViewerRuntimeAssetBaseUrl,
 } from '@file-viewer/core/assets';
 import {
   collectFileViewerRendererPlugins,
@@ -365,9 +366,9 @@ const resolveWorkerCandidates = async (
   options?: FileViewerArchiveOptions
 ): Promise<ArchiveWorkerCandidate[]> => {
   const candidates: ArchiveWorkerCandidate[] = [];
-  const baseUrl = getDocumentBaseUrl(documentRef);
+  const baseUrl = resolveFileViewerRuntimeAssetBaseUrl(documentRef) || getDocumentBaseUrl(documentRef);
   const wasmUrl = options?.wasmUrl
-    ? resolveFileViewerArchiveWasmUrl(options, '')
+    ? resolveFileViewerArchiveWasmUrl(options, '', baseUrl)
     : undefined;
 
   if (options?.workerUrl) {

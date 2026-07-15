@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { copyFile, cp, mkdir, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path'
 import type { Alias, AliasOptions, Plugin, ResolvedConfig, UserConfig } from 'vite'
 
 export type FileViewerVitePreset = 'all' | 'lite' | 'office' | 'engineering'
@@ -137,6 +137,8 @@ interface AssetCopyResult {
   to: string
   copied: boolean
   reason?: string
+  sourcePackage?: string
+  sourceVersion?: string
 }
 
 const virtualModuleId = 'virtual:file-viewer-renderers'
@@ -1093,7 +1095,8 @@ function resolveWorkspacePackageJson(packageName: string) {
 }
 
 function resolvePackageJson(packageName: string, anchorPackages: readonly string[] = []) {
-  const requireFns = [projectRequire(), pluginRequire]
+  const rootRequireFns = [projectRequire(), pluginRequire]
+  const requireFns = [...rootRequireFns]
   const effectiveAnchorPackages = unique([
     ...Object.values(presetModules).map((preset) => preset.packageName),
     ...anchorPackages
@@ -1117,7 +1120,16 @@ function resolvePackageJson(packageName: string, anchorPackages: readonly string
     }
   }
 
-  for (const requireFn of requireFns) {
+  const preferredAnchorPackageJsons = unique(anchorPackages
+    .map((anchorPackage) => requireFns
+      .map((requireFn) => tryResolvePackageJson(anchorPackage, requireFn))
+      .find(Boolean) || resolveWorkspacePackageJson(anchorPackage))
+    .filter((packageJson): packageJson is string => Boolean(packageJson)))
+  const targetRequireFns = [
+    ...preferredAnchorPackageJsons.map((packageJson) => createRequire(packageJson)),
+    ...requireFns
+  ]
+  for (const requireFn of targetRequireFns) {
     const packageJson = tryResolvePackageJson(packageName, requireFn)
     if (packageJson) {
       return packageJson
@@ -1192,6 +1204,50 @@ function collectDependencyAnchorPackages(
 function resolvePackageRoot(packageName: string, anchorPackages: readonly string[] = []) {
   const packageJson = resolvePackageJson(packageName, anchorPackages)
   return packageJson ? dirname(packageJson) : null
+}
+
+function readPackageVersion(packageRoot: string | null) {
+  if (!packageRoot) {
+    return null
+  }
+  try {
+    const packageJson = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')) as {
+      version?: string
+    }
+    return packageJson.version || null
+  } catch {
+    return null
+  }
+}
+
+function assertOwnedPackageVersion(
+  packageName: string,
+  packageRoot: string | null,
+  ownerPackageName: string
+) {
+  if (!packageRoot) {
+    return null
+  }
+  const ownerPackageJsonPath = resolvePackageJson(ownerPackageName)
+  if (!ownerPackageJsonPath) {
+    return readPackageVersion(packageRoot)
+  }
+  const ownerPackageJson = JSON.parse(readFileSync(ownerPackageJsonPath, 'utf8')) as {
+    dependencies?: Record<string, string>
+  }
+  const expectedVersion = ownerPackageJson.dependencies?.[packageName]
+  const actualVersion = readPackageVersion(packageRoot)
+  if (
+    expectedVersion &&
+    /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(expectedVersion) &&
+    actualVersion !== expectedVersion
+  ) {
+    throw new Error(
+      `[file-viewer:vite-plugin] ${ownerPackageName} requires ${packageName}@${expectedVersion}, ` +
+      `but renderer assets resolved from ${packageName}@${actualVersion || 'unknown'} (${packageRoot}).`
+    )
+  }
+  return actualVersion
 }
 
 function resolvePackageEntry(packageName: string, anchorPackages: readonly string[] = []) {
@@ -1395,7 +1451,8 @@ async function copyKnownRendererAssets(targetRoot: string, rendererIds: readonly
     id: string,
     to: string,
     copyAction: () => Promise<boolean>,
-    reason?: string
+    reason?: string,
+    source?: Pick<AssetCopyResult, 'sourcePackage' | 'sourceVersion'>
   ) => {
     if (!selected.has(rendererId)) {
       return
@@ -1406,34 +1463,63 @@ async function copyKnownRendererAssets(targetRoot: string, rendererIds: readonly
       id,
       to,
       copied,
-      reason: copied ? undefined : reason || 'source asset not found'
+      reason: copied ? undefined : reason || 'source asset not found',
+      ...source,
     })
   }
 
   const pdfRoot = resolvePackageRoot('pdfjs-dist', ['@file-viewer/renderer-pdf'])
-  await push('pdf', 'pdf-worker', join(targetRoot, 'vendor/pdf/pdf.worker.mjs'), () =>
-    copyFileIfPresent(
+  const pdfVersion = assertOwnedPackageVersion(
+    'pdfjs-dist',
+    pdfRoot,
+    '@file-viewer/renderer-pdf'
+  )
+  const pdfSource = pdfRoot
+    ? { sourcePackage: 'pdfjs-dist', sourceVersion: pdfVersion || undefined }
+    : undefined
+  await push(
+    'pdf',
+    'pdf-worker',
+    join(targetRoot, 'vendor/pdf/pdf.worker.mjs'),
+    () => copyFileIfPresent(
       pdfRoot ? join(pdfRoot, 'legacy/build/pdf.worker.mjs') : null,
       join(targetRoot, 'vendor/pdf/pdf.worker.mjs')
-    )
+    ),
+    undefined,
+    pdfSource
   )
-  await push('pdf', 'pdf-cmaps', join(targetRoot, 'vendor/pdf/cmaps'), () =>
-    copyDirectoryIfPresent(
+  await push(
+    'pdf',
+    'pdf-cmaps',
+    join(targetRoot, 'vendor/pdf/cmaps'),
+    () => copyDirectoryIfPresent(
       pdfRoot ? join(pdfRoot, 'cmaps') : null,
       join(targetRoot, 'vendor/pdf/cmaps')
-    )
+    ),
+    undefined,
+    pdfSource
   )
-  await push('pdf', 'pdf-wasm', join(targetRoot, 'vendor/pdf/wasm'), () =>
-    copyDirectoryIfPresent(
+  await push(
+    'pdf',
+    'pdf-wasm',
+    join(targetRoot, 'vendor/pdf/wasm'),
+    () => copyDirectoryIfPresent(
       pdfRoot ? join(pdfRoot, 'wasm') : null,
       join(targetRoot, 'vendor/pdf/wasm')
-    )
+    ),
+    undefined,
+    pdfSource
   )
-  await push('pdf', 'pdf-standard-fonts', join(targetRoot, 'vendor/pdf/standard_fonts'), () =>
-    copyDirectoryIfPresent(
+  await push(
+    'pdf',
+    'pdf-standard-fonts',
+    join(targetRoot, 'vendor/pdf/standard_fonts'),
+    () => copyDirectoryIfPresent(
       pdfRoot ? join(pdfRoot, 'standard_fonts') : null,
       join(targetRoot, 'vendor/pdf/standard_fonts')
-    )
+    ),
+    undefined,
+    pdfSource
   )
   const pdfCjkFontRoot = resolvePackageRoot('@fontsource-variable/noto-sans-sc', [
     '@file-viewer/renderer-pdf'
@@ -1577,9 +1663,9 @@ async function copyKnownRendererAssets(targetRoot: string, rendererIds: readonly
   return results
 }
 
-function resolveTargetDir(value: string | undefined, fallback: string) {
+function resolveTargetDir(value: string | undefined, fallback: string, projectRoot?: string) {
   const target = value || fallback
-  return isAbsolute(target) ? target : resolve(process.cwd(), target)
+  return isAbsolute(target) ? target : resolve(projectRoot || process.cwd(), target)
 }
 
 function copyOptions(
@@ -1732,19 +1818,74 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
         }
       }
     },
-    async configureServer() {
+    async configureServer(server) {
       if (!options.copyAssets || copyOptions(options.copyAssets).mode === 'build') {
         return
       }
       const targetRoot = resolveTargetDir(
         copyOptions(options.copyAssets).publicDir,
-        resolvedConfig?.publicDir || 'public'
+        resolvedConfig?.publicDir || 'public',
+        resolvedConfig?.root
       )
       const results = await copyKnownRendererAssets(
         targetRoot,
         collectAssetRendererIds(selection, autoPresetIds)
       )
       reportAssetCopy(results, targetRoot, missingMode)
+
+      const base = resolvedConfig?.base || '/'
+      if (base.startsWith('/') && base !== '/') {
+        const normalizedBase = base.endsWith('/') ? base : `${base}/`
+        server.middlewares.use(async (request, response, next) => {
+          const requestUrl = request.url || ''
+          const queryIndex = requestUrl.indexOf('?')
+          const pathname = queryIndex >= 0 ? requestUrl.slice(0, queryIndex) : requestUrl
+          if (pathname.startsWith(normalizedBase)) {
+            let relativePath = pathname.slice(normalizedBase.length)
+            try {
+              relativePath = decodeURIComponent(relativePath)
+            } catch {
+              next()
+              return
+            }
+            if (relativePath.startsWith('vendor/') || relativePath.startsWith('wasm/')) {
+              const assetPath = resolve(targetRoot, relativePath)
+              if (assetPath.startsWith(`${targetRoot}${sep}`)) {
+                try {
+                  const info = await stat(assetPath)
+                  if (info.isFile()) {
+                    const contentTypes: Record<string, string> = {
+                      '.bcmap': 'application/octet-stream',
+                      '.css': 'text/css; charset=utf-8',
+                      '.js': 'text/javascript; charset=utf-8',
+                      '.json': 'application/json; charset=utf-8',
+                      '.mjs': 'text/javascript; charset=utf-8',
+                      '.ttf': 'font/ttf',
+                      '.wasm': 'application/wasm',
+                      '.woff': 'font/woff',
+                      '.woff2': 'font/woff2'
+                    }
+                    response.statusCode = 200
+                    response.setHeader(
+                      'Content-Type',
+                      contentTypes[extname(assetPath).toLowerCase()] || 'application/octet-stream'
+                    )
+                    if (request.method === 'HEAD') {
+                      response.end()
+                    } else {
+                      response.end(await readFile(assetPath))
+                    }
+                    return
+                  }
+                } catch {
+                  // Let Vite return its normal 404/fallback response.
+                }
+              }
+            }
+          }
+          next()
+        })
+      }
     },
     transformIndexHtml: {
       order: 'pre',
@@ -1789,7 +1930,11 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
         return
       }
       const outDir = resolvedConfig?.build.outDir || 'dist'
-      const targetRoot = resolveTargetDir(copyOptions(options.copyAssets).outDir, outDir)
+      const targetRoot = resolveTargetDir(
+        copyOptions(options.copyAssets).outDir,
+        outDir,
+        resolvedConfig?.root
+      )
       const results = await copyKnownRendererAssets(
         targetRoot,
         collectAssetRendererIds(selection, autoPresetIds)

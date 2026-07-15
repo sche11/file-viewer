@@ -68,13 +68,19 @@ const resolveFileViewerScriptAssetBaseCandidate = (
     }
 
     const scriptUrl = new URL(rawScriptUrl, documentBaseUrl);
+    const viteClient = scriptUrl.pathname.match(/^(.*\/)@vite\/client$/i);
+    const isSourceModule = /\/(?:src|node_modules|@fs|@id|@vite)(?:\/|$)/i.test(
+      scriptUrl.pathname
+    );
     const assetDirectory = scriptUrl.pathname.match(
       /^(.*\/)(?:assets|static|js)\/.+\.(?:m?js)$/i
     );
-    const entryScript = scriptUrl.pathname.match(
-      /^(.*\/)(?:app|index|main|runtime|umi)(?:[.-][^/]*)?\.(?:m?js)$/i
-    );
-    const basePath = assetDirectory?.[1] || entryScript?.[1];
+    const entryScript = isSourceModule
+      ? null
+      : scriptUrl.pathname.match(
+          /^(.*\/)(?:app|index|main|runtime|umi)(?:[.-][^/]*)?\.(?:m?js)$/i
+        );
+    const basePath = viteClient?.[1] || (!isSourceModule ? assetDirectory?.[1] : null) || entryScript?.[1];
     if (!basePath) {
       return null;
     }
@@ -96,6 +102,9 @@ const resolveFileViewerScriptAssetBaseCandidate = (
     }
     if (/^(?:app|index|main|runtime|umi)(?:[.-]|$)/i.test(scriptName)) {
       score += 2;
+    }
+    if (viteClient) {
+      score += 8;
     }
 
     return { url, score };
@@ -478,12 +487,15 @@ export const resolveFileViewerArchiveWorkerUrl = (
 
 export const resolveFileViewerArchiveWasmUrl = (
   options?: Pick<FileViewerArchiveOptions, 'wasmUrl'> | null,
-  fallback = ''
+  fallback = '',
+  documentBaseUrl?: string
 ) => {
   if (!options?.wasmUrl) {
     return fallback;
   }
-  return resolveFileViewerAssetUrl(options.wasmUrl, fallback || options.wasmUrl);
+  return resolveFileViewerAssetUrl(options.wasmUrl, fallback || options.wasmUrl, {
+    documentBaseUrl,
+  });
 };
 
 export const resolveFileViewerCadAssetUrls = (
