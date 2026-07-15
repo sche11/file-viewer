@@ -101,6 +101,12 @@ type SpreadsheetMessageListener = EventListenerOrEventListenerObject | null;
 
 const EXCEL_IMAGE_SCROLLBAR_GUARD = 18;
 const DEFAULT_SPREADSHEET_WORKER_AUTO_THRESHOLD = 1 * 1024 * 1024;
+const E_VIRT_TABLE_STYLE_MARKERS = [
+  '.e-virt-table-container',
+  '.e-virt-table-overlayer',
+  '.e-virt-table-editor',
+  '.e-virt-table-context-menu',
+] as const;
 
 const spreadsheetStyle = `
 .excel-wrapper{position:relative;width:100%;height:100%;display:flex;flex-direction:column;background:#fff;color:#172033;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
@@ -189,9 +195,73 @@ export const resolveEVirtTableConstructor = (module: unknown): EVirtTableConstru
   return constructor;
 };
 
-const loadEVirtTable = async (): Promise<EVirtTableConstructor> => {
+const isEVirtTableStyleText = (value: string) => {
+  return E_VIRT_TABLE_STYLE_MARKERS.every(marker => value.includes(marker));
+};
+
+const collectEVirtTableStyleDocuments = (documentRef: Document) => [
+  documentRef,
+  typeof document === 'undefined' ? null : document,
+].filter((value, index, values): value is Document => (
+  !!value && values.indexOf(value) === index
+));
+
+const collectStyleElements = (documents: readonly Document[]) => documents.flatMap(
+  candidateDocument => Array.from(candidateDocument.head?.querySelectorAll('style') || [])
+);
+
+let loadedEVirtTableStyleText = '';
+
+// e-virt-table bundles its complete stylesheet into the ESM entry and injects
+// it into document.head. Head styles do not cross a ShadowRoot boundary, so
+// capture that exact version-matched CSS and install a copy beside the table.
+// Checking independent layout, overlay, editor, and menu selectors avoids
+// mistaking an app's partial compatibility overrides for the vendor sheet.
+export const resolveEVirtTableStyleText = (documentRef: Document) => {
+  const styles = collectStyleElements(collectEVirtTableStyleDocuments(documentRef));
+  for (let index = styles.length - 1; index >= 0; index -= 1) {
+    const cssText = styles[index]?.textContent || '';
+    if (isEVirtTableStyleText(cssText)) {
+      return cssText;
+    }
+  }
+
+  return '';
+};
+
+const loadEVirtTable = async (documentRef: Document): Promise<{
+  constructor: EVirtTableConstructor;
+  styleText: string;
+}> => {
+  const documents = collectEVirtTableStyleDocuments(documentRef);
+  const stylesBeforeImport = new Set(collectStyleElements(documents));
   const module = await import('e-virt-table/dist/index.es.js');
-  return resolveEVirtTableConstructor(module);
+  const injectedStyles = collectStyleElements(documents).filter(style => (
+    !stylesBeforeImport.has(style) && isEVirtTableStyleText(style.textContent || '')
+  ));
+  const injectedStyle = injectedStyles[injectedStyles.length - 1];
+  if (injectedStyle) {
+    loadedEVirtTableStyleText = injectedStyle.textContent || '';
+  }
+
+  return {
+    constructor: resolveEVirtTableConstructor(module),
+    // The vendor entry injects CSS while its dynamic import is evaluated.
+    // Prefer that newly-created node so an app's independently loaded table
+    // version cannot be mistaken for the renderer-owned dependency.
+    styleText: loadedEVirtTableStyleText || resolveEVirtTableStyleText(documentRef),
+  };
+};
+
+export const scopeEVirtTableStyleText = (cssText: string, shadow: boolean) => {
+  if (!shadow) {
+    return cssText;
+  }
+
+  // :root inside a shadow stylesheet does not select the document host. Move
+  // the vendor custom properties onto both the ShadowRoot host and renderer
+  // root while keeping the remaining upstream selectors byte-for-byte.
+  return cssText.replace(/:root\s*\{/g, ':host,.excel-wrapper{');
 };
 
 const getTargetWindow = (target: HTMLDivElement) => {
@@ -514,9 +584,27 @@ const createSpreadsheetWorkerFactory = (
   };
 };
 
-const createStyle = (documentRef: Document) => {
+const createStyle = (documentRef: Document, cssText = spreadsheetStyle) => {
   const style = documentRef.createElement('style');
-  style.textContent = spreadsheetStyle;
+  style.textContent = cssText;
+  return style;
+};
+
+const createEVirtTableStyle = (
+  documentRef: Document,
+  target: HTMLDivElement,
+  cssText: string
+) => {
+  if (!cssText) {
+    throw new Error(
+      'Unable to resolve the e-virt-table stylesheet for the spreadsheet render surface.'
+    );
+  }
+  const rootNode = target.getRootNode();
+  const ShadowRootCtor = target.ownerDocument.defaultView?.ShadowRoot;
+  const shadow = !!ShadowRootCtor && rootNode instanceof ShadowRootCtor;
+  const style = createStyle(documentRef, scopeEVirtTableStyleText(cssText, shadow));
+  style.dataset.fileViewerVendorStyle = 'e-virt-table';
   return style;
 };
 
@@ -611,7 +699,8 @@ const renderFileViewerSpreadsheet = async (
   context?: FileRenderContext
 ): Promise<AppWrapper> => {
   const documentRef = target.ownerDocument;
-  const EVirtTable = await loadEVirtTable();
+  const loadedEVirtTable = await loadEVirtTable(documentRef);
+  const EVirtTable = loadedEVirtTable.constructor;
   const t = createFileViewerTranslator(context?.options);
   const zoomEmitter = createZoomChangeEmitter();
 
@@ -680,7 +769,11 @@ const renderFileViewerSpreadsheet = async (
   toolbar.append(sheetTabsBar, summary);
 
   root.append(loading, error, tableWrapper, toolbar);
-  target.replaceChildren(createStyle(documentRef), root);
+  target.replaceChildren(
+    createEVirtTableStyle(documentRef, target, loadedEVirtTable.styleText),
+    createStyle(documentRef),
+    root
+  );
 
   let sheets: SheetDefinition[] = [];
   let sheetIndex = 0;
