@@ -5,6 +5,7 @@ import type { Plugin, UserConfigExport } from 'vite'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
+import { createOfflineAssetSanitizerPlugin } from '../../packages/components/web-full/scripts/offline-asset-sanitize.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -46,7 +47,15 @@ export default defineConfig(ctx => {
   }
 
   const config: UserConfigExport = {
-    plugins: [viewerQueryFallbackPlugin(), vue(), vueJsx()],
+    plugins: [
+      viewerQueryFallbackPlugin(),
+      vue(),
+      vueJsx(),
+      createOfflineAssetSanitizerPlugin(
+        fileURLToPath(new URL('./dist', import.meta.url)),
+        { label: 'viewer-demo-offline-assets' }
+      )
+    ],
     base: './',
     define: {
       global: 'globalThis'

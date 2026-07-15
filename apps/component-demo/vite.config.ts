@@ -1,11 +1,17 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createOfflineAssetSanitizerPlugin } from '../../packages/components/web-full/scripts/offline-asset-sanitize.mjs'
 
 const demoRoot = fileURLToPath(new URL('.', import.meta.url))
 const excalidrawStub = resolve(demoRoot, '../../scripts/excalidraw-iife-stub.ts')
 
 export default defineConfig({
+  plugins: [
+    createOfflineAssetSanitizerPlugin(resolve(demoRoot, 'dist'), {
+      label: 'component-demo-offline-assets'
+    })
+  ],
   resolve: {
     alias: {
       // The component demo publishes script-tag and framework examples together.
