@@ -306,8 +306,14 @@ const edaStyle = `
 .eda-error{position:absolute;right:18px;bottom:18px;width:min(440px,calc(100% - 36px));padding:14px;background:#fff7e8;color:#8a4b00;z-index:3}
 @keyframes eda-spin{to{transform:rotate(360deg)}}
 [data-viewer-theme='dark'] .eda-viewer{background:#172033;color:#e5eef8}
-[data-viewer-theme='dark'] .eda-header,[data-viewer-theme='dark'] .eda-summary,[data-viewer-theme='dark'] .eda-panel,[data-viewer-theme='dark'] .eda-sidebar{background:#fff;color:#172033}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .eda-viewer{background:#172033;color:#e5eef8}[data-viewer-theme='system'] .eda-header,[data-viewer-theme='system'] .eda-summary,[data-viewer-theme='system'] .eda-panel,[data-viewer-theme='system'] .eda-sidebar{background:#fff;color:#172033}}
+[data-viewer-theme='dark'] .eda-header,[data-viewer-theme='dark'] .eda-summary,[data-viewer-theme='dark'] .eda-panel,[data-viewer-theme='dark'] .eda-sidebar{border-color:rgba(139,148,158,.2);background:#111827;color:#e5eef8;box-shadow:inset 0 0 0 1px rgba(139,148,158,.12)}
+[data-viewer-theme='dark'] .eda-header dd,[data-viewer-theme='dark'] .eda-summary strong,[data-viewer-theme='dark'] .eda-mini-grid strong,[data-viewer-theme='dark'] .eda-stat-grid strong,[data-viewer-theme='dark'] .eda-entity-group h3,[data-viewer-theme='dark'] .eda-local-strings strong{color:#f8fafc}
+[data-viewer-theme='dark'] .eda-header dt,[data-viewer-theme='dark'] .eda-summary p,[data-viewer-theme='dark'] .eda-mini-grid span,[data-viewer-theme='dark'] .eda-stat-grid span,[data-viewer-theme='dark'] .eda-stream em,[data-viewer-theme='dark'] .eda-stream small,[data-viewer-theme='dark'] .eda-tree em,[data-viewer-theme='dark'] .eda-tree small,[data-viewer-theme='dark'] .eda-entity-group button>span,[data-viewer-theme='dark'] .eda-entity-group dl div,[data-viewer-theme='dark'] .eda-entity-group dt{color:#94a3b8}
+[data-viewer-theme='dark'] .eda-mini-grid div,[data-viewer-theme='dark'] .eda-stat-grid div,[data-viewer-theme='dark'] .eda-stream,[data-viewer-theme='dark'] .eda-tree button,[data-viewer-theme='dark'] .eda-entity-group button,[data-viewer-theme='dark'] .eda-string-grid span,[data-viewer-theme='dark'] .eda-diagnostics p{border-color:rgba(139,148,158,.2);background:#1f2937;color:#e5eef8;box-shadow:none}
+[data-viewer-theme='dark'] .eda-search{border-color:rgba(139,148,158,.24);background:#0d1117;color:#e6edf3}
+[data-viewer-theme='dark'] .eda-selected-meta span,[data-viewer-theme='dark'] .eda-property-grid div,[data-viewer-theme='dark'] .eda-local-strings span,[data-viewer-theme='dark'] .eda-layout-meta span{background:rgba(45,212,191,.12);color:#5eead4}
+[data-viewer-theme='dark'] .eda-state{background:rgba(13,17,23,.9);color:#cbd5e1}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .eda-viewer{background:#172033;color:#e5eef8}[data-viewer-theme='system'] .eda-header,[data-viewer-theme='system'] .eda-summary,[data-viewer-theme='system'] .eda-panel,[data-viewer-theme='system'] .eda-sidebar{border-color:rgba(139,148,158,.2);background:#111827;color:#e5eef8;box-shadow:inset 0 0 0 1px rgba(139,148,158,.12)}[data-viewer-theme='system'] .eda-header dd,[data-viewer-theme='system'] .eda-summary strong,[data-viewer-theme='system'] .eda-mini-grid strong,[data-viewer-theme='system'] .eda-stat-grid strong,[data-viewer-theme='system'] .eda-entity-group h3,[data-viewer-theme='system'] .eda-local-strings strong{color:#f8fafc}[data-viewer-theme='system'] .eda-header dt,[data-viewer-theme='system'] .eda-summary p,[data-viewer-theme='system'] .eda-mini-grid span,[data-viewer-theme='system'] .eda-stat-grid span,[data-viewer-theme='system'] .eda-stream em,[data-viewer-theme='system'] .eda-stream small,[data-viewer-theme='system'] .eda-tree em,[data-viewer-theme='system'] .eda-tree small,[data-viewer-theme='system'] .eda-entity-group button>span,[data-viewer-theme='system'] .eda-entity-group dl div,[data-viewer-theme='system'] .eda-entity-group dt{color:#94a3b8}[data-viewer-theme='system'] .eda-mini-grid div,[data-viewer-theme='system'] .eda-stat-grid div,[data-viewer-theme='system'] .eda-stream,[data-viewer-theme='system'] .eda-tree button,[data-viewer-theme='system'] .eda-entity-group button,[data-viewer-theme='system'] .eda-string-grid span,[data-viewer-theme='system'] .eda-diagnostics p{border-color:rgba(139,148,158,.2);background:#1f2937;color:#e5eef8;box-shadow:none}[data-viewer-theme='system'] .eda-search{border-color:rgba(139,148,158,.24);background:#0d1117;color:#e6edf3}[data-viewer-theme='system'] .eda-selected-meta span,[data-viewer-theme='system'] .eda-property-grid div,[data-viewer-theme='system'] .eda-local-strings span,[data-viewer-theme='system'] .eda-layout-meta span{background:rgba(45,212,191,.12);color:#5eead4}[data-viewer-theme='system'] .eda-state{background:rgba(13,17,23,.9);color:#cbd5e1}}
 @media (max-width:980px){.eda-header,.eda-body,.eda-topology,.eda-bottom{grid-template-columns:1fr}.eda-header{align-items:flex-start;flex-direction:column;padding-right:22px}.eda-body{display:flex;flex-direction:column}.eda-sidebar{max-height:42vh;border-right:0;border-bottom:1px solid rgba(23,32,51,.08)}}
 @media (max-width:640px){.eda-header dl,.eda-mini-grid,.eda-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eda-tree button{grid-template-columns:minmax(22px,auto) minmax(0,1fr)}.eda-tree em,.eda-tree small{display:none}}
 `;
@@ -768,7 +774,6 @@ export default async function renderEda(
   const style = createStyle();
   const cleanups: Array<() => void> = [];
   let selectedStream: EdaStreamView | null = null;
-  let parsedResult: EdaParseResult | null = null;
 
   target.replaceChildren(style, root);
 
@@ -798,7 +803,6 @@ export default async function renderEda(
   };
 
   const renderParsed = (parsed: EdaParseResult) => {
-    parsedResult = parsed;
     selectedStream = parsed.streams.find(stream => stream.properties.length)
       || parsed.streams.find(stream => stream.kind === 'text')
       || parsed.streams[0]
@@ -1080,7 +1084,6 @@ export default async function renderEda(
     $el: root,
     unmount() {
       cleanups.splice(0).forEach(cleanup => cleanup());
-      parsedResult = null;
       selectedStream = null;
       target.replaceChildren();
     },

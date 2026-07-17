@@ -3,6 +3,9 @@ export const codeStyle = `
 .code-toolbar{position:sticky;top:0;z-index:1;display:flex;height:42px;align-items:center;justify-content:space-between;gap:16px;padding:0 16px;border-bottom:1px solid var(--code-border);background:var(--code-toolbar-bg);backdrop-filter:blur(12px);box-sizing:border-box}
 .code-toolbar span,.code-toolbar strong{color:var(--code-muted);font-size:12px;font-weight:700;letter-spacing:0}
 .code-area{display:block;min-width:min-content;margin:0;padding:18px 20px 28px;overflow:auto;background:transparent;box-sizing:border-box}
+.code-area--line-numbers{display:grid;grid-template-columns:max-content max-content;padding:18px 0 28px}
+.code-line-numbers{position:sticky;left:0;z-index:1;display:block;min-width:4ch;padding:0 12px 0 16px;border-right:1px solid var(--code-border);background:var(--code-bg);color:var(--code-muted);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:var(--code-font-size,13px);line-height:1.7;text-align:right;white-space:pre;user-select:none;box-sizing:border-box}
+.code-area.code-area--line-numbers code{padding:0 20px}
 .code-area code{display:block;padding:0;overflow:visible;background:transparent;color:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:var(--code-font-size,13px);line-height:1.7;tab-size:2;white-space:pre}
 .code-area .hljs-comment,.code-area .hljs-quote{color:var(--code-comment)}
 .code-area .hljs-keyword,.code-area .hljs-selector-tag,.code-area .hljs-subst{color:var(--code-keyword)}

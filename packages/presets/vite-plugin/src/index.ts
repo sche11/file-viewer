@@ -42,8 +42,8 @@ export interface FileViewerCopyAssetsOptions {
    * Directory below publicDir/outDir where assets are published. When omitted,
    * projects with an installed @file-viewer/*-full package use `file-viewer`;
    * other projects keep the existing output-root layout. Use an empty string
-   * to explicitly publish at the output root. For full packages, the injected
-   * runtime module keeps the default asset base aligned with this directory.
+   * to explicitly publish at the output root. The injected runtime module
+   * keeps every renderer's default asset base aligned with this directory.
    */
   baseDir?: string
   /**
@@ -152,6 +152,18 @@ interface AssetCopyResult {
 
 const virtualModuleId = 'virtual:file-viewer-renderers'
 const resolvedVirtualModuleId = `\0${virtualModuleId}`
+const packagedPptFallbackModuleId = 'virtual:file-viewer-packaged-ppt-fallback'
+const resolvedPackagedPptFallbackModuleId = `\0${packagedPptFallbackModuleId}`
+
+const isPresentationRendererImporter = (importer?: string) => {
+  if (!importer) return false
+  const normalized = importer.replace(/\\/g, '/')
+  return (
+    normalized.includes('/@file-viewer/renderer-presentation/') ||
+    normalized.includes('/@file-viewer+renderer-presentation@') ||
+    normalized.includes('/packages/renderers/presentation/')
+  )
+}
 const pluginRequire = createRequire(import.meta.url)
 let workspacePackageJsonCache: { root: string; packages: Map<string, string> } | null = null
 
@@ -192,8 +204,17 @@ const rendererModules: readonly RendererModuleDescriptor[] = [
     id: 'presentation',
     packageName: '@file-viewer/renderer-presentation',
     exportName: 'presentationRenderer',
-    formats: ['presentation', 'pptx', 'pptm', 'potx', 'potm', 'ppsx', 'ppsm'],
-    rendererIds: ['office-presentation'],
+    formats: [
+      'presentation',
+      'ppt',
+      'pptx',
+      'pptm',
+      'potx',
+      'potm',
+      'ppsx',
+      'ppsm'
+    ],
+    rendererIds: ['office-presentation-binary', 'office-presentation'],
     chunkName: 'file-viewer-presentation'
   },
   {
@@ -554,6 +575,7 @@ const fileViewerFullPackages = [
 // CommonJS/UMD helper dependencies below.
 const fileViewerOptimizationExcludedPackages = [
   '@file-viewer/core',
+  '@file-viewer/ppt',
   '@file-viewer/pptx',
   ...rendererModules.map((descriptor) => descriptor.packageName),
   ...Object.values(presetModules).map((preset) => preset.packageName),
@@ -563,6 +585,7 @@ const fileViewerOptimizationExcludedPackages = [
 const cjsInteropPackages = [
   '@file-viewer/docx',
   '@xmldom/xmldom',
+  'occt-import-js',
   'jszip'
 ] as const
 
@@ -612,6 +635,7 @@ const mimeFormatHints: Record<string, string[]> = {
   'application/vnd.rar': ['rar'],
   'text/markdown': ['md'],
   'text/csv': ['csv'],
+  'text/tab-separated-values': ['tsv'],
   'text/html': ['html'],
   'text/css': ['css'],
   'text/plain': ['txt'],
@@ -849,7 +873,8 @@ function renderVirtualModule(
   selection: RendererSelection,
   formats: readonly string[],
   autoPresetIds: readonly FileViewerVitePreset[] = [],
-  fullAssetBase: FullAssetRuntimeBase | null = null
+  runtimeAssetBase: FullAssetRuntimeBase | null = null,
+  configureFullAssetBase = false
 ) {
   const presetModule = selection.preset ? presetModules[selection.preset] : null
   const autoPresetModules = autoPresetIds
@@ -897,34 +922,48 @@ function renderVirtualModule(
         ? autoPresetModules[0].id
         : '@file-viewer/vite-plugin:configured'
 
-  const fullAssetBaseImport = fullAssetBase
-    ? fullAssetBase.kind === 'deployment'
-      ? `import { DEFAULT_FULL_ASSET_BASE_PATH, resolveDefaultFullAssetBaseUrl, setDefaultFullAssetBaseUrl } from '@file-viewer/preset-all';`
-      : `import { setDefaultFullAssetBaseUrl } from '@file-viewer/preset-all';`
+  const runtimeAssetBaseImport = runtimeAssetBase
+    ? runtimeAssetBase.kind === 'deployment'
+      ? `import { resolveFileViewerRuntimeAssetBaseUrl, setDefaultFileViewerAssetBaseUrl } from '@file-viewer/core/assets';`
+      : `import { setDefaultFileViewerAssetBaseUrl } from '@file-viewer/core/assets';`
+    : null
+  const fullAssetBaseImport = runtimeAssetBase && configureFullAssetBase
+    ? `import { setDefaultFullAssetBaseUrl } from '@file-viewer/preset-all';`
     : null
   const autoRegistrationImport = rendererNames.length
     ? `import { registerFileViewerAutoRendererPreset } from '@file-viewer/core';`
     : null
-  const fullAssetBaseSetup = !fullAssetBase
+  const runtimeAssetBaseSetup = !runtimeAssetBase
     ? []
-    : fullAssetBase.kind === 'literal'
-      ? [`setDefaultFullAssetBaseUrl(${JSON.stringify(fullAssetBase.url)});`, '']
+    : runtimeAssetBase.kind === 'literal'
+      ? [
+          `setDefaultFileViewerAssetBaseUrl(${JSON.stringify(runtimeAssetBase.url)});`,
+          ...(configureFullAssetBase
+            ? [`setDefaultFullAssetBaseUrl(${JSON.stringify(runtimeAssetBase.url)});`]
+            : []),
+          ''
+        ]
       : [
-          'const fileViewerDefaultFullAssetBaseUrl = resolveDefaultFullAssetBaseUrl();',
-          'const fileViewerDeploymentBaseUrl = fileViewerDefaultFullAssetBaseUrl.endsWith(DEFAULT_FULL_ASSET_BASE_PATH)',
-          '  ? fileViewerDefaultFullAssetBaseUrl.slice(0, -DEFAULT_FULL_ASSET_BASE_PATH.length)',
-          '  : fileViewerDefaultFullAssetBaseUrl;',
-          `setDefaultFullAssetBaseUrl(fileViewerDeploymentBaseUrl + ${JSON.stringify(fullAssetBase.encodedBaseDir)});`,
+          "const fileViewerDeploymentBaseUrl = typeof document === 'undefined'",
+          "  ? '/'",
+          '  : resolveFileViewerRuntimeAssetBaseUrl(document);',
+          "const fileViewerRuntimeAssetBaseUrl = typeof document === 'undefined'",
+          `  ? '/' + ${JSON.stringify(runtimeAssetBase.encodedBaseDir)}`,
+          `  : new URL(${JSON.stringify(runtimeAssetBase.encodedBaseDir)}, fileViewerDeploymentBaseUrl.endsWith('/') ? fileViewerDeploymentBaseUrl : fileViewerDeploymentBaseUrl + '/').href;`,
+          'setDefaultFileViewerAssetBaseUrl(fileViewerRuntimeAssetBaseUrl);',
+          ...(configureFullAssetBase
+            ? ['setDefaultFullAssetBaseUrl(fileViewerRuntimeAssetBaseUrl);']
+            : []),
           ''
         ]
 
   return [
-    ...[autoRegistrationImport, fullAssetBaseImport].filter(Boolean),
+    ...[autoRegistrationImport, runtimeAssetBaseImport, fullAssetBaseImport].filter(Boolean),
     ...[presetImport].filter(Boolean),
     ...autoPresetImports,
     ...rendererImports,
     '',
-    ...fullAssetBaseSetup,
+    ...runtimeAssetBaseSetup,
     `export const configuredFileViewerRenderers = [${rendererNames.join(', ')}];`,
     `export const fileViewerRendererPlan = ${JSON.stringify(plan, null, 2)};`,
     ...(rendererNames.length
@@ -1265,12 +1304,13 @@ function readPackageVersion(packageRoot: string | null) {
 function assertOwnedPackageVersion(
   packageName: string,
   packageRoot: string | null,
-  ownerPackageName: string
+  ownerPackageName: string,
+  anchorPackages: readonly string[] = []
 ) {
   if (!packageRoot) {
     return null
   }
-  const ownerPackageJsonPath = resolvePackageJson(ownerPackageName)
+  const ownerPackageJsonPath = resolvePackageJson(ownerPackageName, anchorPackages)
   if (!ownerPackageJsonPath) {
     return readPackageVersion(packageRoot)
   }
@@ -1585,6 +1625,35 @@ async function copyKnownRendererAssets(targetRoot: string, rendererIds: readonly
       )
   )
 
+  const pptRoot = resolvePackageRoot('@file-viewer/ppt', ['@file-viewer/renderer-presentation'])
+  const pptVersion = readPackageVersion(pptRoot)
+  const pptSource = pptRoot
+    ? { sourcePackage: '@file-viewer/ppt', sourceVersion: pptVersion || undefined }
+    : undefined
+  for (const [id, filename] of [
+    ['ppt-module', 'index.mjs'],
+    ['ppt-worker', 'worker.mjs'],
+    ['ppt-frame-cache', 'frame-cache.mjs'],
+    ['ppt-wasm', 'ppt-native.wasm'],
+    ['ppt-cjk-font', 'ppt-font-cjk.otf'],
+    ['ppt-manifest', 'manifest.json'],
+    ['ppt-package', 'package.json'],
+    ['ppt-license', 'LICENSE'],
+    ['ppt-notice', 'NOTICE']
+  ] as const) {
+    await push(
+      'office-presentation-binary',
+      id,
+      join(targetRoot, `vendor/ppt/${filename}`),
+      () => copyFileIfPresent(
+        pptRoot ? join(pptRoot, filename) : null,
+        join(targetRoot, `vendor/ppt/${filename}`)
+      ),
+      undefined,
+      pptSource
+    )
+  }
+
   const docxRoot = resolvePackageRoot('@file-viewer/docx', ['@file-viewer/renderer-word'])
   await push(
     'office-word-openxml',
@@ -1607,6 +1676,30 @@ async function copyKnownRendererAssets(targetRoot: string, rendererIds: readonly
       )
   )
 
+  const spreadsheetRoot = resolvePackageRoot('@file-viewer/renderer-spreadsheet', [
+    '@file-viewer/renderer-spreadsheet',
+    '@file-viewer/preset-office',
+    '@file-viewer/preset-all'
+  ])
+  const spreadsheetVersion = readPackageVersion(spreadsheetRoot)
+  await push(
+    'spreadsheet-openxml',
+    'spreadsheet-worker',
+    join(targetRoot, 'vendor/xlsx/sheet.worker.js'),
+    () =>
+      copyFileIfPresent(
+        spreadsheetRoot ? join(spreadsheetRoot, 'dist/worker/sheet.worker.js') : null,
+        join(targetRoot, 'vendor/xlsx/sheet.worker.js')
+      ),
+    undefined,
+    spreadsheetRoot
+      ? {
+          sourcePackage: '@file-viewer/renderer-spreadsheet',
+          sourceVersion: spreadsheetVersion || undefined
+        }
+      : undefined
+  )
+
   const cadRoot = resolvePackageRoot('@flyfish-dev/cad-viewer', ['@file-viewer/renderer-cad'])
   await push('cad', 'cad-wasm-directory', join(targetRoot, 'wasm/cad'), () =>
     copyDirectoryIfPresent(
@@ -1614,6 +1707,51 @@ async function copyKnownRendererAssets(targetRoot: string, rendererIds: readonly
       join(targetRoot, 'wasm/cad')
     )
   )
+
+  const modelDependencyAnchors = [
+    '@file-viewer/renderer-3d',
+    '@file-viewer/geometry-engine'
+  ] as const
+  const occtRoot = resolvePackageRoot('occt-import-js', modelDependencyAnchors)
+  const geometryEngineRoot = resolvePackageRoot('@file-viewer/geometry-engine', [
+    '@file-viewer/renderer-3d'
+  ])
+  const occtVersion = assertOwnedPackageVersion(
+    'occt-import-js',
+    occtRoot,
+    '@file-viewer/geometry-engine',
+    modelDependencyAnchors
+  )
+  const occtSource = occtRoot
+    ? { sourcePackage: 'occt-import-js', sourceVersion: occtVersion || undefined }
+    : undefined
+  await push('model', 'model-occt-worker', join(targetRoot, 'wasm/model/occt-worker.js'), () =>
+    copyFileIfPresent(
+      geometryEngineRoot ? join(geometryEngineRoot, 'assets/occt-worker.js') : null,
+      join(targetRoot, 'wasm/model/occt-worker.js')
+    )
+  )
+  for (const [id, filename] of [
+    ['model-occt-runtime', 'occt-import-js.js'],
+    ['model-occt-wasm', 'occt-import-js.wasm'],
+    ['model-occt-license', 'license.occt.txt'],
+    ['model-occt-import-license', 'license.occt-import-js.txt']
+  ] as const) {
+    const targetFilename = filename.startsWith('license.')
+      ? filename.replace(/^license\./, 'LICENSE.')
+      : filename
+    await push(
+      'model',
+      id,
+      join(targetRoot, `wasm/model/${targetFilename}`),
+      () => copyFileIfPresent(
+        occtRoot ? join(occtRoot, `dist/${filename}`) : null,
+        join(targetRoot, `wasm/model/${targetFilename}`)
+      ),
+      undefined,
+      occtSource
+    )
+  }
 
   const typstCompilerRoot = resolvePackageRoot('@myriaddreamin/typst-ts-web-compiler', [
     '@file-viewer/renderer-typst'
@@ -2153,12 +2291,16 @@ function resolveDevAssetRequestPath(
   requestPathname: string,
   viteBasePath: string
 ) {
-  if (!requestPathname.startsWith(viteBasePath)) {
-    return null
-  }
   let requestRelativePath: string
   try {
-    requestRelativePath = decodeURIComponent(requestPathname.slice(viteBasePath.length))
+    // Depending on the Vite major and middleware ordering, configureServer can
+    // observe either the original base-prefixed URL or the pathname after
+    // Vite's base middleware has stripped it. Accept both shapes, then keep the
+    // strict viewer-asset allowlist and target-root boundary checks below.
+    const encodedRelativePath = viteBasePath === '/' || requestPathname.startsWith(viteBasePath)
+      ? requestPathname.slice(viteBasePath === '/' ? 1 : viteBasePath.length)
+      : requestPathname.replace(/^\/+/, '')
+    requestRelativePath = decodeURIComponent(encodedRelativePath)
   } catch {
     return null
   }
@@ -2215,6 +2357,7 @@ function reportAssetCopy(
       result.required ?? [
         'pdf',
         'office-word-openxml',
+        'office-presentation-binary',
         'office-presentation',
         'archive',
         'cad',
@@ -2257,7 +2400,7 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
   let autoPresetIds = resolveAutoPresetIds(options)
   let resolvedConfig: ResolvedConfig | null = null
   let installedFullPackages: string[] = []
-  let fullAssetBase: FullAssetRuntimeBase | null = null
+  let runtimeAssetBase: FullAssetRuntimeBase | null = null
   const refreshSelection = (projectRoot?: string) => {
     if (projectRoot) {
       scanFormats = collectFileViewerRendererScanTokens(projectRoot, options.scan)
@@ -2272,16 +2415,14 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
   const refreshFullAssetRuntime = (projectRoot: string, viteBase?: string) => {
     if (!options.copyAssets) {
       installedFullPackages = []
-      fullAssetBase = null
+      runtimeAssetBase = null
       return
     }
     const target = resolveFileViewerCopyAssetsTarget('dev', options.copyAssets, {
       projectRoot
     })
     installedFullPackages = target.installedFullPackages
-    fullAssetBase = installedFullPackages.length
-      ? resolveViteFullAssetBase(viteBase, target.baseDir)
-      : null
+    runtimeAssetBase = resolveViteFullAssetBase(viteBase, target.baseDir)
   }
   const hasConfiguredRenderers = () =>
     Boolean(selection.preset || selection.descriptors.length || autoPresetIds.length)
@@ -2293,13 +2434,13 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
       const projectRoot = resolve(process.cwd(), userConfig.root || '.')
       refreshSelection(projectRoot)
       refreshFullAssetRuntime(projectRoot, userConfig.base)
-      const selectedPackages = collectSelectedPackages(selection, autoPresetIds)
       const dependencyAnchorPackages = collectDependencyAnchorPackages(selection, autoPresetIds)
-      const resolvedDependencyAnchorPackages = fullAssetBase
+      const resolvedDependencyAnchorPackages = runtimeAssetBase
         ? unique([
             ...dependencyAnchorPackages,
+            '@file-viewer/core',
             ...installedFullPackages,
-            '@file-viewer/preset-all'
+            ...(installedFullPackages.length ? ['@file-viewer/preset-all'] : [])
           ])
         : dependencyAnchorPackages
       const optimizeDepsExclude = createOptimizeDepsExclude(userConfig)
@@ -2387,7 +2528,7 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
       const viteBasePath = normalizeViteDevBasePath(resolvedConfig?.base || '/')
       if (server?.middlewares?.use) {
         const realTargetRoot = await realpath(targetRoot).catch(() => targetRoot)
-        server.middlewares.use(async (request, response, next) => {
+        server.middlewares.use(async function fileViewerAssetMiddleware(request, response, next) {
           const requestUrl = request.url || ''
           const queryIndex = requestUrl.indexOf('?')
           const pathname = queryIndex >= 0 ? requestUrl.slice(0, queryIndex) : requestUrl
@@ -2452,7 +2593,7 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
     transformIndexHtml: {
       order: 'pre',
       handler() {
-        if (options.inject === false || (!hasConfiguredRenderers() && !fullAssetBase)) {
+        if (options.inject === false || (!hasConfiguredRenderers() && !runtimeAssetBase)) {
           return undefined
         }
         return [
@@ -2507,19 +2648,35 @@ export function fileViewerRenderers(options: FileViewerRenderersPluginOptions = 
       )
       reportAssetCopy(results, targetRoot, missingMode)
     },
-    resolveId(id) {
+    resolveId(id, importer) {
+      if (
+        id === '@file-viewer/ppt' &&
+        options.copyAssets &&
+        installedFullPackages.length > 0 &&
+        isPresentationRendererImporter(importer)
+      ) {
+        return resolvedPackagedPptFallbackModuleId
+      }
       if (id === moduleId || id === virtualModuleId || id === injectedModulePath) {
         return id === virtualModuleId ? resolvedVirtualModuleId : resolvedModuleId
       }
       return undefined
     },
     load(id) {
+      if (id === resolvedPackagedPptFallbackModuleId) {
+        return `
+export async function createPptViewer() {
+  throw new Error('Packaged PPT runtime URL was not initialized.')
+}
+`
+      }
       if (id === resolvedModuleId || id === resolvedVirtualModuleId) {
         return renderVirtualModule(
           selection,
           requestedFormats,
           autoPresetIds,
-          fullAssetBase
+          runtimeAssetBase,
+          installedFullPackages.length > 0
         )
       }
       return undefined

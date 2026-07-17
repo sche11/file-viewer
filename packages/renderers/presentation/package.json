@@ -1,12 +1,13 @@
 {
   "name": "@file-viewer/renderer-presentation",
-  "version": "2.1.30",
+  "version": "2.2.0",
   "private": false,
   "type": "module",
-  "description": "Standalone presentation renderer plugin for Flyfish File Viewer powered by @file-viewer/pptx.",
+  "description": "Standalone PowerPoint renderer for binary PPT and OpenXML PPTX presentation formats.",
   "keywords": [
     "file-viewer",
     "renderer",
+    "ppt",
     "pptx",
     "presentation",
     "document-preview",
@@ -58,8 +59,9 @@
     "type-check": "tsc -b tsconfig.json"
   },
   "dependencies": {
-    "@file-viewer/core": "workspace:2.1.30",
-    "@file-viewer/pptx": "workspace:2.1.30"
+    "@file-viewer/core": "workspace:2.2.0",
+    "@file-viewer/ppt": "0.3.1",
+    "@file-viewer/pptx": "workspace:2.2.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

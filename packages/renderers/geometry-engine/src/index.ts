@@ -36,6 +36,250 @@ export interface GeometryKernelInspection {
   readonly warnings: readonly string[];
 }
 
+export type GeometryOcctFormat = 'step' | 'iges' | 'brep';
+
+export type GeometryOcctLinearUnit =
+  | 'millimeter'
+  | 'centimeter'
+  | 'meter'
+  | 'inch'
+  | 'foot';
+
+export interface GeometryOcctImportParams {
+  linearUnit?: GeometryOcctLinearUnit;
+  linearDeflectionType?: 'bounding_box_ratio' | 'absolute_value';
+  linearDeflection?: number;
+  angularDeflection?: number;
+}
+
+export interface GeometryKernelArrayAttribute {
+  array: ArrayLike<number>;
+}
+
+export interface GeometryKernelFace {
+  first: number;
+  last: number;
+  color?: readonly number[] | null;
+}
+
+export interface GeometryKernelMesh {
+  name?: string;
+  color?: readonly number[];
+  brep_faces?: GeometryKernelFace[];
+  attributes: {
+    position: GeometryKernelArrayAttribute;
+    normal?: GeometryKernelArrayAttribute;
+  };
+  index: GeometryKernelArrayAttribute;
+}
+
+export interface GeometryKernelNode {
+  name?: string;
+  meshes: number[];
+  children: GeometryKernelNode[];
+}
+
+export interface GeometryKernelImportResult {
+  success: boolean;
+  root?: GeometryKernelNode;
+  meshes: GeometryKernelMesh[];
+}
+
+export interface ImportOcctGeometryOptions {
+  workerUrl?: string;
+  runtimeUrl?: string;
+  wasmUrl: string;
+  useWorker?: boolean;
+  timeoutMs?: number;
+  params?: GeometryOcctImportParams;
+  signal?: AbortSignal;
+}
+
+interface OcctImportModule {
+  ReadStepFile(content: Uint8Array, params: GeometryOcctImportParams | null): unknown;
+  ReadIgesFile(content: Uint8Array, params: GeometryOcctImportParams | null): unknown;
+  ReadBrepFile(content: Uint8Array, params: GeometryOcctImportParams | null): unknown;
+}
+
+const DEFAULT_OCCT_IMPORT_TIMEOUT_MS = 120_000;
+const occtRuntimePromises = new Map<string, Promise<OcctImportModule>>();
+let geometryWorkerRequestId = 0;
+
+const createGeometryAbortError = (signal?: AbortSignal) => {
+  if (signal?.reason instanceof Error) {
+    return signal.reason;
+  }
+  return new DOMException('Geometry import was aborted.', 'AbortError');
+};
+
+const toOwnedBytes = (input: ArrayBuffer | Uint8Array) => {
+  return input instanceof Uint8Array
+    ? input.slice()
+    : new Uint8Array(input.slice(0));
+};
+
+const normalizeOcctFormat = (type: string): GeometryOcctFormat => {
+  const format = normalizeGeometryKernelFormat(type);
+  if (format === 'step' || format === 'iges' || format === 'brep') {
+    return format;
+  }
+  throw new Error(`No OpenCascade import route is available for ${String(type || 'unknown').toUpperCase()}.`);
+};
+
+const validateOcctResult = (value: unknown, format: GeometryOcctFormat): GeometryKernelImportResult => {
+  const result = value as Partial<GeometryKernelImportResult> | null;
+  if (!result?.success) {
+    throw new Error(`${format.toUpperCase()} geometry parsing failed. The file may be empty, damaged, or unsupported by this OpenCascade build.`);
+  }
+  if (!Array.isArray(result.meshes) || result.meshes.length === 0) {
+    throw new Error(`${format.toUpperCase()} geometry parsing completed without any renderable meshes.`);
+  }
+  return {
+    success: true,
+    root: result.root,
+    meshes: result.meshes,
+  };
+};
+
+const getOcctRuntime = (wasmUrl: string) => {
+  let promise = occtRuntimePromises.get(wasmUrl);
+  if (!promise) {
+    promise = import('occt-import-js')
+      .then(module => module.default({
+        locateFile(path) {
+          return path.endsWith('.wasm') ? wasmUrl : path;
+        },
+      }) as Promise<OcctImportModule>);
+    occtRuntimePromises.set(wasmUrl, promise);
+    promise.catch(() => occtRuntimePromises.delete(wasmUrl));
+  }
+  return promise;
+};
+
+const readOcctGeometry = (
+  occt: OcctImportModule,
+  format: GeometryOcctFormat,
+  bytes: Uint8Array,
+  params?: GeometryOcctImportParams
+) => {
+  switch (format) {
+    case 'step':
+      return occt.ReadStepFile(bytes, params || null);
+    case 'iges':
+      return occt.ReadIgesFile(bytes, params || null);
+    case 'brep':
+      return occt.ReadBrepFile(bytes, params || null);
+  }
+};
+
+const importOcctGeometryOnMainThread = async (
+  bytes: Uint8Array,
+  format: GeometryOcctFormat,
+  options: ImportOcctGeometryOptions
+) => {
+  if (options.signal?.aborted) {
+    throw createGeometryAbortError(options.signal);
+  }
+  const runtime = await getOcctRuntime(options.wasmUrl);
+  if (options.signal?.aborted) {
+    throw createGeometryAbortError(options.signal);
+  }
+  const result = readOcctGeometry(runtime, format, bytes, options.params);
+  if (options.signal?.aborted) {
+    throw createGeometryAbortError(options.signal);
+  }
+  return validateOcctResult(result, format);
+};
+
+const importOcctGeometryInWorker = (
+  bytes: Uint8Array,
+  format: GeometryOcctFormat,
+  options: ImportOcctGeometryOptions
+) => new Promise<GeometryKernelImportResult>((resolve, reject) => {
+  if (!options.workerUrl || !options.runtimeUrl) {
+    reject(new Error('The OCCT worker and runtime URLs are required for worker-based geometry import.'));
+    return;
+  }
+  if (options.signal?.aborted) {
+    reject(createGeometryAbortError(options.signal));
+    return;
+  }
+
+  const worker = new Worker(options.workerUrl);
+  const requestId = `geometry-${Date.now()}-${++geometryWorkerRequestId}`;
+  const timeoutMs = Math.max(1_000, options.timeoutMs || DEFAULT_OCCT_IMPORT_TIMEOUT_MS);
+  let settled = false;
+
+  const cleanup = () => {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', onAbort);
+    worker.removeEventListener('message', onMessage);
+    worker.removeEventListener('error', onError);
+    worker.terminate();
+  };
+  const complete = (action: () => void) => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    cleanup();
+    action();
+  };
+  const onAbort = () => complete(() => reject(createGeometryAbortError(options.signal)));
+  const onError = (event: ErrorEvent) => complete(() => reject(
+    new Error(event.message || 'The OCCT geometry worker failed to load.')
+  ));
+  const onMessage = (event: MessageEvent) => {
+    const message = event.data || {};
+    if (message.id !== requestId) {
+      return;
+    }
+    if (!message.ok) {
+      complete(() => reject(new Error(message.error || `${format.toUpperCase()} geometry parsing failed.`)));
+      return;
+    }
+    complete(() => {
+      try {
+        resolve(validateOcctResult(message.result, format));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+  const timeout = setTimeout(() => complete(() => reject(
+    new Error(`${format.toUpperCase()} geometry parsing timed out after ${Math.round(timeoutMs / 1_000)} seconds.`)
+  )), timeoutMs);
+
+  options.signal?.addEventListener('abort', onAbort, { once: true });
+  worker.addEventListener('message', onMessage);
+  worker.addEventListener('error', onError);
+  const transferableBuffer = bytes.buffer as ArrayBuffer;
+  worker.postMessage({
+    id: requestId,
+    format,
+    buffer: transferableBuffer,
+    params: options.params || null,
+    runtimeUrl: options.runtimeUrl,
+    wasmUrl: options.wasmUrl,
+  }, [transferableBuffer]);
+});
+
+export const importOcctGeometryFile = async (
+  input: ArrayBuffer | Uint8Array,
+  type: string,
+  options: ImportOcctGeometryOptions
+) => {
+  const format = normalizeOcctFormat(type);
+  const bytes = toOwnedBytes(input);
+  const canUseWorker = options.useWorker !== false &&
+    typeof Worker === 'function' &&
+    Boolean(options.workerUrl && options.runtimeUrl);
+
+  return canUseWorker
+    ? importOcctGeometryInWorker(bytes, format, options)
+    : importOcctGeometryOnMainThread(bytes, format, options);
+};
+
 const textDecoder = typeof TextDecoder === 'function'
   ? new TextDecoder('utf-8', { fatal: false })
   : undefined;
@@ -75,7 +319,7 @@ export const geometryKernelRoutes: readonly GeometryKernelRoute[] = [
       },
     ],
     serverConversionTargets: ['glb', 'gltf', 'stl', 'obj'],
-    licenseNotes: ['OCCT-based packages can have LGPL or custom distribution requirements; keep them opt-in.'],
+    licenseNotes: ['Ship the OCCT and occt-import-js license files beside the self-hosted runtime and WASM assets.'],
   },
   {
     format: 'iges',
@@ -257,6 +501,16 @@ export const formatGeometryKernelNotice = (
   const formatLabel = route?.label || String(type || 'Engineering model').toUpperCase();
   const engines = route?.recommended.map(item => item.packageName).join(' / ') || 'OpenCascade / web-ifc / rhino3dm';
   const targets = route?.serverConversionTargets.join(' / ') || 'GLB / GLTF';
+  const hasNativeOcctPreview = route?.format === 'step' ||
+    route?.format === 'iges' ||
+    route?.format === 'brep';
+
+  if (hasNativeOcctPreview) {
+    if (locale === 'en-US') {
+      return `${formatLabel} is previewed locally with the dedicated OCCT Worker/WASM path. The file stays in the browser; configure options.model only when the self-hosted assets use a custom deployment path.`;
+    }
+    return `${formatLabel} 已通过独立 OCCT Worker/WASM 在浏览器本地完成预览，文件无需上传；仅当离线资源部署在自定义目录时，才需要覆盖 options.model 路径。`;
+  }
 
   if (locale === 'en-US') {
     return `${formatLabel} requires a dedicated WebAssembly geometry kernel (${engines}) for full browser preview. Flyfish Viewer keeps these heavy runtimes outside core and the default 3D renderer install path; use the dedicated geometry engine route or convert the model to ${targets} in a private pipeline.`;

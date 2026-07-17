@@ -6,6 +6,27 @@
 
 这份日志记录的是当前仓库主线中，对外最值得说明的能力演进。
 
+## `v2.2.0` 产品化 Demo、路径兼容与集中缺陷修复 — 2026-07-17
+
+- 主 Demo 重新设计为产品化预览工作台：桌面端使用紧凑导航轨、文件来源浮层、顶部文档操作和底部缩放 dock；平板与移动端自动收起非核心操作，暗色模式继续保留独立白色文档纸张。
+- 显式 `?url=` 文件入口在首帧前进入沉浸模式，隐藏 Demo 品牌、样例、历史与外层状态，只保留预览器工具栏；桌面与移动端均为满视口文档容器滚动，不产生页面级滚动条。
+- `@flyfish-dev/cad-viewer` 升级至 `0.7.0`。DWG Worker、DWF WASM、LibreDWG JS/WASM 四个运行时文件全部作为必需资产发布；复制过程先暂存并校验，再原子交换，失败会回滚，同时保留业务自定义 SHX 文件。
+- STEP/STP、IGES/IGS 和 BREP 已通过本地 OCCT Worker/WASM 直接生成 Three.js 网格；装配层级、面颜色、适配、统一缩放、暗色场景、主线程回退以及子路径离线资源都进入真实浏览器回归。IFC 和 3DM 仍只提供准确的能力提示。
+- Core 新增统一运行时资源基址 API，Vite 插件把 Full、preset 和独立 renderer 的 `copyAssets.baseDir` 同步到运行时。Angular 深层路由、相对 Vite base、SSR、Windows 分隔符、空格、中文目录，以及路径中包含 `assets` / `static` / `js` 的部署均有确定性回归。
+- CSV/TSV 文本解析优先识别 UTF-8 BOM 和严格 UTF-8，无效 UTF-8 自动使用 GB18030（兼容 GBK）；`options.spreadsheet.textEncoding` 可显式指定编码，二进制 XLS/XLSX 不进入文本解码路径（GitHub #124）。
+- `options.text.lineNumbers` 为普通代码/文本提供可配置行号；行号不会污染复制、全文搜索或屏幕阅读器输出，大文件虚拟滚动和移动端宽度保持稳定（GitHub #125）。
+- Markdown 不再被普通文本的 512 KiB 默认阈值自动切成源码视图；默认始终保持 `marked` 排版阅读面，只有显式设置 `options.text.markdownVirtualizeAboveBytes` 才会在超限后进入有界源码模式（GitHub #136）。
+- `options.text.toolbar` 默认保持历史元信息栏；显式传 `false` 可隐藏代码、文本和超大 Markdown 源码视图顶部的类型、索引状态与行数，不会误伤 Viewer 全局工具栏（GitHub #137）。
+- PPTX 样式会注入真正承载内容的 ShadowRoot，默认 Worker URL 统一从运行时资源基址解析；Web Full IIFE 和 Angular 子路径不再请求站点根 `/worker/pptx.worker.js`（GitHub #127/#129）。
+- PDF.js 的 `:root` 变量同时作用于当前 `.pdf-shell`，容器高度由本地 ResizeObserver 维护；全宽 flex grow + `overflow-auto` 宿主在初始 fit、缩小和 forced-colors 下保持居中（GitHub #128）。
+- 宿主应用预载 PDF.js 3.x 时，File Viewer 不再让 PDF.js 5.4 复用不兼容的全局 fake-worker handler；本包只在自己的 PDFWorker 初始化期间临时接管 handler，随后完整恢复宿主 namespace（GitHub #134）。
+- 静态 PDF Worker 会在实例化前校验官方版本标记；若部署目录残留的 Worker 与当前 PDF.js API 不一致，会自动切换到随包交付的同版本 handler，避免 `API version does not match the Worker version`（GitHub #138）。
+- DOCX 渲染器识别缺失页眉/页脚 root 的特定异常，只对该可选结构禁用 headers/footers 并重试正文，其他异常仍按原路径抛出（GitHub #130）。
+- Word renderer 会先按文件签名区分 OOXML ZIP 与 CFB：扩展名误写为 `.doc` 的有效 DOCX 不再进入二进制解析器，真实 `.doc` 路径保持不变（GitHub #131）。
+- 非 Full 的 `preset-office` 资产复制补齐 `vendor/xlsx/sheet.worker.js`；Vite 子路径、npm/pnpm 冷安装、生产构建和来源版本都加入回归（GitHub #135）。
+- PowerPoint 97–2003 二进制 `.ppt` 使用 `@file-viewer/ppt@0.3.1` 的 Worker / OffscreenCanvas / WASM、独立 CJK 字体与有界帧缓存，与 PPTX OOXML 解析链路严格分流，并纳入统一缩放、打印、HTML 导出和真实浏览器样例回归（GitHub #123）。Demo、Full、copy-assets、CDN/IIFE 以及 Vue 2.6 + Vue CLI 3 示例都交付经过校验的九文件 `vendor/ppt/` 运行时，标准布局无需手工配置 URL。File Viewer 自身代码仍为 Apache-2.0，PPT 运行时保留包内独立 LICENSE/NOTICE 与公开水印。
+- TSV 纳入 Spreadsheet pipeline；格式矩阵更新为 208 个扩展名、25 条预览链路；离线扫描同时阻止 Demo GitHub API 请求和 Typst/Chevrotain 公网默认值进入分发资产。
+
 ## `v2.1.30` Full 包完整资产开箱契约
 
 - 仅执行 `npm install` 只完成 renderer 代码安装，不会自动把 Worker、WASM、字体和 vendor 文件发布到业务站点；完成下述 Vite、非 Vite 或 `web-full/dist` 交付路径后，才属于完整格式支持。

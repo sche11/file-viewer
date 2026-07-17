@@ -3,7 +3,7 @@
 <div class="doc-kicker">Format Truth</div>
 
 <p class="doc-lead">
-  The current core declares 24 preview pipelines and 206 file extensions.
+  The current core declares 25 preview pipelines and 208 file extensions.
   Renderers are loaded on demand, so opening a lightweight text file does not force the browser to load every heavy document engine.
 </p>
 
@@ -12,8 +12,8 @@
 | Category | Examples |
 | --- | --- |
 | Word | `docx`, `docm`, `dotx`, `dotm`, legacy `doc`, `dot`, plus RTF and ODT paths |
-| Spreadsheets | `xlsx`, `xlsm`, `xlsb`, `xls`, `csv`, `ods`, `fods`, `numbers` |
-| Presentations | `pptx`, `pptm`, `potx`, `potm`, `ppsx`, `ppsm`, `odp` |
+| Spreadsheets | `xlsx`, `xlsm`, `xlsb`, `xls`, `csv`, `tsv`, `ods`, `fods`, `numbers` |
+| Presentations | binary `ppt`; OpenXML `pptx`, `pptm`, `potx`, `potm`, `ppsx`, `ppsm`; OpenDocument `odp` |
 | Layout documents | `pdf`, `ofd`, `typ`, `typst` |
 | Archives | `zip`, `7z`, `rar`, `tar`, `gz`, `tgz`, `cab`, `iso`, `apk`, `cbz`, `cbr`, and more |
 | Email | `eml`, `msg`, `mbox` |
@@ -26,7 +26,7 @@
 ## Engineering Renderer Notes
 
 - Word preview uses `@file-viewer/renderer-word`. The package lazy-loads the self-maintained DOCX engine, `msdoc-viewer`, and RTF/OpenDocument helpers only for DOCX/DOC/RTF/ODT files, so core-only and lightweight component installs do not pull Word engines by default.
-- Presentation preview uses `@file-viewer/renderer-presentation` and the standalone `@file-viewer/pptx` engine. The PPTX worker is created on demand and can be pinned with `options.presentation.workerUrl` / `options.presentation.workerType` for self-hosted, strict-CSP, or legacy WebView deployments.
+- Presentation preview uses `@file-viewer/renderer-presentation` with two isolated engines. Binary PowerPoint 97–2003 `.ppt` lazy-loads the packaged `@file-viewer/ppt@0.3.1` Worker/OffscreenCanvas/WASM engine and bounded frame cache; OpenXML files lazy-load `@file-viewer/pptx` and its separate Worker. Standard Demo, Vite/full, copy-assets, and CDN/IIFE layouts need no PPT runtime URL configuration; use `options.presentation.pptModuleUrl` / `pptWorkerUrl` / `pptWasmUrl` / `pptFontUrl` only for custom `.ppt` asset layouts and `workerUrl` / `workerType` for PPTX.
 - XMind uses `@file-viewer/renderer-mindmap` with XMind 8 XML and XMind 2020+ JSON package parsing, plus an `@panzoom/panzoom` powered canvas for drag panning, node-start dragging, mobile pinch zoom, keyboard panning, responsive fit-on-open/host-resize behavior, and unified toolbar state sync after pan/navigation.
 - Mermaid and PlantUML are handled by `@file-viewer/renderer-drawing`. Mermaid lazy-loads the official `mermaid` renderer and outputs theme-aware SVG. PlantUML stays offline by default with an SVG source preview; configure `options.drawing.plantumlServerUrl` when an intranet PlantUML SVG service is available. If the endpoint is unavailable, the viewer renders the same offline preview instead of leaving the page blank. Both diagram surfaces support drag panning and renderer-native zoom controls through `@panzoom/panzoom`.
 - Patch files are rendered with `diff2html` in side-by-side mode. Git bundles parse the bundle header, refs, commit objects, trees, readable blobs, and regular OFS_DELTA / REF_DELTA pack objects directly in the browser; very large packs or bundles that depend on external prerequisites surface a clear boundary notice instead of being silently misrepresented.
@@ -34,6 +34,10 @@
 - CAD uses `@file-viewer/renderer-cad` and `@flyfish-dev/cad-viewer`; DWG, DWF, and DWFx assets remain self-hostable for offline deployments.
 - Archives use `@file-viewer/renderer-archive` with `libarchive.js` Worker + WASM first, then ZIP/TAR/GZIP compatibility fallback when the Worker cannot start. Legacy ZIP files without the UTF-8 filename flag are decoded with GBK/GB18030 detection so Chinese entry names remain readable in the compatibility path.
 - STEP, IGES, IFC, 3DM, and BREP use the `@file-viewer/renderer-3d` entry plus the lightweight `@file-viewer/geometry-engine` route package for signature detection and accurate conversion guidance. Full visual decoding still belongs in dedicated OpenCascade / web-ifc / rhino3dm WASM paths, not in core or default component installs.
+
+## Binary PPT Engine License Boundary
+
+The public `@file-viewer/ppt` build renders `.ppt` files with its required visible watermark and keeps its own package license; it is not covered by File Viewer's Apache-2.0 license. Demo, Full, copy-assets, and CDN/IIFE outputs include its matching public runtime. Removing the PPT watermark requires commercial authorization. The integrity check also requires Web Crypto SHA-256, so deploy this path in a secure browser context (normally HTTPS or localhost).
 
 ## Capability Model
 

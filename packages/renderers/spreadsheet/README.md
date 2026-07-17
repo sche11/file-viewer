@@ -1,6 +1,6 @@
 # @file-viewer/renderer-spreadsheet
 
-Flyfish File Viewer 的独立表格 renderer 包。它基于 `styled-exceljs` 与 `e-virt-table` 提供 XLSX、XLSM、XLSB、XLS、CSV、ODS、FODS、Numbers 等表格文件的浏览器端预览，并通过 File Viewer 统一的 asset manifest 解析可选 Worker 路径，适合企业内网和离线部署。
+Flyfish File Viewer 的独立表格 renderer 包。它基于 `styled-exceljs` 与 `e-virt-table` 提供 XLSX、XLSM、XLSB、XLS、CSV、TSV、ODS、FODS、Numbers 等表格文件的浏览器端预览，并通过 File Viewer 统一的 asset manifest 解析可选 Worker 路径，适合企业内网和离线部署。
 
 ## 用法
 
@@ -28,7 +28,8 @@ const options = {
 
 ## 能力边界
 
-- 支持 `.xlsx`、`.xltx`、`.xlsm`、`.xlsb`、`.xls`、`.xlt`、`.xltm`、`.csv`、`.ods`、`.fods`、`.numbers`。
+- 支持 `.xlsx`、`.xltx`、`.xlsm`、`.xlsb`、`.xls`、`.xlt`、`.xltm`、`.csv`、`.tsv`、`.ods`、`.fods`、`.numbers`。
+- CSV / TSV 默认自动识别 UTF-8（含 BOM）与 GBK / GB18030；遇到来源编码已知的文件时，可通过 `options.spreadsheet.textEncoding` 固定为 `utf-8`、`gbk` 或 `gb18030`。
 - 默认 `options.spreadsheet.worker: 'auto'`：小文件走主线程兼容路径，大文件达到 `options.spreadsheet.workerAutoThreshold`（默认 1MB）后自动尝试静态 Worker。
 - 可以通过 `options.spreadsheet.worker: true` 强制启用静态 Worker，通过 `worker: false` 关闭自动启用；静态路径特殊时配置 `options.spreadsheet.workerUrl`。
 - 支持多 sheet、横向滚动标签栏、合并单元格、列宽/行高、边框、填充、对齐、文本颜色、图片覆盖层、统一缩放 provider 和可选表头拖拽调整列宽。

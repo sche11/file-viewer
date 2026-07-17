@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<preview-suite name="Flyfish Viewer" version="1.0.26">
+<preview-suite name="Flyfish Viewer" version="2.2.0">
   <environment framework="vue3" bundler="vite" />
 
   <groups>
@@ -7,6 +7,8 @@
       <format extension="docx" renderer="@file-viewer/docx" async="true" />
       <format extension="rtf" renderer="rtf.js" async="true" />
       <format extension="odt" renderer="open-document" async="true" />
+      <format extension="ppt" renderer="@file-viewer/ppt@0.3.1" async="true" worker="true" offscreen-canvas="true" wasm="true" font-pack="true" frame-cache="bounded" />
+      <format extension="pptx" renderer="@file-viewer/pptx" async="true" worker="true" />
       <format extension="pdf" renderer="pdfjs-dist" navigation="true" />
       <format extension="ofd" renderer="DLTech21/ofd.js" async="true" />
       <format extension="typ" renderer="typst.ts" async="true" paged="true" />
@@ -30,7 +32,13 @@
       <format extension="obj" renderer="three.js" async="true" />
       <format extension="stl" renderer="three.js" async="true" />
       <format extension="ply" renderer="three.js" async="true" />
-      <format extension="step" renderer="conversion-guidance" async="true" />
+      <format extension="step" renderer="occt-import-js" async="true" worker="true" wasm="true" />
+      <format extension="stp" renderer="occt-import-js" async="true" worker="true" wasm="true" />
+      <format extension="iges" renderer="occt-import-js" async="true" worker="true" wasm="true" />
+      <format extension="igs" renderer="occt-import-js" async="true" worker="true" wasm="true" />
+      <format extension="brep" renderer="occt-import-js" async="true" worker="true" wasm="true" />
+      <format extension="ifc" renderer="geometry-guidance" async="true" />
+      <format extension="3dm" renderer="geometry-guidance" async="true" />
     </group>
     <group id="source" label="Code and Data">
       <format extension="ts" renderer="highlight.js" />

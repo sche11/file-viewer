@@ -7,6 +7,8 @@
   它们面向仍在 Vue2 的业务系统，格式能力、示例文件和 options / 事件语义与 Vue3 包保持一致。
 </p>
 
+> Vue 2 上游已经结束维护。File Viewer 会继续保留 Vue 2.6/2.7 兼容包，但新项目优先使用 Vue 3；安全敏感的存量系统还应单独评估宿主 Vue 2 的 [GHSA-5j4c-8p2g-v4jx](https://github.com/advisories/GHSA-5j4c-8p2g-v4jx)，因为上游没有可用的 Vue 2 修复版本。
+
 ## 安装
 
 ```bash
@@ -130,7 +132,7 @@ module.exports = {
 }
 ```
 
-`@file-viewer/docx` 的 alias 必须保留：webpack 4 默认优先选择 UMD `browser` 入口，该文件经过 Babel 转译后会丢失 CommonJS 导出，上传 DOCX 时表现为 `renderAsync is not a function`。示例还包含两个 webpack 4 兼容补丁：`build/rename-pdfjs-webpack-require.cjs` 会处理 PDF.js legacy `.mjs` 自带 webpack 包装代码，避免和宿主 webpack 4 注入的 `__webpack_require__` 同名冲突；`build/babel-transform-import-meta-url.cjs` 负责让 webpack 4 解析 PPTX worker 模块。`scripts/copy-file-viewer-assets.cjs` 会把 PDF/DOCX/PPTX/Excel 的 worker、CMap、WASM 和字体复制到 `public/file-viewer/`。
+`@file-viewer/docx` 的 alias 必须保留：webpack 4 默认优先选择 UMD `browser` 入口，该文件经过 Babel 转译后会丢失 CommonJS 导出，上传 DOCX 时表现为 `renderAsync is not a function`。示例还包含两个 webpack 4 兼容补丁：`build/rename-pdfjs-webpack-require.cjs` 会处理 PDF.js legacy `.mjs` 自带 webpack 包装代码，避免和宿主 webpack 4 注入的 `__webpack_require__` 同名冲突；`build/babel-transform-import-meta-url.cjs` 负责让 webpack 4 解析 PPTX worker 模块。`scripts/copy-file-viewer-assets.cjs` 会把 PDF/DOCX/PPTX/Excel 资产和 `@file-viewer/ppt@0.3.1` 的 ESM、Worker、帧缓存、WASM、CJK 字体、manifest、package metadata、LICENSE、NOTICE 九个文件复制到 `public/file-viewer/`。
 
 `npm run serve` 对应的 `.env.normalServe` 使用 `NODE_ENV=production`，是为了避开 Vue CLI 3.1 dev server 对 HMR 客户端的强注入；真实项目可以先用这个模式确认 `preset-office` 构建链可用，再决定是否保留热更新。
 
@@ -157,6 +159,10 @@ export const viewerOptions = {
     workerJsZipUrl: `${assetBaseUrl}vendor/docx/jszip.min.js`
   },
   presentation: {
+    pptModuleUrl: `${assetBaseUrl}vendor/ppt/index.mjs`,
+    pptWorkerUrl: `${assetBaseUrl}vendor/ppt/worker.mjs`,
+    pptWasmUrl: `${assetBaseUrl}vendor/ppt/ppt-native.wasm`,
+    pptFontUrl: `${assetBaseUrl}vendor/ppt/ppt-font-cjk.otf`,
     workerUrl: `${assetBaseUrl}vendor/pptx/pptx.worker.js`
   },
   spreadsheet: {
@@ -164,6 +170,8 @@ export const viewerOptions = {
   }
 }
 ```
+
+这四个 `ppt*Url` 仅用于这个显式把资产托管在 `public/file-viewer/` 的 Vue CLI 3 兼容示例；复制脚本和 options 已经配套，业务侧不需要再手工拼路径。常规 Vite/full 包会自动发布并解析同一套运行时。
 
 Vue CLI 3 / webpack 4 可以继续使用这条接入路径，但建议面向现代浏览器构建；如果项目仍强依赖 IE11 或旧版 `uglifyjs-webpack-plugin` 压缩全量 Office 依赖链，优先考虑升级压缩器、升级构建链，或改用 `@file-viewer/vue2.6-full` / Web Component IIFE 形态做边界隔离。
 

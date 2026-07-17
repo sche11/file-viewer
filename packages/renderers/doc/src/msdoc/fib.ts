@@ -75,7 +75,7 @@ export function parseFibBase(reader: BinaryReader): FibBase {
     fHasPic: Boolean(flags & 0x0008),
     cQuickSaves: (flags >> 4) & 0x0f,
     fEncrypted: Boolean(flags & 0x0100),
-    fWhichTblStm: Boolean(flags & 0x0200) ? 1 : 0,
+    fWhichTblStm: flags & 0x0200 ? 1 : 0,
     fReadOnlyRecommended: Boolean(flags & 0x0400),
     fWriteReservation: Boolean(flags & 0x0800),
     fExtChar: Boolean(flags & 0x1000),

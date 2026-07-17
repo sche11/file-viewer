@@ -3,7 +3,7 @@ import { cleanTextControlChars, pushWarning, shallowEqual, uniqueId } from '../c
 import { parseClx, buildPieceTextCache, getTextByCp, splitParagraphRanges } from './clx.js';
 import { DOC_CONTROL } from './constants.js';
 import { parseFib } from './fib.js';
-import { readChpxRuns, readPapxRuns, type ChpxRun, type PapxRun } from './fkp.js';
+import { readChpxRuns, readPapxRuns, type ChpxRun } from './fkp.js';
 import { parseFonts } from './fonts.js';
 import { extractObjectPool, extractPictureAsset } from './objects.js';
 import {
@@ -22,7 +22,6 @@ import type {
   FieldInstruction,
   FontInfo,
   FontsCollection,
-  ImageAsset,
   InlineNode,
   MsDocAsset,
   MsDocParseOptions,

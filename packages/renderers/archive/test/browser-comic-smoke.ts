@@ -57,7 +57,7 @@ try {
   await waitFor(() => pageText() === '1 / 2' && activeTitle() === 'page2.png' && !!host.querySelector('.archive-nested-target img'));
 
   const paths = Array.from(host.querySelectorAll<HTMLButtonElement>('.archive-entry')).map(entry => entry.title);
-  const [previousButton, nextButton] = host.querySelectorAll<HTMLButtonElement>('.archive-comic-nav');
+  const [, nextButton] = host.querySelectorAll<HTMLButtonElement>('.archive-comic-nav');
   nextButton.focus();
   nextButton.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
   const buttonSpaceIgnored = pageText() === '1 / 2';

@@ -4,6 +4,7 @@ import {
   registerFileViewerZoomProvider,
   readFileViewerText,
   resolveFileViewerDrawioViewerScriptUrl,
+  resolveFileViewerRuntimeAssetBaseUrl,
   waitForFileViewerNextPaint,
   unregisterFileViewerZoomProvider,
 } from '@file-viewer/core';
@@ -122,7 +123,10 @@ const isTransparent = (color?: string) => {
 };
 
 const resolveDrawingViewerScriptUrl = (options?: FileViewerDrawingOptions, documentRef?: Document) => {
-  return resolveFileViewerDrawioViewerScriptUrl(options, documentRef?.baseURI || documentRef?.URL);
+  return resolveFileViewerDrawioViewerScriptUrl(
+    options,
+    documentRef ? resolveFileViewerRuntimeAssetBaseUrl(documentRef) : undefined
+  );
 };
 
 const resolveDirectoryUrl = (url: string) => {
@@ -267,6 +271,12 @@ const importOptionalExcalidraw = async () => {
     restore: (...args: any[]) => { appState: any; elements: any[]; files?: Record<string, unknown> };
   }>;
   return dynamicImport('@excalidraw/excalidraw');
+};
+
+const isMissingOptionalExcalidraw = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('@excalidraw/excalidraw') &&
+    /(?:resolve|find|module|specifier)/i.test(message);
 };
 
 const suppressExcalidrawWorkerWarning = () => {
@@ -580,7 +590,9 @@ const renderExcalidraw = async (
       t('drawing.error.excalidrawTimeout')
     );
   } catch (error) {
-    console.warn(error);
+    if (!isMissingOptionalExcalidraw(error)) {
+      console.warn(error);
+    }
     await renderRoughFallback(documentRef, payload, elements, target);
   }
 };

@@ -103,7 +103,7 @@ const enSidebar: Sidebar = {
         { text: 'jQuery', link: '/en/guide/ecosystem#jquery' },
         { text: 'Svelte', link: '/en/guide/ecosystem#svelte' },
         { text: 'Core API', link: '/en/guide/ecosystem#core-api' },
-        { text: 'PPTX Engine', link: '/en/guide/ecosystem#pptx-engine' },
+        { text: 'PPT / PPTX Engines', link: '/en/guide/ecosystem#ppt-and-pptx-engines' },
         { text: 'Component Options', link: '/en/guide/usage' },
         { text: 'Style Isolation', link: '/en/guide/style-isolation' }
       ]
@@ -185,7 +185,7 @@ const zhSidebar: Sidebar = {
         { text: 'jQuery 集成', link: '/zh/guide/ecosystem#jquery' },
         { text: 'Svelte 集成', link: '/zh/guide/ecosystem#svelte' },
         { text: 'Core 自定义接入', link: '/zh/guide/ecosystem#core' },
-        { text: 'PPTX 引擎接入', link: '/zh/guide/ecosystem#pptx' },
+        { text: 'PPT / PPTX 引擎接入', link: '/zh/guide/ecosystem#ppt-与-pptx-引擎接入' },
         { text: '组件用法', link: '/zh/guide/usage' },
         { text: '样式隔离与定制', link: '/zh/guide/style-isolation' }
       ]
@@ -348,7 +348,7 @@ function stripLegacyEnglishSitemapLinks<T extends { links?: Array<{ url: string 
 export default defineConfig({
   lang: 'en-US',
   title: 'Flyfish Viewer',
-  description: 'Browser-native file preview for internal web apps, covering 206 extensions across 24 preview pipelines without server-side conversion.',
+  description: 'Browser-native file preview for internal web apps, covering 208 extensions across 25 preview pipelines without server-side conversion.',
   cleanUrls: true,
   lastUpdated: true,
   sitemap: {
@@ -368,7 +368,7 @@ export default defineConfig({
       lang: 'zh-CN',
       link: '/zh/',
       title: 'Flyfish Viewer',
-      description: '面向企业后台、内网和私有化系统的纯前端文件预览组件，无需服务端转码，覆盖 206 个扩展名和 24 条预览链路。',
+      description: '面向企业后台、内网和私有化系统的纯前端文件预览组件，无需服务端转码，覆盖 208 个扩展名和 25 条预览链路。',
       themeConfig: {
         logo: '/_media/logo.png',
         nav: zhNav,
@@ -392,7 +392,7 @@ export default defineConfig({
       lang: 'en-US',
       link: '/en/',
       title: 'Flyfish Viewer',
-      description: 'Browser-native file preview for internal web apps, covering 206 extensions across 24 preview pipelines without server-side conversion.',
+      description: 'Browser-native file preview for internal web apps, covering 208 extensions across 25 preview pipelines without server-side conversion.',
       themeConfig: {
         logo: '/_media/logo.png',
         nav: enNav,
@@ -415,7 +415,7 @@ export default defineConfig({
   head: [
     ['meta', { name: 'theme-color', content: '#1d6fd6' }],
     ['meta', { property: 'og:title', content: 'Flyfish Viewer' }],
-    ['meta', { property: 'og:description', content: 'Browser-native file preview for internal web apps, covering 206 extensions across 24 preview pipelines without server-side conversion.' }]
+    ['meta', { property: 'og:description', content: 'Browser-native file preview for internal web apps, covering 208 extensions across 25 preview pipelines without server-side conversion.' }]
   ],
   themeConfig: {
     logo: '/_media/logo.png',

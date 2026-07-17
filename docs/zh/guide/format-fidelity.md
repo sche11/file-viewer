@@ -45,6 +45,7 @@
 | GeoJSON / KML / GPX / SHP | 独立 `@file-viewer/renderer-geo`，GeoJSON 直接读，KML/GPX 转 GeoJSON，SHP 走 Shapefile 到 GeoJSON；core 默认安装不再携带 `@tmcw/togeojson` / `shpjs` / `maplibre-gl` / `proj4` | 默认使用离线 MapLibre 空底图渲染点线面叠加层，可通过 `options.geo.tileUrl` / `options.geo.basemap` 接公网、内网或离线自托管底图；支持 GeoJSON `crs`、`options.geo.projection`、Web Mercator 推断、GCJ-02 / BD-09 转换和 SVG fallback；空间分析仍交给业务 GIS |
 | Image / HEIC | core 继续保留 PNG/JPEG/SVG/WebP 等浏览器原生图片预览；HEIC/HEIF 转换依赖体积和兼容性更重，适合独立 renderer 承接 | `heic2any` 已从 core 直接依赖中移除，HEIC/HEIF 和完整图片链路由 `@file-viewer/renderer-image` 或 preset 装配 |
 | GDSII | `@file-viewer/eda-layout` 提供 GDSII record parser 和 WebGL draw batch，`@file-viewer/renderer-eda` 读取 library、structure、boundary、path、text、sref/aref 和坐标边界，小图输出 SVG，大元素集输出 WebGL canvas | 当前可作为 GDSII 版图快速预览；层控制、层级实例展开和 tile 增量加载继续在 `@file-viewer/eda-layout` 中演进 |
+| STEP / STP、IGES / IGS、BREP | `@file-viewer/geometry-engine` 在一次性 Worker 中加载本地 `occt-import-js` runtime 与 OpenCascade WASM，完成三角化后由 `@file-viewer/renderer-3d` 构建 Three.js 装配层级和网格 | 已具备浏览器本地完整网格预览、轨道控制、适配视图和统一缩放；Worker、runtime、WASM 与许可证文件随 viewer assets 离线分发 |
 
 ## 当前只能作为结构预览的格式
 
@@ -53,7 +54,7 @@
 | OLB | `@file-viewer/eda-orcad` 提供 CFB/OLE2 检测、文本采样、字符串抽取和十六进制预览，`@file-viewer/renderer-eda` 负责结构树、属性和元件候选展示 | 参考 OpenOrCadParser 的 C++ 解析路线，后续通过 Emscripten/WASM 或逐步 TS 移植补齐符号图形 |
 | DRA | `@file-viewer/eda-orcad` 提供二进制检查基础能力，`@file-viewer/renderer-eda` 展示封装/padstack/图形候选和可读属性 | DRA/PSM/PAD 属于 Allegro 私有数据库生态，应先积累真实样本，再在独立 engine 包中维护 OrCAD/Allegro parser |
 | OAS/OASIS | `@file-viewer/eda-layout` 当前能解析项目内 OASIS 可读文本夹具并输出 SVG 预览；真实 SEMI 二进制 OASIS 仍做 header 检测、完整渲染边界声明、安全二进制索引、可读字符串、结构候选和诊断 | OASIS 需要低层 record parser、重复结构展开、压缩块处理和版图实例渲染，继续在 `@file-viewer/eda-layout` 内演进 |
-| STEP/IGES/IFC/3DM/BREP | `@file-viewer/renderer-3d` 已保留 3D 入口，`@file-viewer/geometry-engine` 负责轻量签名识别、内核路线和转换说明；完整几何解析仍依赖专业内核 | STEP/IGES/BREP 走 OpenCascade / OCCT WASM，IFC 走 `web-ifc` / That Open Fragments，3DM 走 `rhino3dm` / Three.js loader，后续继续在独立几何包内演进 |
+| IFC / 3DM | `@file-viewer/renderer-3d` 保留入口，`@file-viewer/geometry-engine` 负责签名识别和明确的接入说明，当前不虚标为成功预览 | IFC 后续接入 `web-ifc` / That Open Fragments，3DM 后续接入 `rhino3dm` / Three.js loader，并继续在独立几何包内演进 |
 
 ## 当前落地策略
 
@@ -62,9 +63,10 @@
 | XMind | `.xmind` 本质是 ZIP，现代 XMind 使用 `content.json`，经典 XMind 8 使用 `content.xml`；成熟 viewer 都以“解析包结构 + 可拖拽缩放画布”为体验基线 | `@ljheee/xmind-parser` 只保留在独立 `@file-viewer/renderer-mindmap` 内，core 默认安装不再携带脑图解析依赖；当前画布式平移和缩放由 `@panzoom/panzoom` 承接，并保留从空白画布或节点卡片起手拖拽、移动端双指缩放、键盘方向键、Ctrl/Command 滚轮锚点缩放、双击适配视图、容器 resize 自动适配和统一 toolbar 状态同步 |
 | OLB / DRA / PSM | Cadence 格式没有稳定官方 Web SDK；公开可用路线主要是 OpenOrCadParser / OpenAllegroParser 这类 C++ 解析器，后续可以 Emscripten/WASM 化或按样本逐步 TS 移植 | 当前只声明为结构预览，不虚标完整图形；底层能力已拆到 `@file-viewer/eda-orcad`，后续像 PPTX 一样长期维护 |
 | GDSII / OASIS | GDSII 已可按 record parser 生成 SVG/WebGL；OASIS 是 SEMI 二进制版图格式，支持压缩块、重复结构和更复杂索引，完整渲染更适合参考 KLayout/KWeb 或自研 WebGL/WASM pipeline | GDSII 当前提供 SVG 快速预览和大元素集 WebGL canvas；OASIS 可读文本夹具已可生成 SVG，真实二进制 OASIS 继续结构索引，底层能力已拆到 `@file-viewer/eda-layout`，后续做 WASM/增量渲染 |
-| STEP / IGES / IFC / 3DM / BREP | STEP/IGES/BREP 可走 OpenCascade / OCCT WASM，IFC 走 `web-ifc` / That Open 生态，3DM 走 `rhino3dm` + Three.js Rhino3dmLoader | 已拆出 `@file-viewer/geometry-engine` 维护格式签名、推荐内核和提示文本；`@file-viewer/renderer-3d` 只按需消费该轻量边界，不把这些重量级几何内核放进 core 默认路径 |
+| STEP / STP、IGES / IGS、BREP | OpenCascade / OCCT WASM 在浏览器内解析 B-Rep 并输出 Three.js 可用网格 | `@file-viewer/geometry-engine` 已接入本地 OCCT Worker、runtime 和 WASM；`@file-viewer/renderer-3d` 保留装配层级、实例、法线和面颜色，并注册统一缩放 provider；重型内核不进入 core 默认路径 |
+| IFC / 3DM | IFC 走 `web-ifc` / That Open 生态，3DM 走 `rhino3dm` + Three.js Rhino3dmLoader | 当前只维护格式签名和接入提示，后续在独立几何包中实现，不影响已经落地的 OCCT 预览链路 |
 | Draw.io / Excalidraw / Mermaid / PlantUML | Draw.io 最佳链路是自托管 diagrams.net offline viewer；Excalidraw 默认使用 rough.js 只读 SVG，运行环境提供官方 ESM 模块时尝试官方 restore/export；Mermaid 使用官方 SVG renderer；PlantUML 默认离线预览源码，可选接入自托管 SVG 服务 | 已拆成 `@file-viewer/renderer-drawing` 独立维护，继续离线 vendor 分发；PlantUML 完整图形渲染推荐企业内网自托管服务端点 |
-| Presentation / PPTX | OOXML 演示文稿的复杂度适合独立 engine + renderer 双层维护，避免 core 被解析器、主题和媒体链路拖重 | `@file-viewer/renderer-presentation` 暴露标准 renderer 插件，`@file-viewer/pptx` 继续作为可单独优化的 native PPTX 内核 |
+| Presentation / PPT / PPTX | 二进制 PPT 与 OOXML 演示文稿都适合独立 engine + renderer 双层维护，避免 core 被解析器、主题和媒体链路拖重 | `@file-viewer/renderer-presentation` 暴露标准 renderer 插件，`.ppt` 使用独立版本且保留包内许可证的 `@file-viewer/ppt@0.3.1`，OpenXML 文件使用 `@file-viewer/pptx` Worker；Full/CDN 分别交付两条链路的匹配资产 |
 | GeoJSON / KML / GPX / SHP | KML/GPX 有稳定 toGeoJSON 转换路线，Shapefile 可用纯 JS 解析到 GeoJSON，MapLibre 可承接离线矢量叠加层 | 已拆 `@file-viewer/renderer-geo` 并从 core 直接依赖中移除转换和地图库；当前补齐 CRS 归一化、MapLibre 叠加层、SVG fallback 和解析 harness，后续继续补海量要素抽稀和真实公开样本 |
 | Typst | 官方 Rust 编译器生态已可通过 `typst.ts` 在浏览器 WASM 编译并渲染为 SVG/PDF | 保持 `@file-viewer/renderer-typst` 独立维护 compiler/renderer WASM、超时和资源错误提示 |
 
@@ -98,7 +100,7 @@
 - odf-kit 提供浏览器/Node 纯 JS 的 OpenDocument 读取和 HTML 转换路线，适合后续深化 ODT/ODS/ODP 预览: <https://github.com/GitHubNewbie0/odf-kit>
 - Cadence Allegro X Free Viewer 是官方只读查看路径，可以打开并检查 Allegro X PCB / APD / System Capture 数据库；浏览器离线预览仍需自研解析内核承接: <https://www.cadence.com/en_US/home/tools/pcb-design-and-analysis/allegro-downloads-start.html>
 - OpenCascade.js 是 Open CASCADE Technology 官方列出的 JavaScript/WebAssembly 绑定路线，可作为后续精确 CAD 几何内核的长期参考: <https://dev.opencascade.org/project/opencascadejs>
-- `occt-import-js` 证明 STEP / IGES / BREP 可以在浏览器 WASM 中导入，再交给 Three.js 渲染: <https://github.com/kovacsv/occt-import-js>
+- `occt-import-js` 已作为当前 STEP / IGES / BREP 浏览器 WASM 导入实现，并把网格交给 Three.js 渲染: <https://github.com/kovacsv/occt-import-js>
 - That Open `web-ifc` 生态提供 IFC 的 WASM 读取能力；That Open 的 IFC Loader 文档还建议把 IFC 转换成可复用 Fragments 资产，适合大 BIM 文件的二次加载优化: <https://github.com/thatopen/engine_web-ifc>
 - McNeel `rhino3dm.js` 基于 openNURBS 并随 `rhino3dm.wasm` 运行在浏览器和 Node.js，Three.js 也提供 Rhino3dmLoader，适合后续 3DM 独立几何 renderer: <https://github.com/mcneel/rhino3dm>
 - KLayout 明确定位为 GDS 和 OASIS viewer/editor；KWeb / KLayout Web Viewer 说明 GDS 在线浏览更适合按专业版图 viewer 路线独立演进: <https://www.klayout.de/intro.html>
@@ -108,13 +110,13 @@
 
 - [x] XMind 使用 `@panzoom/panzoom` 支持 Pointer / 鼠标 / 触摸拖拽平移、从节点卡片起手拖拽、移动端双指缩放、Ctrl/Command 滚轮锚点缩放、键盘方向键平移、双击适配视图、容器 resize 自适应和用户交互后视角保留。
 - [x] 继续保持 Draw.io、Typst WASM/字体、CAD、archive、PDF worker/WASM/vendor 静态资源全部自托管，不依赖公共 CDN。
-- [x] 使用 `pnpm verify:format-support` 校验 206 个扩展名和 24 条 renderer pipeline 口径一致。
+- [x] 使用 `pnpm verify:format-support` 校验 208 个扩展名和 25 条 renderer pipeline 口径一致。
 - [x] 在 smoke matrix 中把 XMind `pan` 和真实鼠标拖拽列为显式断言，防止只校验打开成功而漏掉画布交互。
 - [ ] 为 XMind 增加真实复杂样本，覆盖多 sheet、标签、备注、图片、链接、折叠节点和大脑图拖拽回归。
 - [ ] 为 GDSII 增加真实公开版图样本，验证层过滤、实例引用、文本和大文件性能。
 - [x] 拆出 `@file-viewer/eda-layout`，专门维护 GDSII / OASIS record parser、WebGL/WASM 边界和后续大版图增量渲染。
 - [x] 拆出 `@file-viewer/eda-orcad`，专门维护 OLB / DRA / PSM / PAD 二进制检查、后续 C++ WASM/TS 移植和 OrCAD/Allegro 样本回归。
-- [x] 为 STEP / IGES / IFC / 3DM / BREP 建立独立 `@file-viewer/geometry-engine` 边界包，避免 OpenCascade / web-ifc / rhino3dm 进入默认 core install path；完整 WASM 渲染继续在该几何路线中分层演进。
+- [x] 为 STEP / IGES / IFC / 3DM / BREP 建立独立 `@file-viewer/geometry-engine` 边界包，避免几何内核进入默认 core install path；STEP / STP、IGES / IGS、BREP 已完成离线 OCCT Worker/WASM 预览，IFC 与 3DM 继续按 `web-ifc` / `rhino3dm` 路线分层演进。
 - [x] 在浏览器烟测里加入 XMind pan/zoom 的实际交互断言。
 - [x] 在浏览器烟测里继续补齐 Typst WASM/字体、Draw.io offline viewer、CAD WASM / DWF native canvas、GDSII / OASIS fixture preview 的实际渲染或交互断言。
 

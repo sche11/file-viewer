@@ -36,10 +36,15 @@ export const RESIZABLE_ROW_MIN_HEIGHT = 18
 const EXCEL_HEADER_BG = '#f3f3f3'
 const EXCEL_HEADER_TEXT = '#5f6368'
 const EXCEL_GRID = '#d7dbe0'
+const EXCEL_DARK_HEADER_BG = '#1f2937'
+const EXCEL_DARK_HEADER_TEXT = '#cbd5e1'
+const EXCEL_DARK_GRID = '#374151'
+const EXCEL_DARK_BODY_BG = '#111827'
+const EXCEL_DARK_BODY_TEXT = '#e5e7eb'
 const EXCEL_GREEN = '#21a366'
 const EXCEL_GREEN_SOFT = 'rgba(33, 163, 102, 0.1)'
 const DATA_AREA_MIN_COL_INDEX = 1
-const BORDER_SIDE_KEYS = ['Top', 'Right', 'Bottom', 'Left'] as const
+const _BORDER_SIDE_KEYS = ['Top', 'Right', 'Bottom', 'Left'] as const
 const DEFAULT_BORDER_COLOR = '#000000'
 const BORDER_STYLE_PRIORITY: Record<string, number> = {
   double: 8,
@@ -51,19 +56,9 @@ const BORDER_STYLE_PRIORITY: Record<string, number> = {
 const HEADER_FONT = `bold 12px ${TABLE_FONT_FAMILY}`
 const BODY_FONT = `${TABLE_FONT_SIZE}px ${TABLE_FONT_FAMILY}`
 const MAX_OVERFLOW_SCAN_COLS = 32
-const INDEX_CELL_STYLE: CellStyleCache = {
-  backgroundColor: EXCEL_HEADER_BG,
-  color: EXCEL_HEADER_TEXT,
-  font: HEADER_FONT
-}
-const LOADING_CELL_STYLE: CellStyleCache = {
-  backgroundColor: '#f4f7f9',
-  color: '#73808d',
-  font: `italic ${TABLE_FONT_SIZE}px ${TABLE_FONT_FAMILY}`
-}
-
 interface TableConfigOptions {
   hostHeight: number
+  darkMode?: boolean
   resizableColumns?: boolean
   resizableRows?: boolean
   copySelection?: (params: SpreadsheetCopyParams) => void
@@ -138,14 +133,16 @@ const scaleCellStyle = (style: CellStyleCache | undefined, zoomScale: number) =>
 const getHeaderFont = (zoomScale: number) => scaleFont(HEADER_FONT, zoomScale) || HEADER_FONT
 const getBodyFont = (zoomScale: number) => scaleFont(BODY_FONT, zoomScale) || BODY_FONT
 
-const getIndexCellStyle = (zoomScale: number): CellStyleCache => ({
-  ...INDEX_CELL_STYLE,
+const getIndexCellStyle = (zoomScale: number, darkMode = false): CellStyleCache => ({
+  backgroundColor: darkMode ? EXCEL_DARK_HEADER_BG : EXCEL_HEADER_BG,
+  color: darkMode ? EXCEL_DARK_HEADER_TEXT : EXCEL_HEADER_TEXT,
   font: getHeaderFont(zoomScale)
 })
 
-const getLoadingCellStyle = (zoomScale: number): CellStyleCache => ({
-  ...LOADING_CELL_STYLE,
-  font: scaleFont(LOADING_CELL_STYLE.font, zoomScale)
+const getLoadingCellStyle = (zoomScale: number, darkMode = false): CellStyleCache => ({
+  backgroundColor: darkMode ? '#18212f' : '#f4f7f9',
+  color: darkMode ? '#94a3b8' : '#73808d',
+  font: scaleFont(`italic ${TABLE_FONT_SIZE}px ${TABLE_FONT_FAMILY}`, zoomScale)
 })
 
 const cloneColumns = (columns: Column[]): Column[] => {
@@ -422,7 +419,7 @@ const toBorderStyle = (value: unknown) => {
 
 const getBorderSide = (
   style: Record<string, any>,
-  side: typeof BORDER_SIDE_KEYS[number]
+  side: typeof _BORDER_SIDE_KEYS[number]
 ) => {
   const width = toBorderWidth(style[`border${side}Width`])
   if (!width) {
@@ -987,6 +984,7 @@ export const normalizeCellStyle = (
 
 export const createTableConfig = ({
   hostHeight,
+  darkMode = false,
   resizableColumns = false,
   resizableRows = false,
   copySelection,
@@ -999,8 +997,8 @@ export const createTableConfig = ({
   const scaledHeaderHeight = scaleNumber(HEADER_HEIGHT, normalizedScale)
   const scaledCellHeight = scaleNumber(normalizeRowHeight(sheetDefaults.rowHeight, sheetDefaults.rowHeight), normalizedScale)
   const scaledCellWidth = scaleNumber(sheetDefaults.colWidth, normalizedScale)
-  const headerStyle = getIndexCellStyle(normalizedScale)
-  const loadingStyle = getLoadingCellStyle(normalizedScale)
+  const headerStyle = getIndexCellStyle(normalizedScale, darkMode)
+  const loadingStyle = getLoadingCellStyle(normalizedScale, darkMode)
 
   const spanMethod: SpanMethod = ({ rowIndex, colIndex, column }) => {
     if (colIndex === 0) {
@@ -1129,17 +1127,17 @@ export const createTableConfig = ({
     HEADER_FONT: getHeaderFont(normalizedScale),
     BODY_FONT: getBodyFont(normalizedScale),
     BORDER_RADIUS: 0,
-    BORDER_COLOR: EXCEL_GRID,
-    HEADER_BG_COLOR: EXCEL_HEADER_BG,
-    BODY_BG_COLOR: '#ffffff',
-    HEADER_TEXT_COLOR: EXCEL_HEADER_TEXT,
-    BODY_TEXT_COLOR: '#202124',
-    READONLY_COLOR: '#ffffff',
-    READONLY_TEXT_COLOR: '#202124',
-    EDIT_BG_COLOR: '#ffffff',
-    PLACEHOLDER_COLOR: '#8a94a3',
-    SCROLLER_COLOR: '#c1c7d0',
-    SCROLLER_FOCUS_COLOR: '#9aa0a6',
+    BORDER_COLOR: darkMode ? EXCEL_DARK_GRID : EXCEL_GRID,
+    HEADER_BG_COLOR: darkMode ? EXCEL_DARK_HEADER_BG : EXCEL_HEADER_BG,
+    BODY_BG_COLOR: darkMode ? EXCEL_DARK_BODY_BG : '#ffffff',
+    HEADER_TEXT_COLOR: darkMode ? EXCEL_DARK_HEADER_TEXT : EXCEL_HEADER_TEXT,
+    BODY_TEXT_COLOR: darkMode ? EXCEL_DARK_BODY_TEXT : '#202124',
+    READONLY_COLOR: darkMode ? EXCEL_DARK_BODY_BG : '#ffffff',
+    READONLY_TEXT_COLOR: darkMode ? EXCEL_DARK_BODY_TEXT : '#202124',
+    EDIT_BG_COLOR: darkMode ? '#18212f' : '#ffffff',
+    PLACEHOLDER_COLOR: darkMode ? '#94a3b8' : '#8a94a3',
+    SCROLLER_COLOR: darkMode ? '#475569' : '#c1c7d0',
+    SCROLLER_FOCUS_COLOR: darkMode ? '#64748b' : '#9aa0a6',
     SELECT_ROW_COL_BG_COLOR: EXCEL_GREEN_SOFT,
     SELECT_AREA_COLOR: 'rgba(33, 163, 102, 0.14)',
     SELECT_BORDER_COLOR: EXCEL_GREEN,

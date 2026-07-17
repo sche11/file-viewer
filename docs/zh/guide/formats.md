@@ -3,13 +3,13 @@
 <div class="doc-kicker">Format Truth</div>
 
 <p class="doc-lead">
-  当前版本内置 <strong>206 个扩展名映射</strong>，覆盖 <strong>24 条预览链路</strong>。
+  当前版本内置 <strong>208 个扩展名映射</strong>，覆盖 <strong>25 条预览链路</strong>。
   这一页不是“计划支持什么”，而是以当前代码里已经注册好的渲染器为准，告诉你项目现在到底能处理哪些格式、分别走哪条渲染链路，以及在真实业务里应该怎么选。
 </p>
 
 <div class="doc-grid">
   <div class="doc-card">
-    <h3>206 个扩展名映射</h3>
+    <h3>208 个扩展名映射</h3>
     <p>覆盖 Office、PDF、OFD、Typst、XMind、压缩包、邮件、OLB/DRA/GDS/OASIS、CAD、地理数据、3D 模型、Excalidraw、draw.io、Mermaid、PlantUML、EPUB、UMD、Markdown、图片、音视频、代码/文本、Git patch/bundle、字体、PSD 图层资产和结构化数据等常见附件类型。</p>
   </div>
   <div class="doc-card">
@@ -34,8 +34,10 @@
 | Word | `doc`、`dot` | `@file-viewer/renderer-word` + `msdoc-viewer` | 使用 Word 风格页面容器，页面居中显示在灰色工作台中，增强 CFB 容错和表格布局 | 存量老文档、Word 97-2003 模板、历史附件回溯 |
 | 兼容文档 | `rtf`、`odt` | `@file-viewer/renderer-word` + `rtf.js` / OpenDocument `content.xml` | RTF 走 RTFJS 生成只读 HTML，ODT 读取 ODF 包内正文并套用纸张阅读面 | RTF 富文本、OpenDocument 文本文档 |
 | Excel | `xlsx`、`xltx` | `@file-viewer/renderer-spreadsheet` + `styled-exceljs` + `e-virt-table` + 自动静态 Worker | 支持虚拟滚动、列宽/行高、合并单元格、常见样式、workbook drawing 图片和可选表头拖拽调整列宽；默认 `worker: auto`，大文件自动启用 Worker，小文件保留主线程兼容路径；打印按钮按能力隐藏 | 大表格预览、报表、Excel 模板 |
-| Excel 兼容格式 | `xlsm`、`xlsb`、`xls`、`xlt`、`xltm`、`csv`、`ods`、`fods`、`numbers` | `@file-viewer/renderer-spreadsheet` + `styled-exceljs` + `e-virt-table` + 可选静态 Worker | 统一读取数据、尺寸和可用样式，默认主线程渐进还原，部署环境确认可用时再开启 Worker | 老表格、跨平台导出的表格 |
-| PowerPoint | `pptx`、`pptm`、`potx`、`potm`、`ppsx`、`ppsm`、`odp` | `@file-viewer/renderer-presentation` + `@file-viewer/pptx` / OpenDocument 兼容预览 | OOXML 演示文稿走独立 renderer 插件，内部复用 `@file-viewer/pptx` Worker 渐进解析并按页输出，支持统一缩放、打印和导出 HTML；ODP 读取 OpenDocument 幻灯片文本和页面结构 | 汇报材料、说明文档、培训课件、演示模板 |
+| Excel 兼容格式 | `xlsm`、`xlsb`、`xls`、`xlt`、`xltm`、`csv`、`tsv`、`ods`、`fods`、`numbers` | `@file-viewer/renderer-spreadsheet` + `styled-exceljs` + `e-virt-table` + 可选静态 Worker | CSV / TSV 自动识别 UTF-8、GBK 和 GB18030；其余格式统一读取数据、尺寸和可用样式，默认主线程渐进还原，部署环境确认可用时再开启 Worker | 老表格、跨平台导出的表格 |
+| PowerPoint 97–2003 | `ppt` | `@file-viewer/renderer-presentation` + `@file-viewer/ppt` 原生 WASM | 二进制 `.ppt` 使用独立原生引擎按页渲染 Canvas，支持统一缩放、打印和 HTML 导出，不会误走 PPTX OOXML 解析器 | 历史汇报材料、旧版培训课件 |
+| PowerPoint OpenXML | `pptx`、`pptm`、`potx`、`potm`、`ppsx`、`ppsm` | `@file-viewer/renderer-presentation` + `@file-viewer/pptx` | OOXML 演示文稿通过 Worker 渐进解析并按页输出，支持统一缩放、打印和导出 HTML | 汇报材料、说明文档、培训课件、演示模板 |
+| OpenDocument 演示文稿 | `odp` | OpenDocument 兼容预览 | 读取每页幻灯片的文本和页面结构 | 跨平台导出的演示文稿 |
 | PDF | `pdf` | `pdfjs-dist` | 浏览器端 PDF 渲染，同源 URL 默认渐进读取，服务端支持 Range 时自动分片加载，支持缩放工具栏、页侧边栏/目录树侧边栏切换、宽度自适应、完整打印和导出 HTML | 合同、票据、版式稳定文件 |
 | OFD | `ofd` | `@file-viewer/renderer-ofd` + `DLTech21/ofd.js` 源码 | 使用浏览器端 OFD 解析和页面渲染，vendor 随包离线分发，避开 npm dist 授权 wasm 分支 | 电子发票、公文、国产版式归档材料 |
 | Typst | `typ`、`typst` | `@myriaddreamin/typst.ts` 浏览器 WASM 编译 | 直接读取 Typst 源文档并输出按页 SVG，支持完整预览、打印和导出 HTML；compiler / renderer WASM 与默认字体仅命中 Typst 时按需加载 | 技术报告、论文草稿、工程文档模板 |
@@ -44,7 +46,7 @@
 | EDA | `olb`、`dra`、`gds`、`oas`、`oasis` | `@file-viewer/renderer-eda` + `cfb` 容器解析 + GDSII/OASIS 版图解析 + WebGL 批次 | 独立 EDA renderer 优先解析 OrCAD / Allegro 常见 CFB 容器；标准 GDSII 会读取 structure、boundary、path、text、reference 并生成 SVG 版图预览，元素较多时自动切到 WebGL canvas；OAS/OASIS 可读文本版图夹具会生成 SVG 预览，真实 SEMI 二进制 OASIS 当前做安全结构索引、可读字符串、实体候选和诊断；完整 OLB/DRA/OASIS 可视化路线见 [格式完整度](/zh/guide/format-fidelity) | 元件库、封装图纸、芯片版图文件初筛 |
 | CAD | `dwg`、`dxf`、`dwf`、`dwfx`、`xps` | `@flyfish-dev/cad-viewer` | DWG 通过 Worker + LibreDWG WASM 解析；DXF 使用 JS parser；DWF/DWFx/XPS 使用 native `dwf-viewer` 渲染 W2D/W3D/XPS 图形，并支持 WebGL / WASM fallback | 工程图纸、二维 CAD 附件、AutoCAD 归档文件 |
 | 地理数据 | `geojson`、`kml`、`gpx`、`shp` | `@file-viewer/renderer-geo` + GeoJSON 标准化 + CRS 归一化 + MapLibre 矢量叠加层 | GeoJSON 直接读取，KML/GPX 使用 `@tmcw/togeojson` 转换，SHP 使用 `shpjs`；默认离线空底图，可通过 `options.geo.tileUrl` / `options.geo.basemap` 启用公网、内网或离线自托管瓦片；支持 Web Mercator 推断、`options.geo.projection` 和 SVG fallback | 地理附件、轨迹、边界、点位和轻量 GIS 数据 |
-| 3D 模型 | `glb`、`gltf`、`obj`、`stl`、`ply`、`fbx`、`dae`、`3ds`、`3mf`、`amf`、`usd`、`usda`、`usdc`、`usdz`、`kmz`、`pcd`、`wrl`、`vrml`、`xyz`、`vtk`、`vtp`、`step`、`stp`、`iges`、`igs`、`ifc`、`3dm` | `@file-viewer/renderer-3d` + Three.js loaders | WebGL 交互预览，支持轨道控制、适配视图、网格/坐标轴、线框和自动旋转；工程 CAD/BIM 格式会给出转换原因 | 设计模型、点云、三维资产、工程模型 |
+| 3D 模型 | `glb`、`gltf`、`obj`、`stl`、`ply`、`fbx`、`dae`、`3ds`、`3mf`、`amf`、`usd`、`usda`、`usdc`、`usdz`、`kmz`、`pcd`、`wrl`、`vrml`、`xyz`、`vtk`、`vtp`、`step`、`stp`、`iges`、`igs`、`brep`、`ifc`、`3dm` | `@file-viewer/renderer-3d` + Three.js loaders + `@file-viewer/geometry-engine` / `occt-import-js` | WebGL 交互预览，支持轨道控制、适配视图、网格/坐标轴、线框、自动旋转和统一缩放；STEP/STP、IGES/IGS、BREP 在本地 OCCT Worker/WASM 中解析，IFC/3DM 当前提供签名识别和接入提示 | 设计模型、点云、三维资产、工程模型 |
 | XMind 脑图 | `xmind` | `@file-viewer/renderer-mindmap` + `@ljheee/xmind-parser` + `@panzoom/panzoom` | 支持 XMind 8 XML 与 XMind 2020+ JSON 包结构，展示多 sheet、节点树、标签、备注、超链接、标记、图片、目录侧栏，并通过成熟 Panzoom 画布提供拖拽平移、移动端双指缩放、Ctrl/Command 滚轮锚点缩放、键盘平移、统一 toolbar 状态同步、适配画布、搜索、打印和 HTML 导出 | 脑图、规划图、知识结构、会议纪要 |
 | Excalidraw | `excalidraw` | `@file-viewer/renderer-drawing` + `roughjs` | 独立绘图 renderer 默认输出稳定只读 SVG；运行环境已提供官方 `@excalidraw/excalidraw` ESM 模块时会优先尝试 `restore` + `exportToSvg`，不可用时使用 rough.js 安全兜底 | 白板草图、产品沟通图、流程草稿 |
 | draw.io | `drawio`、`dio` | `@file-viewer/renderer-drawing` + 官方 diagrams.net `GraphViewer` 离线预览 | 独立绘图 renderer 默认加载随 viewer assets 分发的 `vendor/drawio/viewer-static.min.js`，并把 styles、shapes、stencils、img、mxgraph、math 都固定到本地目录；失败时回退安全 SVG | 流程图、架构图、业务泳道图 |
@@ -87,19 +89,26 @@
 
 - 表格类文件统一走 `styled-exceljs` 解析和 `e-virt-table` 虚拟渲染，适合需要保留表格结构、合并单元格、workbook drawing 图片和视觉层级的场景。
 - 表格解析默认使用 `options.spreadsheet.worker: 'auto'`：小文件走同一套 `styled-exceljs` 主线程解析以保持本地服务器、手机 WebView、MIME 和 CSP 兼容；大文件达到 `options.spreadsheet.workerAutoThreshold`（默认 1MB）时自动尝试 `vendor/xlsx/sheet.worker.js`，避免百万单元格解析阻塞 UI。静态资源路径特殊时可配置 `options.spreadsheet.workerUrl`，不希望自动启用时设为 `worker: false`。
+- CSV / TSV 默认按 UTF-8 BOM、严格 UTF-8、GB18030 的固定顺序识别文本编码，GB18030 同时覆盖常见 GBK 文件。来源编码已知或字节序列存在歧义时，可用 `options.spreadsheet.textEncoding` 显式选择 `utf-8`、`gbk` 或 `gb18030`；XLS / XLSX 等二进制表格不会进入文本解码路径。
 - 如果业务用户经常查看被截断的长文本，可以开启 `options.spreadsheet.resizableColumns: true`，用户即可拖拽表头右侧边界调整列宽。该能力默认关闭以保持历史交互兼容，官方 Demo 默认开启用于体验。
-- `xlsm`、`xlsb`、`xls`、`xlt`、`xltm`、`csv`、`ods`、`fods`、`numbers` 会读取格式中能表达的数据、尺寸和样式；部分格式本身不包含完整样式时，会按可用信息渐进还原。
+- `xlsm`、`xlsb`、`xls`、`xlt`、`xltm`、`csv`、`tsv`、`ods`、`fods`、`numbers` 会读取格式中能表达的数据、尺寸和样式；部分格式本身不包含完整样式时，会按可用信息渐进还原。
 - Excel 预览为了兼顾大表格性能采用虚拟表格，DOM 中不会一次性持有完整工作表，因此当前会主动隐藏打印按钮，避免浏览器只打印当前视口或截断内容。
 - 如果你正在设计业务导出格式，优先选 `xlsx`；如果你只是需要把历史附件打开看内容，兼容链路已经足够实用。
 
 ### 演示文稿、PDF、OFD 与 Typst
 
-- `pptx` 适合浏览幻灯片内容、做方案回看和日常演示，不需要 Office 本体参与；当前由 `@file-viewer/renderer-presentation` 按需加载独立开源的 `@file-viewer/pptx` / `flyfish-dev/pptxjs` 原生渲染引擎，各标准组件包共享同一条链路，core-only 安装不会再拉取 PPTX 引擎。
+- `ppt` 使用 `@file-viewer/renderer-presentation` 按需加载独立的 `@file-viewer/ppt` 原生 WASM 引擎，按页渲染二进制 PowerPoint 97–2003 文件；它与 PPTX 解析器保持严格路由边界。
+- `pptx` 等 OOXML 演示文稿使用独立的 `@file-viewer/pptx` 原生渲染引擎，各标准组件包共享同一条 renderer 链路，core-only 安装不会拉取任何演示文稿引擎。
+- 二进制 PPT 0.3.1 默认使用 Worker/OffscreenCanvas/WASM 和有界帧缓存；Demo、Vite/full、copy-assets 与 CDN/IIFE 的标准布局会自动发布并解析 `vendor/ppt/`，非标准资源布局才需要通过 `options.presentation.pptModuleUrl` / `pptWorkerUrl` / `pptWasmUrl` / `pptFontUrl` 覆盖。PPTX 继续使用 `workerUrl` / `workerType` 配置另一条 Worker。
 - PPTX 默认通过 renderer 内部的模块 Worker 渐进解析；私有静态资源路径、旧 WebView、严格 CSP 或自托管 CDN 场景可以用 `options.presentation.workerUrl` / `options.presentation.workerType` 固定 Worker 地址和类型，避免运行时从错误路径加载。
 - PPTX 渲染器现在会按 DrawingML 的组合图形坐标系处理 `chOff/chExt`，组合内元素在缩放、旋转、翻转时会更接近 PowerPoint 中的位置关系。
 - 主题背景支持从 `fillStyleLst` / `bgFillStyleLst` 解析纯色、渐变、图片和平铺图案；PPTX 内嵌的 EMF 图片会尽量转换为 SVG 数据图，避免只显示空白占位。
 - 图片填充会处理 `srcRect` 裁剪信息，复杂模板里的裁切图、背景图和组合形状更适合作为真实业务样本回归。
 - `odp` 作为 OpenDocument 演示文稿兼容入口，会读取每页幻灯片文本和页面结构，用于快速确认内容和页数。需要完整动画、母版和复杂形状高保真时，仍建议导出为 PPTX 或 PDF。
+
+#### 二进制 PPT 引擎许可边界
+
+`@file-viewer/ppt` 公开包由 npm 独立发布并保留自身许可证，不属于 File Viewer Apache-2.0 许可范围。Demo、Full、copy-assets 与 CDN/IIFE 会交付匹配的公开运行时；公开版渲染结果保留可见水印，移除 PPT 水印需要商业授权。该引擎会通过 Web Crypto SHA-256 校验 WASM，请部署在浏览器安全上下文中（通常为 HTTPS 或 localhost）。
 - `pdf` 走 `pdfjs-dist`，通常是版式最稳定的一类文件，适合合同、流程单、正式成品材料。当前 PDF 视图提供顶部缩放工具栏、页码状态、旋转页兼容、可显隐导航窗格、页面/目录树切换、可选懒加载页面缩略图和宽度自适应。同源 URL 会默认使用 PDF.js 的 URL 渐进读取；文件服务支持 Range 时会自动分片加载，避免大文件必须整包下载后才出现首屏。
 - PDF.js worker、CMap、WASM 和 standard fonts 默认随 viewer assets 分发到 `vendor/pdf/`，不会访问公共 CDN。轻量组件 + preset 没有复制 assets 时，PDF renderer 会在默认 worker 不可用或返回 HTML 时懒加载包内 worker handler 兜底，保证先能预览；静态目录特殊、需要最佳性能或严格离线时可通过 `options.pdf.workerUrl`、`options.pdf.cMapUrl`、`options.pdf.wasmUrl` 和 `options.pdf.standardFontDataUrl` 指向自托管地址。
 - PDF 的打印与导出 HTML 会通过专属导出适配器逐页生成完整页面，不依赖当前滚动位置、当前可见页或已经渲染的 canvas，也不会被导航窗格、预览容器或全局样式截断，适合正式归档和审批留痕。
@@ -149,8 +158,8 @@
 - 3D 模型由 `@file-viewer/renderer-3d` 承接，组件会根据扩展名按需加载对应 Three.js loader，避免普通文档预览被 3D 依赖拖慢。
 - `glb` / `gltf` 是最推荐的 Web 3D 交换格式；`obj`、`stl`、`ply` 适合轻量几何和打印模型；`fbx`、`dae`、`3ds`、`3mf`、`amf`、`usd` / `usdz`、`kmz` 适合兼容设计工具导出的历史或工程资产。
 - `pcd`、`xyz`、`vtk`、`vtp` 会按点云或几何模型展示，适合扫描、仿真和工程数据的快速浏览。
-- `step` / `stp`、`iges` / `igs`、`ifc`、`3dm`、`brep` 已保留入口，`@file-viewer/geometry-engine` 会做轻量签名识别并展示需要 CAD/BIM/WASM 几何内核的原因；生产建议在私有服务端转换为 `glb` / `gltf`。
-- 已调研的浏览器内核路线是: STEP / IGES / BREP 使用 `occt-import-js` 或 `occt-wasm` 这类 OpenCascade WASM 包转为 Three.js mesh，IFC 使用 `web-ifc` / `web-ifc-three`，3DM 使用 `rhino3dm`。这些内核体积、初始化和许可证边界都比普通 3D loader 重，后续应继续在独立几何包中分层维护，而不是默认进入 core。
+- `step` / `stp`、`iges` / `igs`、`brep` 已通过 `@file-viewer/geometry-engine` 接入本地 `occt-import-js` / OpenCascade Worker/WASM，能够解析装配层级、实例、法线和面颜色并生成 Three.js 网格，不需要服务端转换。
+- OCCT Worker、runtime、WASM 和许可证文件随 viewer assets 离线分发；子路径或独立资产域名可用 `options.model.workerUrl`、`options.model.runtimeUrl`、`options.model.wasmUrl` 覆盖。`ifc` 与 `3dm` 当前仍只展示签名识别和明确接入说明，后续分别沿 `web-ifc` / That Open 与 `rhino3dm` 路线独立维护。
 - 如果 `.gltf`、`.dae`、`.fbx` 依赖同目录贴图、材质或 `.bin` 文件，使用 `url` 远程预览时会以原始 URL 的目录作为资源基准继续加载；使用本地单文件上传时，请优先选择 `.glb` 或把资源内联。
 
 ### 绘图文件
@@ -196,7 +205,7 @@
 - 你要看结构化数据或二进制资产：SQLite、Parquet、Avro、WASM、PSD、字体和 WebArchive 都能做快速结构审阅，但不建议把它们当完整编辑器使用。
 - 你在做品牌、示意图或视觉素材展示：`png`、`svg`、`webp` 这类图片格式会比转成文档更省心。
 - 你要预览 CAD：优先提供 `dwg`、`dxf`、`dwf` 或 `dwfx`；DWG 和 DWF native renderer 会按需加载 Worker/WASM，私有化部署时请确认 viewer assets 中的 `wasm/cad/` 资源可访问。
-- 你要预览 3D 模型：优先沉淀 `glb` / `gltf`，历史模型再用 OBJ、STL、PLY、FBX、DAE、3DS、3MF、AMF、USD/USDZ、KMZ 等格式接入；STEP、IGES、IFC、3DM、BREP 建议先转换。
+- 你要预览 3D 模型：优先沉淀 `glb` / `gltf`，历史模型可用 OBJ、STL、PLY、FBX、DAE、3DS、3MF、AMF、USD/USDZ、KMZ 等格式接入；STEP/STP、IGES/IGS、BREP 可以直接走本地 OCCT 预览，IFC、3DM 当前建议先转换或接入对应专业内核。
 - 你要预览绘图文件：Excalidraw 和 draw.io 都保留源格式入口，前者走官方恢复与导出 SVG，后者默认走官方 diagrams.net 离线 viewer 并在异常时回退内置 SVG。
 - 你要预览电子书或音视频：EPUB / UMD 优先保留源文件，音频优先选择浏览器兼容最稳定的 MP3 / OGG，视频优先选择 MP4 / WEBM；需要流媒体体验时可以提供 M3U8。
 

@@ -41,6 +41,8 @@ const options = {
 - `wasm/cad/`
 - `wasm/cad/dwg-worker.js`
 - `wasm/cad/dwfv-render.wasm`
+- `wasm/cad/libredwg-web.js`
+- `wasm/cad/libredwg-web.wasm`
 
 私有化部署时可以通过 `options.cad.wasmPath`、`options.cad.workerUrl`、`options.cad.dwfWasmUrl` 覆盖。
 

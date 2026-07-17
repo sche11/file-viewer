@@ -1,4 +1,7 @@
-import { resolveFileViewerDataSqlWasmUrl } from '@file-viewer/core/assets';
+import {
+  resolveFileViewerDataSqlWasmUrl,
+  resolveFileViewerRuntimeAssetBaseUrl,
+} from '@file-viewer/core/assets';
 import { createFileViewerTranslator } from '@file-viewer/core';
 import type {
   FileRenderContext,
@@ -164,7 +167,7 @@ const renderSqlite = async (
   const { default: initSqlJs } = await import('sql.js');
   const sqlWasmUrl = resolveFileViewerDataSqlWasmUrl(context?.options?.data, [
     getWindowSqlWasmOverride(documentRef),
-  ], documentRef.baseURI);
+  ], resolveFileViewerRuntimeAssetBaseUrl(documentRef));
   const SQL = await initSqlJs({ locateFile: () => sqlWasmUrl });
   const db = new SQL.Database(new Uint8Array(buffer));
   try {

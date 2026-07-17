@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>206 extensions across 24 preview pipelines.</strong> Heavy paths load only when the active format needs them.
+  <strong>208 extensions across 25 preview pipelines · 54 npm targets.</strong> Heavy paths load only when the active format needs them.
 </p>
 
 <p align="center">
@@ -46,7 +46,7 @@
 Uploading private files to a SaaS converter is awful. Running a separate preview backend for each format is not much better. File Viewer keeps the preview path in the browser and gives the host app one API.
 
 - **No mandatory conversion backend.** Files are parsed and rendered in the browser whenever the format allows it.
-- **Offline and private-deployment friendly.** Runtime code, workers, WASM and vendor assets can all be hosted inside your network.
+- **Offline and private-deployment friendly.** Runtime code, renderers, Workers, WASM and vendor assets can all be hosted inside your network.
 - **One component API.** Use the same source, lifecycle, toolbar, search, zoom, print and export concepts across formats.
 - **Modular by design.** Start with a light component, add a focused preset, or choose a full package for one-step integration.
 - **Lazy heavy pipelines.** PDF, CAD, Typst, archives and other heavy capabilities load by format instead of inflating the first screen.
@@ -115,7 +115,7 @@ import { FileViewer } from '@file-viewer/vue3-full'
 
 The eight official Full packages are `@file-viewer/web-full`, `@file-viewer/vue3-full`, `@file-viewer/vue2.7-full`, `@file-viewer/vue2.6-full`, `@file-viewer/react-full`, `@file-viewer/react-legacy-full`, `@file-viewer/svelte-full`, and `@file-viewer/jquery-full`. They already include `preset-all`; do not install or pass another preset.
 
-Running `npm install` alone installs the complete renderer code, but it does not publish Worker, WASM, font, and vendor assets into your application. Complete format support uses one of these delivery paths:
+Each Full package includes the complete renderer matrix plus its same-version Worker, WASM, font, and vendor payload. Complete self-hosted delivery uses one of these paths:
 
 | Build / delivery path | Complete asset step |
 | --- | --- |
@@ -127,18 +127,18 @@ The default asset URL is `<deployment-base>/file-viewer/`. Without the complete 
 
 ## Choose By Scenario
 
-**206 extensions across 24 preview pipelines** means you can start with the file problem you have today instead of assembling a different viewer for every attachment type.
+**54 npm targets, 208 extensions, and 25 preview pipelines** mean you can start with the file problem you have today instead of assembling a different viewer for every attachment type.
 
 | Your product needs to preview | Formats you can look for immediately | Fastest path |
 | --- | --- | --- |
-| Contracts, reports and OA/CRM attachments | PDF/OFD, DOCX/DOC, XLSX/XLS, PPTX, RTF and OpenDocument | [Try the live demo](https://demo.file-viewer.app/) · [`preset-office`](https://doc.file-viewer.app/guide/on-demand-renderers) |
+| Contracts, reports and OA/CRM attachments | PDF/OFD, DOCX/DOC, XLSX/XLS, PPT/PPTX, RTF and OpenDocument | [Try the live demo](https://demo.file-viewer.app/) · [`preset-office`](https://doc.file-viewer.app/guide/on-demand-renderers) |
 | Engineering drawings, models and chip/design assets | DWG, DXF, DWF/DWFX, STEP/IFC/3D, OLB/DRA and GDS/OASIS | [`preset-engineering`](https://doc.file-viewer.app/guide/on-demand-renderers) · [check fidelity](https://doc.file-viewer.app/guide/format-fidelity) |
 | Archives whose contents must remain private | ZIP, RAR, 7Z, TAR, ISO and 20+ related formats, with nested file preview | [Archive coverage](https://doc.file-viewer.app/guide/formats) · [offline deployment](https://doc.file-viewer.app/guide/distribution) |
 | Email, support-ticket and knowledge-base attachments | EML, MSG, MBOX, EPUB, Markdown, source code, diff/patch and Git bundle | [Full format matrix](https://doc.file-viewer.app/guide/formats) · [full packages](#quick-start) |
 | Diagrams, design files and structured data | Draw.io, Excalidraw, Mermaid, PlantUML, XMind, PSD, SQLite, Parquet and more | [Full format matrix](https://doc.file-viewer.app/guide/formats) · [`preset-all`](#choose-the-right-package) |
 | Intranet or air-gapped deployment | Self-hosted JavaScript, Worker, WASM, fonts and vendor assets | [Offline guide](https://doc.file-viewer.app/guide/distribution) · [Docker](https://doc.file-viewer.app/guide/docker) |
 
-Looking for one exact suffix? Search the maintained [206-extension format matrix](https://doc.file-viewer.app/guide/formats), which records the renderer, support level and deployment requirements for each pipeline.
+Looking for one exact suffix? Search the maintained [208-extension format matrix](https://doc.file-viewer.app/guide/formats), which records the renderer, support level and deployment requirements for each pipeline.
 
 ## Choose the Right Package
 
@@ -163,7 +163,7 @@ See [on-demand renderers and presets](https://doc.file-viewer.app/guide/on-deman
 
 ## Capability at a Glance
 
-The current matrix maps **206 file extensions** into **24 rendering pipelines**. Major groups include PDF; Word, spreadsheet and presentation files; OFD; DWG/DXF/DWF/DWFX; archives; EML/MSG; Markdown and source code; Draw.io, Excalidraw, Mermaid and PlantUML; PSD and images; audio/video; ebooks; mind maps; 3D/geo/data/EDA formats; and Typst.
+The current matrix maps **208 file extensions** into **25 rendering pipelines**, distributed through **54 npm targets**. Presentation preview deliberately keeps two engine boundaries: PowerPoint 97–2003 `.ppt` uses the native-WASM `@file-viewer/ppt@0.3.1` engine, while PPTX/OpenXML uses the `@file-viewer/pptx` Worker engine. Other major groups include PDF; Word and spreadsheets; OFD; DWG/DXF/DWF/DWFX; archives; EML/MSG; Markdown and source code; Draw.io, Excalidraw, Mermaid and PlantUML; PSD and images; audio/video; ebooks; mind maps; 3D/geo/data/EDA formats; and Typst.
 
 The exact implementation and support level varies by format. Use the maintained [format matrix](https://doc.file-viewer.app/guide/formats) as the source of truth rather than inferring support from an extension alone.
 
@@ -171,7 +171,7 @@ The exact implementation and support level varies by format. Use the maintained 
 
 - File Viewer is a **read-only preview toolkit**, not an Office or CAD editor.
 - Visual fidelity differs by file structure, embedded fonts, vendor extensions and browser capabilities.
-- Heavy formats require local Worker/WASM/vendor assets; offline deployment means hosting those assets yourself, not removing them.
+- Heavy formats use the local Worker/WASM/vendor assets carried by their packages; offline deployment means publishing that version-aligned payload on your own origin.
 - Very large or encrypted files can require more memory and format-specific configuration.
 - A light component does not silently include every renderer. Install a preset, individual renderers, or a full package.
 

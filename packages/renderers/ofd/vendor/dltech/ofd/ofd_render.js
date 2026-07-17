@@ -318,8 +318,11 @@ const renderLayer = function (pageDiv, fontResObj, drawParamResObj, multiMediaRe
     }
 }
 
-// 部分 OFD 导出工具（如 OFD R&W）会让同一图层内所有图像共享同一个整页 Boundary，
-// 图像的真实位置和尺寸完全由 CTM 决定；此时必须优先按 CTM 计算矩形，否则所有图像会被拉伸铺满整页并互相重叠。
+// ImageObject 的 CTM 坐标系以 Boundary 左上角为原点，不是页面原点。
+// 常见 OFD 会把尺寸写在 CTM，把页面位置写在 Boundary，此时 e/f 为 0；
+// OFD R&W 则会给图像一个整页 Boundary，再用 CTM 的 e/f 在该 Boundary 内定位。
+// 两类文件都必须将 Boundary 原点与 CTM 平移叠加；直接把 e/f 当页面
+// 坐标会导致所有 e/f=0 的普通图片集中跑到页面左上角。
 const parseImageCtm = function (ctm) {
     if (!ctm) {
         return null;
@@ -329,7 +332,8 @@ const parseImageCtm = function (ctm) {
 }
 
 const resolveImageGeometry = function (imageObject) {
-    const boundary = converterBox(parseStBox(imageObject['@_Boundary']));
+    const sourceBoundary = parseStBox(imageObject['@_Boundary']);
+    const boundary = converterBox(sourceBoundary);
     const ctmValues = parseImageCtm(imageObject['@_CTM']);
     if (!ctmValues) {
         return { boundary, matrix: null };
@@ -337,17 +341,22 @@ const resolveImageGeometry = function (imageObject) {
     const [a, b, c, d, e, f] = ctmValues;
     const isAxisAligned = Math.abs(b) < 1e-6 && Math.abs(c) < 1e-6;
     if (isAxisAligned) {
-        // CTM 把单位正方形映射到页面坐标系，a/d 为宽高、e/f 为左上角，单位与 Boundary 一致（mm）。
+        // CTM 把单位正方形映射到 Boundary 内部坐标系，
+        // a/d 为宽高，e/f 为相对 Boundary 原点的平移（mm）。
         const ctmBoundary = converterBox({
-            x: Math.min(e, e + a),
-            y: Math.min(f, f + d),
+            x: sourceBoundary.x + Math.min(e, e + a),
+            y: sourceBoundary.y + Math.min(f, f + d),
             w: Math.abs(a),
             h: Math.abs(d),
         });
         return { boundary: ctmBoundary, matrix: null };
     }
-    // 存在旋转/斜切时，退化为整页 Boundary 无法给出正确外框，改用矩阵直接变换单位方块。
-    return { boundary, matrix: ctmValues };
+    // 存在旋转/斜切时使用矩阵直接变换单位方块，但仍需叠加
+    // Boundary 原点，否则旋转图像也会被错放到页面左上角。
+    return {
+        boundary,
+        matrix: [a, b, c, d, sourceBoundary.x + e, sourceBoundary.y + f],
+    };
 }
 
 export const renderImageObject = function (pageWidth, pageHeight, multiMediaResObj, imageObject){

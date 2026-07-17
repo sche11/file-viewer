@@ -7,12 +7,19 @@ import {
   DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL,
   DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
   DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH,
+  DEFAULT_FILE_VIEWER_MODEL_RUNTIME_URL,
+  DEFAULT_FILE_VIEWER_MODEL_WASM_URL,
+  DEFAULT_FILE_VIEWER_MODEL_WORKER_URL,
   DEFAULT_FILE_VIEWER_DRAWIO_VIEWER_SCRIPT_PATH,
   DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH,
   DEFAULT_FILE_VIEWER_PDF_CMAP_PATH,
   DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
   DEFAULT_FILE_VIEWER_PDF_WASM_PATH,
   DEFAULT_FILE_VIEWER_PDF_WORKER_PATH,
+  DEFAULT_FILE_VIEWER_PPT_FONT_PATH,
+  DEFAULT_FILE_VIEWER_PPT_MODULE_PATH,
+  DEFAULT_FILE_VIEWER_PPT_WASM_PATH,
+  DEFAULT_FILE_VIEWER_PPT_WORKER_PATH,
   DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH,
   DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH,
   DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
@@ -92,6 +99,11 @@ export function createFullAssetOptions(
     drawing: {
       viewerScriptUrl: assetUrl(DEFAULT_FILE_VIEWER_DRAWIO_VIEWER_SCRIPT_PATH),
     },
+    model: {
+      workerUrl: assetUrl(DEFAULT_FILE_VIEWER_MODEL_WORKER_URL),
+      runtimeUrl: assetUrl(DEFAULT_FILE_VIEWER_MODEL_RUNTIME_URL),
+      wasmUrl: assetUrl(DEFAULT_FILE_VIEWER_MODEL_WASM_URL),
+    },
     pdf: {
       workerUrl: assetUrl(DEFAULT_FILE_VIEWER_PDF_WORKER_PATH),
       cMapUrl: assetUrl(DEFAULT_FILE_VIEWER_PDF_CMAP_PATH),
@@ -100,6 +112,10 @@ export function createFullAssetOptions(
       cjkFontFallbackPath: assetUrl(DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH),
     },
     presentation: {
+      pptModuleUrl: assetUrl(DEFAULT_FILE_VIEWER_PPT_MODULE_PATH),
+      pptWorkerUrl: assetUrl(DEFAULT_FILE_VIEWER_PPT_WORKER_PATH),
+      pptWasmUrl: assetUrl(DEFAULT_FILE_VIEWER_PPT_WASM_PATH),
+      pptFontUrl: assetUrl(DEFAULT_FILE_VIEWER_PPT_FONT_PATH),
       workerUrl: assetUrl(DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH),
     },
     spreadsheet: {
@@ -123,9 +139,12 @@ function mergeNestedOptions<Options extends object>(
   if (!overrides) {
     return defaults;
   }
+  const definedOverrides = Object.fromEntries(
+    Object.entries(overrides).filter(([, value]) => value !== undefined)
+  ) as Partial<Options>;
   return {
     ...defaults,
-    ...overrides,
+    ...definedOverrides,
   } as Options;
 }
 
@@ -161,6 +180,7 @@ export function mergeFullAssetOptions(
     data: mergeNestedOptions(assetOptions.data, options.data),
     docx: mergeNestedOptions(assetOptions.docx, options.docx),
     drawing: mergeNestedOptions(assetOptions.drawing, options.drawing),
+    model: mergeNestedOptions(assetOptions.model, options.model),
     pdf: mergeNestedOptions(pdfDefaults, options.pdf),
     presentation: mergeNestedOptions(assetOptions.presentation, options.presentation),
     spreadsheet: mergeNestedOptions(assetOptions.spreadsheet, options.spreadsheet),

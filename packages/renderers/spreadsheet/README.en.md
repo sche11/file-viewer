@@ -1,6 +1,6 @@
 # @file-viewer/renderer-spreadsheet
 
-Standalone spreadsheet renderer package for Flyfish File Viewer. It is powered by `styled-exceljs` and `e-virt-table`, previews XLSX, XLSM, XLSB, XLS, CSV, ODS, FODS, Numbers, and compatible spreadsheet files in the browser, and resolves the optional worker URL through the File Viewer asset manifest for offline enterprise deployments.
+Standalone spreadsheet renderer package for Flyfish File Viewer. It is powered by `styled-exceljs` and `e-virt-table`, previews XLSX, XLSM, XLSB, XLS, CSV, TSV, ODS, FODS, Numbers, and compatible spreadsheet files in the browser, and resolves the optional worker URL through the File Viewer asset manifest for offline enterprise deployments.
 
 ## Usage
 
@@ -28,7 +28,8 @@ const options = {
 
 ## Capabilities
 
-- Supports `.xlsx`, `.xltx`, `.xlsm`, `.xlsb`, `.xls`, `.xlt`, `.xltm`, `.csv`, `.ods`, `.fods`, and `.numbers`.
+- Supports `.xlsx`, `.xltx`, `.xlsm`, `.xlsb`, `.xls`, `.xlt`, `.xltm`, `.csv`, `.tsv`, `.ods`, `.fods`, and `.numbers`.
+- CSV / TSV automatically detects UTF-8 (with or without BOM) and GBK / GB18030. For known inputs, set `options.spreadsheet.textEncoding` to `utf-8`, `gbk`, or `gb18030`.
 - Defaults to `options.spreadsheet.worker: 'auto'`: small files keep the main-thread compatibility path, while files at or above `options.spreadsheet.workerAutoThreshold` (1MB by default) automatically try the static worker.
 - Can force the static worker with `options.spreadsheet.worker: true`, disable auto worker with `worker: false`, and override custom static paths with `options.spreadsheet.workerUrl`.
 - Supports multiple sheets, horizontally scrollable sheet tabs, merged cells, row and column sizing, borders, fills, alignment, text color, workbook images, the global zoom provider, and optional header drag column resizing.

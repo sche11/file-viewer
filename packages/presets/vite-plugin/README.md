@@ -98,7 +98,7 @@ const options = {
 
 如果宿主项目按包名拆分 `node_modules`，`@codemirror/*`、`@lezer/*` 和 Sandpack 之间的循环依赖可能在生产构建中表现为 `codemirror-view.* Cannot access ... before initialization`。插件默认会包裹已有的 `manualChunks` 函数，只稳定这些已知互操作 chunk，保留其它自定义分组；确实需要完全接管时可设置 `stabilizeInteropChunks:false`。
 
-`copyAssets.baseDir` 可以覆盖自动目录：必须是相对路径，不能包含 `..`；传空字符串表示显式复制到根目录。插件会同步 full 包的运行时资源根，无需再手动调用 `setDefaultFullAssetBaseUrl()`；同时自定义 `baseDir` 并设置 `inject:false` 时，才需由业务自行设置。Vite 配置了 `base:'/app/'` 时，full 包开发 URL 为 `/app/file-viewer/...`，构建文件仍位于 `outDir/file-viewer/`。
+`copyAssets.baseDir` 可以覆盖自动目录：必须是相对路径，不能包含 `..`；传空字符串表示显式复制到根目录。插件会为标准包、preset 和 full 包同步统一运行时资源根；full 包仍同时同步 `setDefaultFullAssetBaseUrl()`。只有设置 `inject:false` 且不手动导入虚拟模块时，业务才需要调用 `setDefaultFileViewerAssetBaseUrl()`（full 包同时调用 `setDefaultFullAssetBaseUrl()`）。Vite 配置了 `base:'/app/'` 时，full 包开发 URL 为 `/app/file-viewer/...`，构建文件仍位于 `outDir/file-viewer/`。
 
 如果你需要严格控制 registry，可以关闭注入并手动传入：
 

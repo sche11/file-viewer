@@ -162,6 +162,10 @@ const lineCountOf = (value: string) => {
   return value.split(/\r\n|\r|\n/).length
 }
 
+const createLineNumberText = (lineCount: number) => {
+  return Array.from({ length: lineCount }, (_, index) => String(index + 1)).join('\n')
+}
+
 /**
  * Framework-neutral text/code renderer.
  *
@@ -198,24 +202,37 @@ export default async function renderText(
 
   const text = await readText(buffer)
   const language = resolveLanguage(extension)
+  const lineCount = lineCountOf(text)
+  const showToolbar = context?.options?.text?.toolbar !== false
+  const showLineNumbers = context?.options?.text?.lineNumbers === true
   let disposed = false
   let zoom = 1
   const zoomEmitter = createZoomChangeEmitter()
   const root = createElement('div', 'code-viewer')
   root.dataset.viewerZoomProvider = 'code'
+  root.dataset.textToolbar = String(showToolbar)
+  root.dataset.lineNumbers = String(showLineNumbers)
   const toolbar = createElement('div', 'code-toolbar')
   toolbar.append(
     createElement('span', '', extension.toUpperCase()),
-    createElement('strong', '', `${lineCountOf(text)} lines`)
+    createElement('strong', '', `${lineCount} lines`)
   )
 
-  const pre = createElement('pre', 'code-area')
+  const pre = createElement('pre', showLineNumbers ? 'code-area code-area--line-numbers' : 'code-area')
   const code = createElement('code', `hljs language-${language}`)
   code.innerHTML = language === 'plaintext'
     ? escapeHtml(text)
     : t('text.code.loadingHighlight')
+  if (showLineNumbers) {
+    const gutter = createElement('span', 'code-line-numbers', createLineNumberText(lineCount))
+    gutter.setAttribute('aria-hidden', 'true')
+    pre.append(gutter)
+  }
   pre.append(code)
-  root.append(toolbar, pre)
+  if (showToolbar) {
+    root.append(toolbar)
+  }
+  root.append(pre)
   root.style.setProperty('--code-font-size', `${13 * zoom}px`)
   target.replaceChildren(createStyle(), root)
 

@@ -68,7 +68,7 @@ export const viewerOptions = {
 | `watermark` | Text or image watermark source, opacity, spacing, size, rotation, color, and toggle behavior. Enabled watermarks are included in print output. |
 | `watermark` | Text or image watermark source, opacity, spacing, size, rotation, color, and toggle behavior. |
 | `search` | Document search, highlighted matches, next / previous navigation, whole-word and case-sensitive behavior. |
-| `text` | Large text/code/Markdown safety controls. Above `virtualizeAboveBytes` (default 512 KiB), the renderer uses sparse indexing and bounded virtual rows. `maxRenderedLineBytes` segments giant lines, `virtualOverscanLines` controls the mounted buffer, and search still scans the complete source. |
+| `text` | Set `toolbar: false` to hide the renderer-local source metadata bar while keeping the viewer operation toolbar available. Set `lineNumbers: true` for a copy-safe, screen-reader-hidden gutter in regular code/text previews. Text and code above `virtualizeAboveBytes` (default 512 KiB) use bounded virtual rows. Markdown remains rendered by default; set `markdownVirtualizeAboveBytes` only when exceptionally large Markdown should open as bounded source. `maxRenderedLineBytes` and `virtualOverscanLines` bound mounted content while search still scans the complete source. |
 | `ai` | Text chunk collection for vectorization, source tracing, source-aware highlighting, and audit workflows. It does not call a cloud model by itself. |
 | `archive` | Safe extraction limits, IndexedDB cache behavior, worker timeout, nested preview, and self-hosted libarchive paths. |
 | `pdf`, `docx`, `spreadsheet`, `cad`, `typst`, `drawing`, `data` | Renderer-specific asset URLs and behavior knobs. |
@@ -93,10 +93,10 @@ Every renderer below can be passed through `options.renderers`:
 | `@file-viewer/renderer-pdf` | `pdfRenderer` | PDF and PDF-backed AI files |
 | `@file-viewer/renderer-word` | `wordRenderer` | DOCX, DOC, DOT, RTF, ODT, OpenDocument |
 | `@file-viewer/renderer-spreadsheet` | `spreadsheetRenderer` | XLSX, XLS, ODS, CSV and spreadsheet-like files |
-| `@file-viewer/renderer-presentation` | `presentationRenderer` | PPT, PPTX, PPS, POT; uses `@file-viewer/pptx` on demand |
+| `@file-viewer/renderer-presentation` | `presentationRenderer` | Binary PPT through `@file-viewer/ppt`; PPTX/PPTM/POTX/POTM/PPSX/PPSM through `@file-viewer/pptx`; both load on demand |
 | `@file-viewer/renderer-ofd` | `ofdRenderer` | OFD |
 | `@file-viewer/renderer-cad` | `cadRenderer` | DWG, DXF, DWF, DWFx, XPS |
-| `@file-viewer/renderer-3d` | `modelRenderer` | GLB, GLTF, OBJ, STL, PLY, FBX, DAE, USD, STEP, IFC and geometry signatures |
+| `@file-viewer/renderer-3d` | `modelRenderer` | GLB, GLTF, OBJ, STL, PLY, FBX, DAE, USD; local OCCT preview for STEP/STP, IGES/IGS, and BREP; signature and integration guidance for IFC/3DM |
 | `@file-viewer/renderer-drawing` | `drawingRenderer` | draw.io, Excalidraw, Mermaid, PlantUML |
 | `@file-viewer/renderer-mindmap` | `mindmapRenderer` | XMind |
 | `@file-viewer/renderer-geo` | `geoRenderer` | GeoJSON, KML, GPX, SHP |
@@ -139,8 +139,11 @@ Every renderer below can be passed through `options.renderers`:
 | `docx.visualPagination` | Optional page-like preview. Default DOCX rendering is continuous flow to avoid breaking complex tables and directories. |
 | `spreadsheet.worker` | Spreadsheet worker mode. The default `auto` keeps small files on the main-thread compatibility path and automatically tries the worker once file size reaches `spreadsheet.workerAutoThreshold`; explicit `true` / `false` values still take precedence. |
 | `spreadsheet.workerAutoThreshold` / `spreadsheet.workerUrl` | Large-file threshold for `worker: 'auto'` in bytes, default 1MB, plus the self-hosted Excel/XLSX worker URL. |
+| `spreadsheet.textEncoding` | CSV / TSV encoding override: `auto` (default), `utf-8`, `gbk`, or `gb18030`. Auto mode validates UTF-8 first and otherwise uses the browser GB18030 decoder. |
 | `spreadsheet.resizableColumns` | Allows users to drag spreadsheet header edges to inspect truncated text. |
 | `presentation.workerUrl` / `presentation.workerType` | Self-host the `@file-viewer/pptx` worker or override its Worker type for strict CSP, legacy WebViews, or custom static asset routing. |
+| `presentation.pptModuleUrl` / `presentation.pptWorkerUrl` / `presentation.pptWasmUrl` / `presentation.pptFontUrl` | Advanced overrides for the packaged PowerPoint 97–2003 `.ppt` 0.3.1 ESM, Worker, WASM, and CJK font asset routes. Demo, Vite/full, copy-assets, and CDN/IIFE builds work without them. |
+| `presentation.pptWorker` / `presentation.pptCache` | Select `auto` / required / disabled binary-PPT Worker rendering and configure or disable its bounded IndexedDB frame cache. |
 | `pdf.streaming` / `pdf.rangeChunkSize` | Controls URL-based progressive PDF loading and PDF.js range chunk size. |
 | `pdf.toolbar` | Shows or hides the PDF renderer's own page / zoom / rotation toolbar. Useful for comparison layouts. |
 | `pdf.navigation` / `pdf.defaultNavigationVisible` | Enables the left page / outline navigation pane and initial visibility. |
@@ -254,4 +257,4 @@ await displayViewer.applyViewState(lastState, {
 
 For synchronization, send the full `state` snapshot instead of replaying individual button clicks. PDF page changes, zooming, scrolling, XMind panning, Geo map movement, and 3D camera updates all use the same event shape; the display side only needs to call `applyViewState()`.
 
-PDF default assets are probed from the site root (`/vendor/pdf/...`) so Vue Router, React Router, and other deep routes do not accidentally request `vendor/pdf/pdf.worker.mjs` from the current page path. When the static worker is missing or an app server falls back to HTML, the PDF renderer lazy-loads the packaged PDF.js worker handler as a compatibility fallback. Use absolute `pdf.workerUrl`, `pdf.cMapUrl`, `pdf.wasmUrl`, and `pdf.standardFontDataUrl` when deploying under a sub-path, a dedicated static asset domain, or a strict CSP. PPTX uses the `@file-viewer/pptx` worker on demand; set `presentation.workerUrl` and, when necessary, `presentation.workerType` for self-hosted worker deployments.
+PDF default assets are probed from the site root (`/vendor/pdf/...`) so Vue Router, React Router, and other deep routes do not accidentally request `vendor/pdf/pdf.worker.mjs` from the current page path. When the static worker is missing or an app server falls back to HTML, the PDF renderer lazy-loads the packaged PDF.js worker handler as a compatibility fallback. Use absolute `pdf.workerUrl`, `pdf.cMapUrl`, `pdf.wasmUrl`, and `pdf.standardFontDataUrl` when deploying under a sub-path, a dedicated static asset domain, or a strict CSP. PPTX uses the `@file-viewer/pptx` worker on demand; set `presentation.workerUrl` and, when necessary, `presentation.workerType` for custom worker routes. Binary `.ppt` uses `@file-viewer/ppt@0.3.1`; standard distributions keep its verified ESM/Worker/WASM/font files together under `vendor/ppt/`. Configure `presentation.pptModuleUrl`, `pptWorkerUrl`, `pptWasmUrl`, and `pptFontUrl` only for a custom layout.

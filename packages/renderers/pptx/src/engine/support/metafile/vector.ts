@@ -770,7 +770,6 @@ function parseWmf(bytes: Uint8Array): ConvertedVectorImage | null {
 
     switch (fn) {
       case WMF_RECORD.META_EOF:
-        cursor += recordSize;
         return finalizeSvg(ctx, 'image/wmf');
       case WMF_RECORD.META_SETWINDOWORG:
         ctx.state.windowOrg = { x: recordReader.i16(8), y: recordReader.i16(6) };
@@ -1031,7 +1030,6 @@ function parseEmf(bytes: Uint8Array): ConvertedVectorImage | null {
 
     switch (type) {
       case EMF_RECORD.EMR_EOF:
-        cursor += size;
         return finalizeSvg(ctx, 'image/emf');
       case EMF_RECORD.EMR_SETWINDOWORGEX:
         ctx.state.windowOrg = { x: record.i32(8), y: record.i32(12) };

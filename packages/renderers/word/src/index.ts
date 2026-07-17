@@ -29,12 +29,27 @@ export const renderFileViewerWordDocx: FileRenderHandler<FileViewerRenderedInsta
   context
 ) => import('./wordDocx.js').then(({ default: renderWordDocx }) => renderWordDocx(buffer, target, context));
 
+/**
+ * A surprising number of legacy systems keep the `.doc` suffix after saving
+ * an OOXML document. Route those ZIP-based files through the DOCX engine while
+ * leaving genuine OLE/CFB `.doc` files on the binary parser.
+ */
+export const resolveFileViewerWordContainer = (buffer: ArrayBuffer): 'openxml' | 'binary' => {
+  if (buffer.byteLength < 2) {
+    return 'binary';
+  }
+  const bytes = new Uint8Array(buffer, 0, 2);
+  return bytes[0] === 0x50 && bytes[1] === 0x4b ? 'openxml' : 'binary';
+};
+
 export const renderFileViewerWordDoc: FileRenderHandler<FileViewerRenderedInstance, HTMLDivElement> = (
   buffer,
   target,
   _type,
   context
-) => import('./wordDoc.js').then(({ default: renderWordDoc }) => renderWordDoc(buffer, target, context));
+) => resolveFileViewerWordContainer(buffer) === 'openxml'
+  ? import('./wordDocx.js').then(({ default: renderWordDocx }) => renderWordDocx(buffer, target, context))
+  : import('./wordDoc.js').then(({ default: renderWordDoc }) => renderWordDoc(buffer, target, context));
 
 export const renderFileViewerOpenDocument: FileRenderHandler<FileViewerRenderedInstance, HTMLDivElement> = (
   buffer,

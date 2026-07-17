@@ -98,7 +98,11 @@ const waitForCaptureReadiness = async (documentRef: Document, signal?: AbortSign
   const view = documentRef.defaultView;
   await new Promise<void>(resolve => {
     if (!view?.requestAnimationFrame) {
-      view?.setTimeout(() => resolve(), 0) ?? resolve();
+      if (view?.setTimeout) {
+        view.setTimeout(() => resolve(), 0);
+      } else {
+        resolve();
+      }
       return;
     }
     view.requestAnimationFrame(() => view.requestAnimationFrame(() => resolve()));

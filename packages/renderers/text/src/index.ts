@@ -31,8 +31,8 @@ export const renderFileViewerMarkdown: FileRenderHandler<FileViewerRenderedInsta
   target,
   type,
   context
-) => import('./largeText.js').then(async ({ default: renderLargeText, shouldVirtualizeTextBuffer }) => {
-  if (shouldVirtualizeTextBuffer(buffer, context)) {
+) => import('./largeText.js').then(async ({ default: renderLargeText, shouldVirtualizeMarkdownBuffer }) => {
+  if (shouldVirtualizeMarkdownBuffer(buffer, context)) {
     return renderLargeText(buffer, target, type || 'md', context);
   }
   const { default: renderMarkdown } = await import('./markdown.js');

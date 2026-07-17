@@ -220,10 +220,9 @@ export default function process(setOnMessage, postMessage) {
       const filename = path.substring(first, last);
       const slideNumber = filename && filename.includes('slide') ? Number(filename.substr(5)) : 1;
       // 最终渲染
-      let slideHtml = '';
       let body;
       try {
-        slideHtml = await processSingleSlide(zip, path, i, slideSize);
+        const slideHtml = await processSingleSlide(zip, path, i, slideSize);
         renderedSlideCount += 1;
         body = {
           type: 'slide',

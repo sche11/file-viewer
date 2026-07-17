@@ -19,7 +19,7 @@ const OFD_MAX_SCALE = 3;
 const OFD_ZOOM_STEP = 0.1;
 
 const ofdStyle = `
-.ofd-viewer{position:relative;box-sizing:border-box;min-height:100%;background:#e9edf2;color:#172033;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.ofd-viewer{position:relative;box-sizing:border-box;min-height:100%;background:var(--file-viewer-render-surface-background,#e9edf2);color:#172033;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
 .ofd-viewer *{box-sizing:border-box}
 .ofd-stage{min-height:100%;padding:18px 0 28px;overflow:auto;scrollbar-gutter:stable}
 .ofd-state{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;background:rgba(246,248,250,.92);color:#64748b;font-size:14px}
@@ -29,9 +29,9 @@ const ofdStyle = `
 .ofd-page{display:block;margin-left:auto!important;margin-right:auto!important;background:#fff!important;color:#111827!important;color-scheme:only light;forced-color-adjust:none;isolation:isolate;box-shadow:0 10px 26px rgba(15,23,42,.12);transition:transform .16s ease}
 .ofd-page,.ofd-page *{color-scheme:only light;forced-color-adjust:none}
 .ofd-page svg,.ofd-page canvas,.ofd-page img{filter:none!important;mix-blend-mode:normal!important}
-[data-viewer-theme='dark'] .ofd-viewer{background:#172033;color:#e5eef8}
+[data-viewer-theme='dark'] .ofd-viewer{background:var(--file-viewer-render-surface-background,#172033);color:#e5eef8}
 [data-viewer-theme='dark'] .ofd-state{background:rgba(15,23,42,.9);color:#cbd5e1}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .ofd-viewer{background:#172033;color:#e5eef8}[data-viewer-theme='system'] .ofd-state{background:rgba(15,23,42,.9);color:#cbd5e1}}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .ofd-viewer{background:var(--file-viewer-render-surface-background,#172033);color:#e5eef8}[data-viewer-theme='system'] .ofd-state{background:rgba(15,23,42,.9);color:#cbd5e1}}
 @media print{.ofd-viewer{background:#fff!important}.ofd-stage{padding:0!important;overflow:visible!important}.ofd-page-frame{break-after:page;page-break-after:always;margin:0 auto!important}.ofd-page-frame:last-child{break-after:auto;page-break-after:auto}.ofd-page{box-shadow:none!important;transition:none!important}}
 `;
 

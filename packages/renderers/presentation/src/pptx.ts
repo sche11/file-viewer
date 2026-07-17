@@ -2,9 +2,12 @@ import { PptxViewer, RECOMMENDED_ZIP_LIMITS } from '@file-viewer/pptx';
 import {
   createFileViewerTranslator,
   createFileViewerZoomChangeEmitter,
+  getFileViewerShadowRootForNode,
   normalizeFileViewerErrorMessage,
   registerFileViewerZoomProvider,
   resolveFileViewerLocale,
+  resolveFileViewerPresentationWorkerUrl,
+  resolveFileViewerRuntimeAssetBaseUrl,
   waitForFileViewerNextPaint,
   unregisterFileViewerZoomProvider,
 } from '@file-viewer/core';
@@ -19,7 +22,7 @@ import type { PptxDiagnosticError } from '@file-viewer/pptx';
 type PptxRenderState = 'loading' | 'ready' | 'error';
 
 const pptxStyle = `
-.pptx-viewer-shell{position:relative;box-sizing:border-box;min-height:100%;padding:24px 20px;background:#eef3f8;color:#1f2d3b;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.pptx-viewer-shell{position:relative;box-sizing:border-box;min-height:100%;padding:24px 20px;background:var(--file-viewer-render-surface-background,#eef3f8);color:#1f2d3b;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
 .pptx-render-surface{min-height:240px}
 .pptx-render-surface.is-loading{opacity:.72}
 .pptx-loading{position:sticky;top:12px;z-index:3;box-sizing:border-box;display:inline-flex;align-items:center;gap:10px;margin:0 0 16px 50%;padding:10px 14px;border:1px solid rgba(42,94,144,.14);border-radius:999px;background:rgba(255,255,255,.92);color:#41556b;box-shadow:0 12px 32px rgba(24,44,64,.12);transform:translateX(-50%)}
@@ -28,12 +31,12 @@ const pptxStyle = `
 .pptx-error{box-sizing:border-box;width:min(680px,calc(100% - 32px));margin:48px auto;padding:24px;border:1px solid rgba(28,43,58,.12);border-radius:14px;background:#fff;color:#1f2d3b;box-shadow:0 16px 42px rgba(25,42,54,.08)}
 .pptx-error strong{display:block;margin-bottom:10px;font-size:18px}
 .pptx-error p{margin:0;color:#607282;line-height:1.7}
-[data-viewer-theme='dark'] .pptx-viewer-shell{background:#101820;color:#e5eef8}
+[data-viewer-theme='dark'] .pptx-viewer-shell{background:var(--file-viewer-render-surface-background,#101820);color:#e5eef8}
 [data-viewer-theme='dark'] .pptx-loading{border-color:rgba(148,163,184,.18);background:rgba(15,23,42,.9);color:#cbd5e1;box-shadow:0 18px 44px rgba(0,0,0,.26)}
 [data-viewer-theme='dark'] .pptx-error{border-color:rgba(148,163,184,.18);background:#151f2b;color:#f8fafc;box-shadow:0 22px 56px rgba(0,0,0,.32)}
 [data-viewer-theme='dark'] .pptx-error p{color:#94a3b8}
 [data-viewer-theme='dark'] .pptx-render-surface .slide,[data-viewer-theme='dark'] .pptx-render-surface [data-slide-index]{color-scheme:only light;forced-color-adjust:none}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .pptx-viewer-shell{background:#101820;color:#e5eef8}[data-viewer-theme='system'] .pptx-loading{border-color:rgba(148,163,184,.18);background:rgba(15,23,42,.9);color:#cbd5e1;box-shadow:0 18px 44px rgba(0,0,0,.26)}[data-viewer-theme='system'] .pptx-error{border-color:rgba(148,163,184,.18);background:#151f2b;color:#f8fafc;box-shadow:0 22px 56px rgba(0,0,0,.32)}[data-viewer-theme='system'] .pptx-error p{color:#94a3b8}[data-viewer-theme='system'] .pptx-render-surface .slide,[data-viewer-theme='system'] .pptx-render-surface [data-slide-index]{color-scheme:only light;forced-color-adjust:none}}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .pptx-viewer-shell{background:var(--file-viewer-render-surface-background,#101820);color:#e5eef8}[data-viewer-theme='system'] .pptx-loading{border-color:rgba(148,163,184,.18);background:rgba(15,23,42,.9);color:#cbd5e1;box-shadow:0 18px 44px rgba(0,0,0,.26)}[data-viewer-theme='system'] .pptx-error{border-color:rgba(148,163,184,.18);background:#151f2b;color:#f8fafc;box-shadow:0 22px 56px rgba(0,0,0,.32)}[data-viewer-theme='system'] .pptx-error p{color:#94a3b8}[data-viewer-theme='system'] .pptx-render-surface .slide,[data-viewer-theme='system'] .pptx-render-surface [data-slide-index]{color-scheme:only light;forced-color-adjust:none}}
 `;
 
 const pptxPrintStyle = `
@@ -76,6 +79,16 @@ const createElement = <K extends keyof HTMLElementTagNameMap>(
     element.textContent = text;
   }
   return element;
+};
+
+const resolvePptxStyleRoot = (
+  surface: HTMLElement,
+  context?: FileRenderContext
+) => {
+  return context?.surface?.shadowRoot ||
+    getFileViewerShadowRootForNode(context?.surface?.container) ||
+    getFileViewerShadowRootForNode(surface) ||
+    undefined;
 };
 
 const clampZoomPercent = (value: number) => {
@@ -480,10 +493,19 @@ export default async function renderPptx(
         throw context.signal.reason || new DOMException('PPTX rendering aborted.', 'AbortError');
       }
       const nextViewer = await PptxViewer.open(buffer, surface, {
-        styleRoot: context?.surface?.shadowRoot,
+        styleRoot: resolvePptxStyleRoot(surface, context),
         fitMode: 'contain',
         zoomPercent,
-        workerUrl: presentationOptions?.workerUrl,
+        // Keep the PPTX package's own worker fallback when the host did not
+        // configure a self-hosted worker. Resolving the generic default here
+        // would point Vite development at /vendor/pptx/pptx.worker.js, where
+        // the SPA fallback is HTML rather than worker JavaScript.
+        workerUrl: presentationOptions?.workerUrl
+          ? resolveFileViewerPresentationWorkerUrl(
+              presentationOptions,
+              resolveFileViewerRuntimeAssetBaseUrl(documentRef)
+            )
+          : undefined,
         workerType: presentationOptions?.workerType,
         zipLimits: RECOMMENDED_ZIP_LIMITS,
         lazySlides: true,

@@ -189,7 +189,7 @@ pnpm --filter @flyfish-group/file-viewer-component-demo preview
 | `model.obj` | 使用项目内生成的 OBJ 四面体验证 OBJ 几何预览 | `obj` |
 | `model.stl` | 使用项目内生成的 STL 四面体验证 STL 几何预览 | `stl` |
 | `model.ply` | 使用项目内生成的 PLY 四面体验证 PLY 几何预览 | `ply` |
-| `model.step` | 使用项目内生成的最小 STEP 验证工程 CAD 格式转换原因提示 | `step` |
+| `model.step` | 使用 `occt-import-js` 上游基础立方体 STEP 样例验证离线 OCCT Worker/WASM、真实网格、适配视图和统一缩放 | `step` |
 | `flow.excalidraw` | 使用公开 Excalidraw 图纸验证官方恢复与 SVG 导出预览 | `excalidraw` |
 | `process.drawio` | 使用官方 draw.io 示例验证官方 diagrams.net 离线 viewer 与内置 SVG fallback 链路 | `drawio` |
 | `book.epub` | 使用 Project Gutenberg 公开 EPUB 验证电子书目录和滚动阅读 | `epub` |
@@ -273,9 +273,9 @@ pnpm --filter @flyfish-group/file-viewer-component-demo preview
 
 ## 完整覆盖与绘图说明
 
-上面的清单已经覆盖当前注册的主要样例扩展名。CAD 链路已经切到 `@flyfish-dev/cad-viewer` 0.6.6，支持 DWG / DXF / DWF / DWFx / XPS；DWG 会按需加载 viewer assets 中 `wasm/cad/` 下的 Worker 和 LibreDWG WASM，DWF/DWFx/XPS 会按需加载 native renderer 与 `dwfv-render.wasm`。
+上面的清单已经覆盖当前注册的主要样例扩展名。CAD 链路使用 `@flyfish-dev/cad-viewer` 0.7.0，支持 DWG / DXF / DWF / DWFx / XPS，并增强了 DWG 文字、宽多段线、复杂线型以及外部 SHX 引用识别；DWG 会按需加载 viewer assets 中 `wasm/cad/` 下的 Worker 和 LibreDWG WASM，DWF/DWFx/XPS 会按需加载 native renderer 与 `dwfv-render.wasm`。
 
-3D 模型示例覆盖 glTF、OBJ、STL、PLY 四条最常用的浏览器模型入口；FBX、DAE、3DS、3MF、AMF、USD/USDZ、KMZ、PCD、VRML/WRL、XYZ、VTK/VTP 等扩展名也已经注册到 `@file-viewer/renderer-3d`。STEP/IGES/IFC/3DM/BREP 会通过 `@file-viewer/geometry-engine` 展示签名识别和转换原因，后续按 OpenCascade / web-ifc / rhino3dm 等独立 WASM 包路线接入，建议用客户真实模型补充回归。XMind 样例用于验证多 sheet 脑图、目录、标签、备注、链接、Panzoom 画布拖拽平移、移动端双指缩放、适配画布、搜索、缩放和导出链路。
+3D 模型示例覆盖 glTF、OBJ、STL、PLY 四条最常用的浏览器模型入口；FBX、DAE、3DS、3MF、AMF、USD/USDZ、KMZ、PCD、VRML/WRL、XYZ、VTK/VTP 等扩展名也已经注册到 `@file-viewer/renderer-3d`。STEP / STP、IGES / IGS 和 BREP 已通过 `@file-viewer/geometry-engine` 在本地 OCCT Worker/WASM 中三角化并交给 Three.js 渲染；`model.step` 会强制验证真实网格、适配视图和统一缩放，不能退回转换提示。IFC 与 3DM 当前仍只展示签名识别和独立 `web-ifc` / `rhino3dm` 接入说明。XMind 样例用于验证多 sheet 脑图、目录、标签、备注、链接、Panzoom 画布拖拽平移、移动端双指缩放、适配画布、搜索、缩放和导出链路。
 
 Excalidraw 默认使用 `roughjs` 生成只读 SVG，运行环境提供官方 Excalidraw ESM 模块时会优先尝试 `restore` 与 `exportToSvg`；draw.io / diagrams.net 文件默认使用随 viewer assets 分发的官方 `GraphViewer` 离线预览，styles、shapes、stencils、img、mxgraph 和 math 资源都来自本地 `vendor/drawio/`。如果官方 viewer 加载异常，会自动回退内置 SVG 预览；内网路径特殊时可通过 `options.drawing.viewerScriptUrl` 指定自托管脚本。
 
@@ -296,7 +296,8 @@ Demo 默认保持 `comfortable` 密度，避免首次打开就进入紧凑版；
 | `samples/apache/blocks_and_tables.dwf` | Apache Tika `TIKA-1823` 的 `blocks_and_tables.dwf` Jira 附件 | Apache Software Foundation Jira attachment |
 | `samples/autodesk/house.dwfx` | Autodesk `viewer-javascript-tutorial` 的 `Sample files/House.dwfx` 官方样例 | MIT |
 | `samples/autodesk/robot-arm.dwfx` | Autodesk `viewer-javascript-tutorial` 的 `Sample files/RobotArm1.dwfx` 官方样例 | MIT |
-| `model.gltf` / `model.obj` / `model.stl` / `model.ply` / `model.step` | 项目内生成的最小 3D fixture | Apache-2.0 |
+| `model.gltf` / `model.obj` / `model.stl` / `model.ply` | 项目内生成的最小 3D fixture | Apache-2.0 |
+| `model.step` | `occt-import-js` 上游 `simple-basic-cube/cube.stp`（上游记录原始来源为 GrabCAD simple-basic-cube） | 保留上游来源归属；仅用于解析回归 |
 | `mindmap.xmind` | 项目内使用 `@ljheee/xmind-parser` 生成的双 sheet XMind fixture | Apache-2.0 |
 | `flow.excalidraw` | `neo4j-labs/agent-memory` 的 `poleo-model.excalidraw` | Apache-2.0 |
 | `process.drawio` | `jgraph/drawio-diagrams` 的 `blog/data-flow.drawio` | Apache-2.0 |

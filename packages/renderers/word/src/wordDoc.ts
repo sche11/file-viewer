@@ -30,7 +30,7 @@ const WORD_PAGE_CSS = `
   box-sizing:border-box;
   min-height:100%;
   padding:32px 24px 48px;
-  background:#ececec;
+  background:var(--file-viewer-render-surface-background,#ececec);
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -87,23 +87,47 @@ const WORD_PAGE_CSS = `
   display:none;
 }
 [data-viewer-theme='dark'] .msdoc-stage{
-  background:#111827;
+  background:var(--file-viewer-render-surface-background,#111827);
 }
 [data-viewer-theme='dark'] .msdoc-page > .msdoc-root{
-  color-scheme:only light;
-  forced-color-adjust:none;
-  background:#fff;
-  color:#111;
+  color-scheme:dark;
+  background:#161b22;
+  border-color:rgba(139,148,158,.24);
+  color:#e6edf3;
+  box-shadow:0 18px 44px rgba(0,0,0,.36);
+}
+[data-viewer-theme='dark'] .msdoc-page > .msdoc-root span[style*='color:#000000']{
+  color:#e6edf3!important;
+}
+[data-viewer-theme='dark'] .msdoc-page .msdoc-link{
+  color:#58a6ff;
+}
+[data-viewer-theme='dark'] .msdoc-page .msdoc-attachment{
+  border-color:rgba(139,148,158,.3);
+  background:#21262d;
+  color:#58a6ff;
 }
 @media (prefers-color-scheme:dark){
   [data-viewer-theme='system'] .msdoc-stage{
-    background:#111827;
+    background:var(--file-viewer-render-surface-background,#111827);
   }
   [data-viewer-theme='system'] .msdoc-page > .msdoc-root{
-    color-scheme:only light;
-    forced-color-adjust:none;
-    background:#fff;
-    color:#111;
+    color-scheme:dark;
+    background:#161b22;
+    border-color:rgba(139,148,158,.24);
+    color:#e6edf3;
+    box-shadow:0 18px 44px rgba(0,0,0,.36);
+  }
+  [data-viewer-theme='system'] .msdoc-page > .msdoc-root span[style*='color:#000000']{
+    color:#e6edf3!important;
+  }
+  [data-viewer-theme='system'] .msdoc-page .msdoc-link{
+    color:#58a6ff;
+  }
+  [data-viewer-theme='system'] .msdoc-page .msdoc-attachment{
+    border-color:rgba(139,148,158,.3);
+    background:#21262d;
+    color:#58a6ff;
   }
 }
 @media (max-width: 860px){
@@ -127,14 +151,14 @@ const MSDOC_ZOOM_CSS = `
   box-sizing:border-box;
   height:100%;
   overflow:auto;
-  background:#ececec;
+  background:var(--file-viewer-render-surface-background,#ececec);
 }
 [data-viewer-theme='dark'] .msdoc-zoom-viewer{
-  background:#111827;
+  background:var(--file-viewer-render-surface-background,#111827);
 }
 @media (prefers-color-scheme:dark){
   [data-viewer-theme='system'] .msdoc-zoom-viewer{
-    background:#111827;
+    background:var(--file-viewer-render-surface-background,#111827);
   }
 }
 .msdoc-zoom-viewer .msdoc-stage{

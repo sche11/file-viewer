@@ -26,7 +26,7 @@ function chooseFile(event: Event) {
       <div class="hero-copy">
         <p class="eyebrow">Vue 3 · Vite · Full package</p>
         <h1>One component, the complete format matrix</h1>
-        <p>All 206 maintained extension mappings, with heavy renderers loaded only when needed.</p>
+        <p>All 208 maintained extension mappings, with heavy renderers loaded only when needed.</p>
       </div>
       <div class="hero-actions">
         <label class="button button-primary" for="file-input">Choose any supported file</label>
@@ -47,7 +47,7 @@ function chooseFile(event: Event) {
           <span class="status-dot" aria-hidden="true"></span>
           <strong>{{ filename }}</strong>
         </div>
-        <span class="preset-chip">full · 206 extensions</span>
+        <span class="preset-chip">full · 208 extensions</span>
       </div>
       <div class="viewer-host">
         <FileViewer

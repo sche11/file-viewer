@@ -62,10 +62,12 @@ Install a single renderer when a product needs the smallest possible capability 
 | `@file-viewer/renderer-pdf` | `pdfRenderer` | PDF |
 | `@file-viewer/renderer-word` | `wordRenderer` | DOCX, DOC, DOT, RTF, ODT |
 | `@file-viewer/renderer-spreadsheet` | `spreadsheetRenderer` | Excel, OpenDocument spreadsheet, CSV-like tables |
-| `@file-viewer/renderer-presentation` | `presentationRenderer` | PPT / PPTX and presentation files |
+| `@file-viewer/renderer-presentation` | `presentationRenderer` | Binary `.ppt` through `@file-viewer/ppt`; OpenXML presentations through `@file-viewer/pptx` |
 | `@file-viewer/renderer-ofd` | `ofdRenderer` | OFD |
 | `@file-viewer/renderer-cad` | `cadRenderer` | DWG, DXF, DWF, DWFx, XPS |
 | `@file-viewer/renderer-3d` | `modelRenderer` | 3D models and lightweight geometry signatures |
+
+Binary PowerPoint and OpenXML PowerPoint share the presentation plugin but keep separate lazy engine boundaries. The packaged `.ppt` 0.3.1 runtime is zero-config in standard layouts; for custom asset layouts, configure `presentation.pptModuleUrl` / `pptWorkerUrl` / `pptWasmUrl` / `pptFontUrl`. PPTX continues to use `presentation.workerUrl` / `workerType`.
 | `@file-viewer/renderer-drawing` | `drawingRenderer` | draw.io, Excalidraw, Mermaid, PlantUML |
 | `@file-viewer/renderer-mindmap` | `mindmapRenderer` | XMind |
 | `@file-viewer/renderer-geo` | `geoRenderer` | GeoJSON, KML, GPX, SHP |

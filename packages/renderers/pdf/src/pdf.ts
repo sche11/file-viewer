@@ -3,6 +3,7 @@ import {
   GlobalWorkerOptions,
   PDFWorker as PdfJsWorker,
   PixelsPerInch,
+  version as pdfJsVersion,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   EventBus,
@@ -61,6 +62,12 @@ import {
   PDF_PAGE_BORDER_WIDTH,
   resolvePdfFitViewportSize,
 } from './pdfFit.js';
+import {
+  capturePdfJsWorkerGlobal,
+  scopePdfJsWorkerMessageHandler,
+  type PdfJsWorkerGlobal,
+} from './pdfWorkerGlobal.js';
+import { readPdfJsWorkerVersion } from './pdfWorkerVersion.js';
 
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_URL =
   DEFAULT_FILE_VIEWER_PDF_WORKER_PATH;
@@ -70,23 +77,33 @@ const MAX_SCALE = 3;
 const SCALE_STEP = 0.1;
 const PDF_EXPORT_MAX_PAGE_PIXELS = 8_000_000;
 const PDF_WORKER_PROBE_TIMEOUT_MS = 1200;
+const PDF_WORKER_VERSION_PROBE_BYTES = 4096;
 const PDF_JS_DESTROY_CONSOLE_SUPPRESSION_MS = 1500;
 
 type PdfWorkerHandlerModule = {
   WorkerMessageHandler: unknown;
 };
 
-type PdfJsWorkerGlobal = typeof globalThis & {
-  pdfjsWorker?: {
-    WorkerMessageHandler?: unknown;
-  };
+type PdfWorkerProbeResult = {
+  status: 'compatible' | 'incompatible' | 'unknown' | 'unavailable';
+  workerVersion: string | null;
 };
 
 let bundledPdfWorkerModulePromise: Promise<PdfWorkerHandlerModule> | null = null;
 
+const scopePdfJsRootVariables = (style: string) => style.replace(
+  /:root(\s*\{)/g,
+  ':root,\n.pdf-shell$1'
+);
+
 // PDF.js viewer CSS references image assets that are not shipped with the
 // on-demand renderer chunk, so keep the preview self-contained and 404-free.
-const normalizedPdfViewerStyle = pdfViewerStyle
+// Its root custom properties also need a local scope: a :root selector inside
+// Shadow DOM does not match the document root or the custom-element host.
+const normalizedPdfViewerStyle = `${scopePdfJsRootVariables(pdfViewerStyle)}
+.pdf-shell{background:var(--file-viewer-render-surface-background,#edf2f7)}
+.pdf-wrapper{background:var(--file-viewer-render-surface-background,#e8edf4)}
+`
   .replace(/--page-border-image:\s*url\(images\/shadow\.png\)\s*9 9 repeat;/g, '--page-border-image:none;')
   .replace(/background:\s*url\("\.\/images\/loading-icon\.gif"\)\s*center no-repeat;/g, 'background:none;');
 
@@ -392,22 +409,41 @@ const isJavaScriptLikeResponse = (response: Response) => {
     contentType.includes('text/plain');
 };
 
+const readResponsePrefix = async (
+  response: Response,
+  maximumBytes = PDF_WORKER_VERSION_PROBE_BYTES
+) => {
+  // Consume the response even when a server ignores Range. Cancelling after the
+  // prefix creates a browser-level ERR_ABORTED event that strict hosts treat as
+  // a failed asset request, despite the compatibility probe succeeding.
+  return (await response.text()).slice(0, maximumBytes);
+};
+
 const loadBundledPdfWorkerModule = async () => {
   bundledPdfWorkerModulePromise ??= import('pdfjs-dist/legacy/build/pdf.worker.mjs') as Promise<PdfWorkerHandlerModule>;
   return bundledPdfWorkerModulePromise;
 };
 
-const installBundledPdfFakeWorker = async () => {
+const createBundledPdfFakeWorker = async () => {
   const workerGlobal = globalThis as PdfJsWorkerGlobal;
-  if (workerGlobal.pdfjsWorker?.WorkerMessageHandler) {
-    return;
-  }
-
+  // pdf.worker.mjs assigns globalThis.pdfjsWorker as a module side effect, so
+  // capture the host namespace before importing it and restore that snapshot.
+  const hostWorkerGlobal = capturePdfJsWorkerGlobal(workerGlobal);
   const workerModule = await loadBundledPdfWorkerModule();
-  workerGlobal.pdfjsWorker = {
-    ...workerGlobal.pdfjsWorker,
-    WorkerMessageHandler: workerModule.WorkerMessageHandler,
-  };
+  const workerHandlerScope = scopePdfJsWorkerMessageHandler(
+    workerGlobal,
+    workerModule.WorkerMessageHandler,
+    hostWorkerGlobal
+  );
+  try {
+    const worker = new PdfJsWorker({
+      name: 'file-viewer-pdf-worker',
+    } as ConstructorParameters<typeof PdfJsWorker>[0] & { name: string }) as PdfWorkerInstance;
+    await worker.promise;
+    return worker;
+  } finally {
+    workerHandlerScope.restore();
+  }
 };
 
 const resolvePdfWorkerUrl = (
@@ -910,48 +946,48 @@ export default async function renderPdf(
     });
   };
 
-  const canUseResolvedPdfWorkerUrl = async (workerUrl: string) => {
+  const probeResolvedPdfWorkerUrl = async (
+    workerUrl: string
+  ): Promise<PdfWorkerProbeResult> => {
     const fetcher = targetWindow.fetch?.bind(targetWindow) || globalThis.fetch?.bind(globalThis);
     const AbortControllerCtor = targetWindow.AbortController || globalThis.AbortController;
     if (!fetcher || !AbortControllerCtor) {
-      return false;
+      return { status: 'unavailable', workerVersion: null };
     }
 
     try {
       const parsed = new URL(workerUrl, documentRef.baseURI || targetWindow.location.href);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return false;
+        return { status: 'unavailable', workerVersion: null };
       }
     } catch {
-      return false;
+      return { status: 'unavailable', workerVersion: null };
     }
 
     const controller = new AbortControllerCtor();
     const timer = targetWindow.setTimeout(() => controller.abort(), PDF_WORKER_PROBE_TIMEOUT_MS);
     try {
       const response = await fetcher(workerUrl, {
-        method: 'HEAD',
-        cache: 'no-cache',
-        signal: controller.signal,
-      });
-      if (response.ok) {
-        return isJavaScriptLikeResponse(response);
-      }
-
-      if (response.status !== 405 && response.status !== 501) {
-        return false;
-      }
-
-      const fallbackResponse = await fetcher(workerUrl, {
         method: 'GET',
         cache: 'no-cache',
-        headers: { Range: 'bytes=0-0' },
+        headers: {
+          Range: `bytes=0-${PDF_WORKER_VERSION_PROBE_BYTES - 1}`,
+        },
         signal: controller.signal,
       });
-      return (fallbackResponse.ok || fallbackResponse.status === 206) &&
-        isJavaScriptLikeResponse(fallbackResponse);
+      if ((!response.ok && response.status !== 206) || !isJavaScriptLikeResponse(response)) {
+        return { status: 'unavailable', workerVersion: null };
+      }
+      const workerVersion = readPdfJsWorkerVersion(await readResponsePrefix(response));
+      if (!workerVersion) {
+        return { status: 'unknown', workerVersion: null };
+      }
+      return {
+        status: workerVersion === pdfJsVersion ? 'compatible' : 'incompatible',
+        workerVersion,
+      };
     } catch {
-      return false;
+      return { status: 'unavailable', workerVersion: null };
     } finally {
       targetWindow.clearTimeout(timer);
     }
@@ -959,9 +995,33 @@ export default async function renderPdf(
 
   const createPdfWorker = async () => {
     const workerUrl = resolvePdfWorkerUrl(options, pdfRuntimeAssetBaseUrl);
+    const workerGlobal = globalThis as PdfJsWorkerGlobal;
+    if (workerGlobal.pdfjsWorker?.WorkerMessageHandler) {
+      try {
+        // PDF.js prefers a preinstalled main-thread handler over workerSrc.
+        // Scope our bundled handler only until this PDFWorker captures it, so
+        // a vue-office/PDF.js 3.x global cannot hijack this renderer and the
+        // host can still use its original handler afterwards.
+        return await createBundledPdfFakeWorker();
+      } catch (error) {
+        console.warn('[file-viewer] PDF.js 全局 Worker handler 隔离失败，继续探测静态 Worker。', error);
+      }
+    }
+
     const hasExplicitWorkerUrl = isConfiguredUrl(options?.workerUrl);
-    const shouldUseRealWorker = !!targetWindow?.Worker &&
-      (hasExplicitWorkerUrl || await canUseResolvedPdfWorkerUrl(workerUrl));
+    const workerProbe = targetWindow?.Worker
+      ? await probeResolvedPdfWorkerUrl(workerUrl)
+      : { status: 'unavailable' as const, workerVersion: null };
+    if (workerProbe.status === 'incompatible') {
+      console.warn(
+        `[file-viewer] PDF Worker ${workerProbe.workerVersion} 与 PDF.js API ${pdfJsVersion} 不匹配，` +
+        '改用包内同版本 PDF.js handler。'
+      );
+    }
+    const shouldUseRealWorker = !!targetWindow?.Worker && (
+      workerProbe.status === 'compatible' ||
+      (hasExplicitWorkerUrl && workerProbe.status !== 'incompatible')
+    );
 
     if (shouldUseRealWorker) {
       GlobalWorkerOptions.workerSrc = workerUrl;
@@ -977,7 +1037,7 @@ export default async function renderPdf(
     }
 
     try {
-      await installBundledPdfFakeWorker();
+      return await createBundledPdfFakeWorker();
     } catch (error) {
       console.warn('[file-viewer] PDF.js 包内 worker 兜底加载失败，继续使用 PDF.js 默认策略。', error);
       GlobalWorkerOptions.workerSrc = workerUrl;
@@ -2137,10 +2197,17 @@ export default async function renderPdf(
   container.addEventListener('scroll', scheduleScrollViewStateChange, { passive: true });
 
   if (targetWindow.ResizeObserver) {
-    resizeObserver = new targetWindow.ResizeObserver(() => scheduleFitAfterResize());
+    resizeObserver = new targetWindow.ResizeObserver(() => {
+      root.style.setProperty('--viewer-container-height', `${container.clientHeight}px`);
+      scheduleFitAfterResize();
+    });
     resizeObserver.observe(container);
   }
 
+  // PDFViewer writes this value to documentElement, which cannot safely model
+  // multiple differently-sized viewers. Keep a live shell-local value as well
+  // so Shadow DOM and multi-instance layouts both resolve the dummy-page height.
+  root.style.setProperty('--viewer-container-height', `${container.clientHeight}px`);
   syncUi();
   void loadFile();
 

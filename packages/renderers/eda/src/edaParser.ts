@@ -3,7 +3,6 @@ import {
   inspectOasisLayout,
   parseGdsLayout,
   parseOasisTextLayout,
-  type EdaLayoutElement,
   type EdaLayoutPreview,
 } from '@file-viewer/eda-layout'
 import {

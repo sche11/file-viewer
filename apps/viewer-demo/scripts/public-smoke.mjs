@@ -75,30 +75,42 @@ try {
     timeout
   })
   await page.waitForSelector('.file-viewer .content:not(.hidden)', { timeout })
-  await page.locator('.sample-trigger').click()
+  await page.locator('.rail-nav-button--samples').click()
   await page.waitForSelector('.sample-picker.open .sample-menu', { timeout })
 
-  const desktopLayering = await page.evaluate(() => {
+  const desktopPicker = await page.evaluate(() => {
     const picker = document.querySelector('.sample-picker.open')
     const menu = document.querySelector('.sample-menu')
-    const blockers = ['.panel-sticky-controls', '.scenario-picker']
-      .map(selector => document.querySelector(selector))
-      .filter(element => element instanceof HTMLElement)
-    if (!(picker instanceof HTMLElement) || !(menu instanceof HTMLElement)) return null
-    const pickerLayer = Number.parseInt(getComputedStyle(picker).zIndex, 10) || 0
+    const panel = document.querySelector('.panel-body')
+    const firstCard = menu?.querySelector('.sample-card')
+    if (
+      !(picker instanceof HTMLElement) ||
+      !(menu instanceof HTMLElement) ||
+      !(panel instanceof HTMLElement) ||
+      !(firstCard instanceof HTMLElement)
+    ) return null
+    const panelRect = panel.getBoundingClientRect()
+    const menuRect = menu.getBoundingClientRect()
+    const cardRect = firstCard.getBoundingClientRect()
+    const hitTarget = document.elementFromPoint(
+      cardRect.left + Math.min(cardRect.width / 2, 24),
+      cardRect.top + Math.min(cardRect.height / 2, 24)
+    )
     return {
-      pickerLayer,
-      blockerLayers: blockers.map(element => Number.parseInt(getComputedStyle(element).zIndex, 10) || 0),
-      visible: menu.getBoundingClientRect().height > 200
+      visible: menuRect.width > 240 && menuRect.height > 200,
+      panelInside: panelRect.left >= -1 && panelRect.right <= innerWidth + 1 && panelRect.top >= -1 && panelRect.bottom <= innerHeight + 1,
+      cardInteractive: hitTarget instanceof Node && firstCard.contains(hitTarget)
     }
   })
-  if (!desktopLayering?.visible || desktopLayering.blockerLayers.some(layer => layer >= desktopLayering.pickerLayer)) {
-    throw new Error(`Desktop sample picker layering failed: ${JSON.stringify(desktopLayering)}`)
+  if (!desktopPicker?.visible || !desktopPicker.panelInside || !desktopPicker.cardInteractive) {
+    throw new Error(`Desktop sample picker interaction failed: ${JSON.stringify(desktopPicker)}`)
   }
 
   await page.keyboard.press('Escape')
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.locator('.mobile-quick-row .mobile-fab').nth(1).click()
+  await page.locator('.mobile-more-trigger').click()
+  await page.waitForSelector('.mobile-action-panel', { timeout })
+  await page.locator('.mobile-action-source-grid button[aria-label="Open sample files"]').click()
   await page.waitForSelector('.mobile-controls-open .sample-picker.open .sample-menu', { timeout })
   await page.waitForTimeout(400)
 

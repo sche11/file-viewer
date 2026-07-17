@@ -6,6 +6,7 @@
   New integrations should prefer the standard <code>@file-viewer/*</code> packages.
   Historical <code>@flyfish-group/*</code> names remain available for existing users.
   Each package line keeps the host framework native while presets and renderers make format capability and install boundaries explicit.
+  The v2.2.0 release maintains 54 npm targets over one 208-extension, 25-pipeline capability matrix.
 </p>
 
 ## Recommended Packages
@@ -20,12 +21,12 @@ Standard component packages are intentionally light. Installing `@file-viewer/vu
 | Engineering platform | `npm i @file-viewer/vue3 @file-viewer/preset-engineering` | CAD, 3D, drawing, XMind, Geo, Typst, Archive, Data, EDA |
 | Full demo capability | `npm i @file-viewer/vue3 @file-viewer/preset-all` | One-step full capability for demos, admin tools, and internal all-format workbenches |
 | Full package | `npm i @file-viewer/vue3-full` | Enables `preset-all` by default, no manual `options.preset` needed |
-| CDN full trial | `https://cdn.jsdelivr.net/npm/@file-viewer/web-full@latest/dist/flyfish-file-viewer-web-full.iife.js` | No local install, ideal for script-tag validation of the complete matrix |
+| CDN full trial | `https://cdn.jsdelivr.net/npm/@file-viewer/web-full@latest/dist/flyfish-file-viewer-web-full.iife.js` | Script-tag validation with lazy renderers and packaged binary-PPT 0.3.1 assets |
 | Strict custom cut | `npm i @file-viewer/vue3 @file-viewer/renderer-pdf` | Install one renderer and pass it through `options.renderers` |
 
 ## Full Package Asset Contract
 
-Since `2.1.30`, all eight Full packages share one complete delivery contract. They include and enable `preset-all`, but a renderer registry alone is not complete format support: PDF/Office Workers, CAD/Typst/Archive WASM, fonts, Draw.io, SQLite, and other vendor assets must also be published at the matching version.
+Since `2.1.30`, all eight Full packages share one delivery contract. They include and enable `preset-all` together with version-aligned renderer, Worker, WASM, font, Draw.io, SQLite, and other vendor assets; Vite or the included CLI publishes that payload on the application's own origin. Version `2.2.0` includes the verified binary `.ppt` 0.3.1 runtime under `vendor/ppt/`.
 
 | Build path | Complete deployment |
 | --- | --- |
@@ -65,6 +66,8 @@ export default {
 | Stack | Standard package | Notes |
 | --- | --- | --- |
 | Core foundation | `@file-viewer/core` | Framework-neutral contracts, browser engine, renderer registry, events, search, zoom, print, export, and asset manifests |
+| Binary PPT runtime | `@file-viewer/ppt@0.3.1` | Independently versioned dependency; Full/CDN ships its public `vendor/ppt/` assets, isolated from the PPTX Worker path |
+| PPTX engine | `@file-viewer/pptx` | OpenXML presentation parsing with progressive Worker output |
 | Word renderer | `@file-viewer/renderer-word` | DOCX/DOC/RTF/ODT renderer plugin that lazy-loads Word engines outside core |
 | Lite renderer preset | `@file-viewer/preset-lite` | Text, Markdown, code, image, audio, and video preview lines |
 | Office renderer preset | `@file-viewer/preset-office` | PDF, Word, Excel, PowerPoint, OFD, RTF, and OpenDocument preview lines |
@@ -113,7 +116,7 @@ Heavy renderers are split so applications can install only what they need:
 
 Standard component packages depend on the lightweight core foundation by default.
 Install only the renderer packages your product needs, use `@file-viewer/preset-lite` / `@file-viewer/preset-office` / `@file-viewer/preset-engineering` for product-shaped bundles, or pass `@file-viewer/preset-all` when you want the complete official demo capability matrix.
-For example, PowerPoint preview is provided by `@file-viewer/renderer-presentation`, which loads the native `@file-viewer/pptx` engine only when a PPTX/PPTM/POTX/POTM/PPSX/PPSM file is opened.
+For example, PowerPoint preview is provided by `@file-viewer/renderer-presentation`, which routes binary `.ppt` to the native-WASM `@file-viewer/ppt@0.3.1` engine and PPTX/PPTM/POTX/POTM/PPSX/PPSM to the separate `@file-viewer/pptx` Worker engine. Neither engine enters the core-only install.
 
 Style isolation is controlled by the shared `options.styleIsolation` field. Pure Web / IIFE / Web full entries default to Shadow DOM, while framework packages keep compatibility by default. Use `styleIsolation:'shadow'` when host global CSS is uncontrolled, and customize with `--file-viewer-*` tokens plus `::part()`. See [Style Isolation And Customization](/en/guide/style-isolation).
 
@@ -211,15 +214,15 @@ npm install @file-viewer/core
 
 Core is pure TypeScript and owns shared contracts, file source normalization, renderer registration, lifecycle events, operation availability, asset manifests, search/zoom/print/export protocols, and utility APIs. UI-specific behavior belongs in the component package for each framework.
 
-## PPTX Engine
+## PPT and PPTX Engines
 
-PowerPoint rendering is available through `@file-viewer/renderer-presentation`. The lower-level engine is published as `@file-viewer/pptx` for teams that want to build a custom presentation renderer:
+PowerPoint rendering is available through `@file-viewer/renderer-presentation`. Its lower-level engines keep binary and OpenXML formats separate:
 
 ```bash
-npm install @file-viewer/pptx
+npm install @file-viewer/ppt@0.3.1 @file-viewer/pptx
 ```
 
-Most application teams should use the presentation renderer or `preset-office` instead of calling the engine directly.
+Use `@file-viewer/ppt` only for PowerPoint 97–2003 `.ppt`, and `@file-viewer/pptx` only for PPTX/OpenXML presentations. Most application teams should use the presentation renderer or `preset-office` instead of calling either engine directly.
 
 ## Compatibility Names
 

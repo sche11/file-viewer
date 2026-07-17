@@ -98,7 +98,7 @@ const options = {
 
 When host apps split `node_modules` by package name, circular dependencies between `@codemirror/*`, `@lezer/*`, and Sandpack can show up in production as `codemirror-view.* Cannot access ... before initialization`. The plugin wraps existing `manualChunks` functions by default, stabilizes only those known interop chunks, and preserves the rest of the app's custom grouping. Set `stabilizeInteropChunks:false` only when the host build needs total control.
 
-`copyAssets.baseDir` overrides automatic placement. It must be relative and cannot contain `..`; an empty string explicitly selects the root. The plugin also updates the full package runtime asset base. A manual `setDefaultFullAssetBaseUrl()` call is only needed when a custom `baseDir` is combined with `inject:false`. With Vite `base:'/app/'`, full-package dev URLs start with `/app/file-viewer/...`, while production files remain under `outDir/file-viewer/`.
+`copyAssets.baseDir` overrides automatic placement. It must be relative and cannot contain `..`; an empty string explicitly selects the root. The plugin now aligns the shared runtime asset base for standard packages, presets, and full packages; full packages also keep `setDefaultFullAssetBaseUrl()` synchronized. Only integrations that set `inject:false` and do not import the virtual module must call `setDefaultFileViewerAssetBaseUrl()` themselves (plus `setDefaultFullAssetBaseUrl()` for a full package). With Vite `base:'/app/'`, full-package dev URLs start with `/app/file-viewer/...`, while production files remain under `outDir/file-viewer/`.
 
 For strict registry control, disable injection and pass the virtual module explicitly:
 

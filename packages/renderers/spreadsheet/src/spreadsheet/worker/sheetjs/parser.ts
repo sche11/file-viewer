@@ -2,6 +2,10 @@ import type { WorkBook } from 'styled-exceljs';
 import { read, utils } from 'styled-exceljs';
 import SheetJsModel from './SheetJsModel.js';
 import { parseSpreadsheetCharts } from './chartParser.js';
+import {
+  prepareSpreadsheetReadInput,
+  type SpreadsheetTextSource,
+} from './textEncoding.js';
 import type { SheetChartDefinition, SheetDefinition } from '../type.js';
 
 interface DrawingMarkerLike {
@@ -132,10 +136,14 @@ const parseSheets = (context: SpreadsheetParserContext): SpreadsheetWorkerRespon
 
 export const parseSpreadsheetWorkbook = async (
   context: SpreadsheetParserContext,
-  data: ArrayBuffer
+  data: ArrayBuffer,
+  source: SpreadsheetTextSource = {}
 ): Promise<SpreadsheetWorkerResponse[]> => {
   try {
-    context.workbook = read(data, readOptions);
+    const input = prepareSpreadsheetReadInput(data, source);
+    context.workbook = input.kind === 'text'
+      ? read(input.data, { ...readOptions, type: 'string' })
+      : read(input.data, readOptions);
     const signature = data.byteLength >= 2 ? new DataView(data).getUint16(0, false) : 0;
     if (signature === 0x504b) {
       try {
@@ -209,7 +217,11 @@ export const handleSpreadsheetWorkerRequest = (
 ): SpreadsheetWorkerResponse[] | Promise<SpreadsheetWorkerResponse[]> => {
   switch (request.type) {
     case 'parseWorkbook':
-      return parseSpreadsheetWorkbook(context, request.payload?.workbook);
+      return parseSpreadsheetWorkbook(context, request.payload?.workbook, {
+        fileType: request.payload?.fileType,
+        filename: request.payload?.filename,
+        textEncoding: request.payload?.textEncoding,
+      });
     case 'parseSheet':
       return parseSpreadsheetSheet(context, request.payload);
     default:

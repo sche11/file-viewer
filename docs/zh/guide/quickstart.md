@@ -28,7 +28,7 @@
 | Vue2 组件集成 | Vue2.7 / Vue2.6 项目 | 保留旧业务栈，体验与 Vue3 一致 | [Vue2 集成](/zh/guide/quickstart-vue2) |
 | React 组件集成 | React 16.8 / 17 / 18 / 19 项目 | 原生 React 组件，props、事件和 ref 都能直接调试 | [React 集成](/zh/guide/quickstart-react) |
 | jQuery / Svelte | 老后台、SvelteKit 或轻量页面 | 独立标准组件包，复用同一套 core 和 options | [生态组件总览](/zh/guide/ecosystem) |
-| Core / PPTX 引擎 | 自研组件、深度二开、单独验证 PPTX | framework-neutral 能力与独立 renderer 包 | [生态组件总览](/zh/guide/ecosystem) |
+| Core / PPT / PPTX 引擎 | 自研组件、深度二开、单独验证演示文稿链路 | framework-neutral 能力与彼此隔离的二进制 PPT、PPTX renderer 包 | [生态组件总览](/zh/guide/ecosystem) |
 
 <div class="doc-callout">
   <strong>推荐经验:</strong> 先用标准组件包和一个明确的 preset 跑通业务文件，例如 Vue3 + preset-office；确认格式范围后，再收敛到 preset-lite、单 renderer，或扩展到 preset-engineering / preset-all。core 负责底层预览能力和 API，各生态组件负责原生接入体验。
@@ -173,7 +173,7 @@ installFileViewer($)
 $('#viewer').fileViewer({ url: '/files/contract.pdf' })
 ```
 
-所有 full 包默认把运行时资产根设为部署基址下的 `file-viewer/`（根部署即 `/file-viewer/`），并自动补齐 Archive、PDF、DOCX、Excel、PPTX、CAD、Typst、Draw.io 和 SQLite 等资源 URL。Vite 项目注册下面的插件即可在开发与生产构建中自动发布完整资源：
+所有 full 包默认把运行时资产根设为部署基址下的 `file-viewer/`（根部署即 `/file-viewer/`），并自动补齐 Archive、PDF、DOCX、Excel、二进制 PPT、PPTX、CAD、Typst、Draw.io 和 SQLite 等资源 URL。Vite 项目注册下面的插件即可在开发与生产构建中自动发布完整资源：
 
 ```ts
 import { fileViewerRenderers } from '@file-viewer/vite-plugin'
@@ -493,7 +493,7 @@ export function Preview() {
 ## 下一步建议
 
 - 想了解 Demo 中每个示例文件的作用: 看 [Demo 说明](/zh/guide/demo)
-- 想查看 Vanilla JS / Pure Web、Vue3、Vue2、React、jQuery、Svelte、Core 和 PPTX 引擎的完整包矩阵: 看 [生态组件总览](/zh/guide/ecosystem)
+- 想查看 Vanilla JS / Pure Web、Vue3、Vue2、React、jQuery、Svelte、Core、PPT 与 PPTX 引擎的完整包矩阵: 看 [生态组件总览](/zh/guide/ecosystem)
 - 想明确 `file`、`url`、水印、工具栏、压缩包缓存和导出的参数行为: 看 [组件用法](/zh/guide/usage)
 - 准备做本地验证和打包: 看 [本地开发与打包](/zh/guide/development)
 - 想下载公开源码、成品或了解优先支持: 看 [发布与开源分发](/zh/guide/distribution)

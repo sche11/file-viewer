@@ -38,9 +38,13 @@ export function createDemoFileHandoff() {
   const isIframeEntry = window.location.pathname.endsWith('/iframe.html') || window.location.pathname.endsWith('/iframe')
   const isPostMessageRequest = Boolean(from && name)
   const isEmbedRequest = isIframeEntry || embed === '1' || mode === 'iframe' || isPostMessageRequest
+  const isExplicitUrlRequest = Boolean(url)
+  const isImmersiveRequest = isEmbedRequest || isExplicitUrlRequest
 
   return {
     initialUrl: url,
+    isExplicitUrlRequest,
+    isImmersiveRequest,
     isEmbedRequest,
     isIframeEntry,
     isPostMessageRequest,
@@ -66,8 +70,4 @@ export function createDemoFileHandoff() {
       return () => window.removeEventListener('message', handleMessage)
     }
   }
-}
-
-export function listenForFile(callback: ListenCallback) {
-  return createDemoFileHandoff().listen(callback)
 }

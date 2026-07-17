@@ -103,6 +103,13 @@ type QrItem = {
   image: string
 }
 
+type SupportOption = {
+  label: string
+  note: string
+  href: string
+  icon: Component
+}
+
 type QuickStartItem = {
   label: string
   packageName: string
@@ -141,16 +148,14 @@ type HeroSceneController = {
 }
 
 const docsUrl = 'https://doc.file-viewer.app/'
-const docsQuickstartUrl = `${docsUrl}guide/quickstart`
 const demoUrl = 'https://demo.file-viewer.app/'
 const compareUrl = 'https://demo.file-viewer.app/compare.html'
 const githubUrl = 'https://github.com/flyfish-dev/file-viewer'
 const githubApiUrl = 'https://api.github.com/repos/flyfish-dev/file-viewer'
 const githubStarCountFallback = 739
 const releasesUrl = 'https://github.com/flyfish-dev/file-viewer/releases'
-const currentReleaseVersion = '2.1.30'
+const currentReleaseVersion = '2.2.0'
 const currentReleaseUrl = `${releasesUrl}/tag/v${currentReleaseVersion}`
-const dockerDocsUrl = `${docsUrl}guide/docker`
 const githubSponsorsUrl = 'https://github.com/sponsors/wybaby168'
 const domesticSponsorUrl = 'https://dev.flyfish.group/sponsor?source=github'
 const prioritySupportUrl = 'https://dev.flyfish.group/shop'
@@ -178,7 +183,7 @@ const siteMetadata = {
     canonical: siteRootUrl,
     title: 'Flyfish File Viewer - 浏览器里的多格式文件预览超级组件',
     description:
-      'Flyfish File Viewer 是纯前端、离线优先的多格式文件预览组件。v2.1.30 Full 包内置 preset-all，并完整交付同版本 Worker、WASM、字体与 vendor 资产。',
+      'Flyfish File Viewer 是纯前端、离线优先的多格式文件预览组件，维护 54 个 npm 目标、208 个扩展名和 25 条预览链路；二进制 PPT 与 PPTX 使用独立原生引擎。',
     ogLocale: 'zh_CN',
     ogLocaleAlternate: 'en_US',
     imageAlt: 'Flyfish File Viewer 多格式文件预览官网界面'
@@ -188,7 +193,7 @@ const siteMetadata = {
     canonical: siteEnglishUrl,
     title: 'Flyfish File Viewer - Browser-native multi-format file preview',
     description:
-      'Flyfish File Viewer is a browser-native, offline-first multi-format preview component. v2.1.30 Full packages include preset-all and same-version Workers, WASM, fonts, and vendor assets.',
+      'Flyfish File Viewer is a browser-native, offline-first preview component with 54 npm targets, 208 extensions, 25 pipelines, and separate native engines for binary PPT and PPTX.',
     ogLocale: 'en_US',
     ogLocaleAlternate: 'zh_CN',
     imageAlt: 'Flyfish File Viewer multi-format file preview website'
@@ -225,6 +230,25 @@ const githubStarsAriaLabel = computed(() =>
     ? `GitHub 开源总仓，${githubStarsLabel.value} stars`
     : `GitHub repository, ${githubStarsLabel.value} stars`
 )
+
+function resolveLocalizedDemoUrl(targetUrl: string) {
+  const url = new URL(targetUrl)
+  url.searchParams.set('lang', isZh.value ? 'zh-CN' : 'en-US')
+  return url.toString()
+}
+
+function resolveLocalizedDocsUrl(path = '') {
+  const normalizedPath = path.replace(/^\/+/, '')
+  const localizedPath = isZh.value ? `zh/${normalizedPath}` : normalizedPath
+  const url = new URL(localizedPath, docsUrl)
+  url.searchParams.set('no_lang_redirect', '1')
+  return url.toString()
+}
+
+const localizedDemoUrl = computed(() => resolveLocalizedDemoUrl(demoUrl))
+const localizedCompareUrl = computed(() => resolveLocalizedDemoUrl(compareUrl))
+const localizedDocsUrl = computed(() => resolveLocalizedDocsUrl())
+const localizedDocsQuickstartUrl = computed(() => resolveLocalizedDocsUrl('guide/quickstart'))
 
 function formatStarCount(count: number) {
   if (count >= 1000000) {
@@ -268,28 +292,28 @@ const copy = {
       demo: '在线体验'
     },
     hero: {
-      eyebrow: 'v2.1.30 · 浏览器原生文件预览超级组件',
+      eyebrow: 'v2.2.0 · 浏览器原生文件预览超级组件',
       title: '把复杂文件，变成产品里的即时体验。',
       subtitle:
-        '一个组件，把 Office、PDF、OFD、CAD、Typst、XMind、压缩包、邮件、代码、媒体与 3D 等复杂文件直接带进浏览器。Full 包内置 preset-all，并完整交付离线 Worker、WASM、字体与 vendor 资产。',
+        '一个组件，把 Office、PDF、OFD、CAD、Typst、XMind、压缩包、邮件、代码、媒体与 3D 等复杂文件直接带进浏览器。Full 包内置 preset-all，并交付配套的 File Viewer 自有离线资产。',
       primary: '立即体验',
       secondary: '阅读文档',
       commercial: '了解商业版',
-      proof: ['206 个文件扩展名', '24 条预览链路', 'Full 完整离线资产', 'Apache-2.0 开源']
+      proof: ['54 个 npm 目标', '208 个文件扩展名', '25 条预览链路', 'Full 自托管资产契约']
     },
     matrixTitle: '覆盖广，不等于粗糙。每条链路都面向真实业务。',
     matrixIntro:
-      '格式识别、资源加载、Worker/WASM、主题、水印、搜索、缩放、打印和导出都由预览器内部统一适配；PPTX 已由独立开源的 @file-viewer/pptx 原生引擎承接，Archive 已兼容 GBK/GB18030 旧 ZIP 中文文件名和 libarchive/ZIP fallback 边界，业务侧可以选 preset-lite、preset-office、preset-engineering 或单 renderer 精确裁剪。',
+      '格式识别、资源加载、Worker/WASM、主题、水印、搜索、缩放、打印和导出都由预览器内部统一适配；PowerPoint 97–2003 二进制 .ppt 与 PPTX/OpenXML 使用彼此隔离的浏览器原生链路。Archive 已兼容 GBK/GB18030 旧 ZIP 中文文件名和 libarchive/ZIP fallback 边界，业务侧可以选 preset-lite、preset-office、preset-engineering 或单 renderer 精确裁剪。',
     formatsTitle: '支持矩阵',
     solutionsTitle: '适合长期运行在企业系统里',
     solutionsIntro:
       '从 OA 审批到工程图纸，从客服工单到 AI 文档工作台，File Viewer 更关注真实文件、复杂网络、私有化部署和用户每天都会遇到的细节。',
     ecosystemTitle: '原生组件接入，统一参数与事件。',
     ecosystemIntro:
-      'Full 包直接内置 preset-all，无需再安装或传入 preset。Vite 注册插件并开启 copyAssets:true 后自动发布完整资产；Webpack、Vue CLI 等非 Vite 项目只需执行一次包内 CLI。',
+      'Full 包直接内置 preset-all，无需再安装或传入 preset。Vite 注册插件并开启 copyAssets:true 后自动发布包内资产；Webpack、Vue CLI 等非 Vite 项目只需执行一次包内 CLI。',
     demoTitle: '在线 Demo，直接验证真实预览体验。',
     demoIntro:
-      '打开完整样例矩阵，验证 Word、PDF、PPTX、CAD、Typst、压缩包、图形、代码、媒体、上传预览与文档比对等核心场景。',
+      '打开完整样例矩阵，验证 Word、PDF、二进制 PPT、PPTX、CAD、Typst、压缩包、图形、代码、媒体、上传预览与文档比对等核心场景。',
     docsTitle: '接入文档，快速参阅关键能力。',
     docsIntro:
       '从快速开始进入，集中查阅 Full 包、Vite 自动资产、非 Vite 单次复制、完整 web-full dist、格式矩阵、组件参数与私有化部署。',
@@ -300,9 +324,9 @@ const copy = {
     supportTitle: '支持 File Viewer 持续维护，也为企业需求保留清晰入口。',
     supportIntro:
       'GitHub Sponsors 支持一次性或持续赞助，国内用户也可使用微信或支付宝。赞助用于开源维护，不影响开源功能；私有化、定制与明确响应时间请使用企业技术支持入口。',
-    releaseTitle: 'v2.1.30 已发布：Full 代码与完整离线资产同版本交付。',
+    releaseTitle: 'v2.2.0 已发布：渲染链路与兼容性继续升级，Full 资产契约延续自 2.1.30。',
     footer:
-      'Apache-2.0 开源。由 Flyfish Dev 持续维护，适合需要可靠浏览器原生文件预览的产品团队。'
+      '本仓库源码与软件包采用 Apache-2.0；可选外部依赖保留各自许可。由 Flyfish Dev 持续维护。'
   },
   en: {
     nav: {
@@ -316,28 +340,28 @@ const copy = {
       demo: 'Live Demo'
     },
     hero: {
-      eyebrow: 'v2.1.30 · Browser-native file preview',
+      eyebrow: 'v2.2.0 · Browser-native file preview',
       title: 'Turn complex files into instant product experiences.',
       subtitle:
-        'One component brings Office, PDF, OFD, CAD, Typst, XMind, archives, email, code, media, and 3D assets into the browser. Full packages include preset-all plus the complete offline Worker, WASM, font, and vendor payload.',
+        'One component brings Office, PDF, OFD, CAD, Typst, XMind, archives, email, code, media, and 3D assets into the browser. Full packages include preset-all plus their matching File Viewer-owned offline assets.',
       primary: 'Try the Demo',
       secondary: 'Read the Docs',
       commercial: 'Commercial Edition',
-      proof: ['206 file extensions', '24 preview pipelines', 'Complete Full assets', 'Apache-2.0 open source']
+      proof: ['54 npm targets', '208 file extensions', '25 preview pipelines', 'Self-hosted Full assets']
     },
     matrixTitle: 'Broad coverage, without treating fidelity as optional.',
     matrixIntro:
-      'Format detection, assets, Worker/WASM loading, themes, watermarking, search, zoom, print, and export are adapted inside the viewer. PPTX is handled by the standalone open-source @file-viewer/pptx native engine, Archive handles legacy GBK/GB18030 ZIP entry names plus the libarchive/ZIP fallback boundary, and applications can choose preset-lite, preset-office, preset-engineering, or exact single-renderer cuts.',
+      'Format detection, assets, Worker/WASM loading, themes, watermarking, search, zoom, print, and export are adapted inside the viewer. Binary PowerPoint 97–2003 .ppt and PPTX/OpenXML use isolated browser-native paths. Archive handles legacy GBK/GB18030 ZIP entry names plus the libarchive/ZIP fallback boundary, and applications can choose preset-lite, preset-office, preset-engineering, or exact single-renderer cuts.',
     formatsTitle: 'Format matrix',
     solutionsTitle: 'Built for long-running enterprise workspaces',
     solutionsIntro:
       'From approvals to engineering drawings, support tickets, and AI document workflows, File Viewer focuses on real files, private networks, self-hosted delivery, and the details users meet every day.',
     ecosystemTitle: 'Native integrations with one options and event model.',
     ecosystemIntro:
-      'Full packages include preset-all, so there is no separate preset to install or pass. Vite publishes every asset with copyAssets:true; Webpack, Vue CLI, and other builds run the included CLI once.',
+      'Full packages include preset-all, so there is no separate preset to install or pass. Vite publishes packaged assets with copyAssets:true; Webpack, Vue CLI, and other builds run the included CLI once.',
     demoTitle: 'Live demo for real preview validation.',
     demoIntro:
-      'Open the complete sample matrix to validate Word, PDF, PPTX, CAD, Typst, archives, diagrams, code, media, upload preview, and document comparison flows.',
+      'Open the complete sample matrix to validate Word, PDF, binary PPT, PPTX, CAD, Typst, archives, diagrams, code, media, upload preview, and document comparison flows.',
     docsTitle: 'Integration docs for fast technical reference.',
     docsIntro:
       'Start with Full packages, Vite asset publishing, the one-command non-Vite path, complete web-full dist, format coverage, component options, and self-hosted deployment.',
@@ -347,26 +371,26 @@ const copy = {
     commercialCta: 'Commercial Licensing',
     supportTitle: 'Support sustainable maintenance, with a clear path for enterprise help.',
     supportIntro:
-      'GitHub Sponsors supports one-time and recurring contributions, while WeChat and Alipay remain available for domestic supporters. Sponsorship sustains open-source maintenance and does not include an SLA; use enterprise support for private deployment, custom work, or committed response times.',
-    releaseTitle: 'v2.1.30 is live: Full code and complete offline assets ship at one version.',
+      'Back the open-source work through GitHub Sponsors, buy us a lemonade in the support shop, or explore the commercial edition when Office fidelity, private delivery, and committed support matter.',
+    releaseTitle: 'v2.2.0 is live: render paths and compatibility move forward; the Full asset contract continues from 2.1.30.',
     footer:
-      'Apache-2.0 open source. Maintained by Flyfish Dev for product teams that need reliable browser-native file preview.'
+      'Repository source and packages use Apache-2.0; optional external dependencies keep their own licenses. Maintained by Flyfish Dev.'
   }
 } satisfies Record<Locale, Record<string, any>>
 
 const metrics = computed<MetricItem[]>(() =>
   isZh.value
     ? [
-        { title: '文件扩展名', value: '206', detail: '覆盖业务附件、脑图、工程资产、绘图、媒体与数据文件', tone: 'green' },
-        { title: '预览链路', value: '24', detail: '按格式异步加载，避免首屏被拖慢', tone: 'blue' },
+        { title: '文件扩展名', value: '208', detail: '覆盖业务附件、脑图、工程资产、绘图、媒体与数据文件', tone: 'green' },
+        { title: '预览链路', value: '25', detail: '按格式异步加载，避免首屏被拖慢', tone: 'blue' },
         { title: 'Preset 层级', value: '4', detail: 'lite、office、engineering、all 按产品形态装配', tone: 'violet' },
-        { title: '分发形态', value: '4', detail: 'npm、Release、Docker、静态资源私有化', tone: 'amber' }
+        { title: 'npm 发布目标', value: '54', detail: '48 个标准包与 6 个历史兼容 alias 同版本发布', tone: 'amber' }
       ]
     : [
-        { title: 'Extensions', value: '206', detail: 'Business attachments, mind maps, engineering files, diagrams, media, and data assets', tone: 'green' },
-        { title: 'Pipelines', value: '24', detail: 'Lazy renderer loading by matched file type', tone: 'blue' },
+        { title: 'Extensions', value: '208', detail: 'Business attachments, mind maps, engineering files, diagrams, media, and data assets', tone: 'green' },
+        { title: 'Pipelines', value: '25', detail: 'Lazy renderer loading by matched file type', tone: 'blue' },
         { title: 'Preset tiers', value: '4', detail: 'lite, office, engineering, and all product-shaped bundles', tone: 'violet' },
-        { title: 'Delivery paths', value: '4', detail: 'npm, GitHub Release, Docker, and static self-hosting', tone: 'amber' }
+        { title: 'npm targets', value: '54', detail: '48 standard packages and 6 historical aliases released together', tone: 'amber' }
       ]
 )
 
@@ -376,7 +400,7 @@ const formatGroups = computed<FormatGroup[]>(() =>
         {
           label: 'Office 与版式文档',
           count: 'Word / Excel / PPT / PDF / OFD / Typst',
-          examples: 'docx、doc、xlsx、xls、pptx、pdf、ofd、typ',
+          examples: 'docx、doc、xlsx、xls、ppt、pptx、pdf、ofd、typ',
           icon: FileText,
           tone: 'emerald'
         },
@@ -406,7 +430,7 @@ const formatGroups = computed<FormatGroup[]>(() =>
         {
           label: 'Office and fixed-layout documents',
           count: 'Word / Excel / PPT / PDF / OFD / Typst',
-          examples: 'docx, doc, xlsx, xls, pptx, pdf, ofd, typ',
+          examples: 'docx, doc, xlsx, xls, ppt, pptx, pdf, ofd, typ',
           icon: FileText,
           tone: 'emerald'
         },
@@ -508,13 +532,13 @@ const capabilities = computed<Capability[]>(() =>
         { title: '统一搜索与定位', detail: 'Ctrl/Command + F 调出浮层搜索，命中高亮、上一条/下一条和行级/页级定位可复用。', icon: SearchCheck },
         { title: '高保真打印导出', detail: 'PDF、Word、Markdown、图片等按渲染链路动态启用打印与 HTML 导出，避免只打印当前视口。', icon: Download },
         { title: '主题与水印', detail: 'light、dark、system 可控，文字/图片水印通过 options 统一注入。', icon: PanelTop },
-        { title: '按需包与 Full 包边界清晰', detail: '轻量包通过 options.preset 自由裁剪；所有 Full 包直接内置 preset-all，并绑定同版本完整静态资产，不需要业务侧再次拼装格式能力。', icon: Boxes }
+        { title: '按需包与 Full 包边界清晰', detail: '轻量包通过 options.preset 自由裁剪；所有 Full 包直接内置 preset-all，并绑定同版本 File Viewer 自有静态资产，不需要业务侧再次拼装格式能力。', icon: Boxes }
       ]
     : [
         { title: 'Unified search and anchors', detail: 'Ctrl/Command + F opens focused search with highlights, next/previous navigation, and reusable page/line anchors.', icon: SearchCheck },
         { title: 'High-fidelity print and export', detail: 'PDF, Word, Markdown, images, and other printable renderers expose print and HTML export only when the output is trustworthy.', icon: Download },
         { title: 'Theme and watermark options', detail: 'light, dark, and system themes are controlled by options; text and image watermarks use one contract.', icon: PanelTop },
-        { title: 'Clear light and Full package boundaries', detail: 'Light packages stay configurable through options.preset. Every Full package includes preset-all and a same-version complete static asset payload, with no extra format assembly.', icon: Boxes }
+        { title: 'Clear light and Full package boundaries', detail: 'Light packages stay configurable through options.preset. Every Full package includes preset-all and its same-version File Viewer-owned static assets, with no extra format assembly.', icon: Boxes }
       ]
 )
 
@@ -522,15 +546,15 @@ const fullPackageFaqs = computed<Capability[]>(() =>
   isZh.value
     ? [
         { title: 'Full 还要安装 preset-all 吗？', detail: '不需要。Vue、React、React Legacy、Vue 2.7、Vue 2.6、Svelte、jQuery 与 Web Full 均已内置 preset-all，安装对应 Full 包即可获得完整格式注册。', icon: PackageCheck },
-        { title: 'Vite 还要手工复制 assets 吗？', detail: '不需要。注册 @file-viewer/vite-plugin 并设置 copyAssets:true，dev 与 build 会按部署根路径自动提供全部 Worker、WASM、字体和 vendor 资源。', icon: Zap },
+        { title: 'Vite 还要手工复制 assets 吗？', detail: '不需要。注册 @file-viewer/vite-plugin 并设置 copyAssets:true，dev 与 build 会按部署根路径自动提供包内 Worker、WASM、字体和 vendor 资源。', icon: Zap },
         { title: 'Webpack / Vue CLI 怎么部署？', detail: '安装任一 Full 包后执行一次 npx --no-install file-viewer-copy-assets ./public/file-viewer。CLI 来自该 Full 包并锁定同一版本。', icon: Wrench },
-        { title: 'web-full 还需要 copy 吗？', detail: '不需要。完整部署 @file-viewer/web-full/dist，脚本、renderer 与全部静态资产已经在同一目录树中，可直接用于内网或静态托管。', icon: Cloud }
+        { title: 'web-full 还需要 copy 吗？', detail: '不需要。完整部署 @file-viewer/web-full/dist，脚本、renderer 与 File Viewer 自有静态资产位于同一目录树，可直接用于内网或静态托管。', icon: Cloud }
       ]
     : [
         { title: 'Does Full need a separate preset-all?', detail: 'No. Vue, React, React Legacy, Vue 2.7, Vue 2.6, Svelte, jQuery, and Web Full packages include preset-all and register the complete format set.', icon: PackageCheck },
-        { title: 'Does Vite need a manual asset copy?', detail: 'No. Register @file-viewer/vite-plugin with copyAssets:true. Dev and build then serve every Worker, WASM, font, and vendor asset from the deployment base.', icon: Zap },
+        { title: 'Does Vite need a manual asset copy?', detail: 'No. Register @file-viewer/vite-plugin with copyAssets:true. Dev and build then serve packaged Worker, WASM, font, and vendor assets from the deployment base.', icon: Zap },
         { title: 'What about Webpack or Vue CLI?', detail: 'After installing any Full package, run npx --no-install file-viewer-copy-assets ./public/file-viewer once. The included CLI is pinned to the same package version.', icon: Wrench },
-        { title: 'Does web-full still need a copy step?', detail: 'No. Deploy @file-viewer/web-full/dist intact. The script, renderers, and complete static payload share one directory tree for intranet or static hosting.', icon: Cloud }
+        { title: 'Does web-full still need a copy step?', detail: 'No. Deploy @file-viewer/web-full/dist intact. The script, renderers, and File Viewer-owned static payload share one directory tree for intranet or static hosting.', icon: Cloud }
       ]
 )
 
@@ -556,23 +580,23 @@ const GitHubMark = {
 const portalLinks = computed<LinkItem[]>(() =>
   isZh.value
     ? [
-        { label: '在线 Demo', href: demoUrl, note: '体验主预览器、上传预览和完整样例矩阵', icon: MonitorPlay, featured: true },
-        { label: '官方文档', href: docsUrl, note: 'doc.file-viewer.app，接入、格式、部署与 API', icon: BookOpen, featured: true },
-        { label: '文档比对', href: compareUrl, note: '左右并排预览、同步滚动、搜索定位', icon: PanelTop, featured: true },
+        { label: '在线 Demo', href: localizedDemoUrl.value, note: '体验主预览器、上传预览和完整样例矩阵', icon: MonitorPlay, featured: true },
+        { label: '官方文档', href: localizedDocsUrl.value, note: 'doc.file-viewer.app，接入、格式、部署与 API', icon: BookOpen, featured: true },
+        { label: '文档比对', href: localizedCompareUrl.value, note: '左右并排预览、同步滚动、搜索定位', icon: PanelTop, featured: true },
         { label: 'GitHub 开源总仓', href: githubUrl, note: '源码、Release 下载、构建产物和 issue', icon: GitHubMark, featured: true },
         { label: 'npm 生态包', href: 'https://www.npmjs.com/search?q=%40file-viewer', note: 'core、renderer、preset 与标准组件包', icon: PackageCheck },
-        { label: 'Docker 部署', href: dockerDocsUrl, note: 'amd64 / arm64 一键部署文档与示例', icon: Cloud },
+        { label: 'Docker 部署', href: resolveLocalizedDocsUrl('guide/docker'), note: 'amd64 / arm64 一键部署文档与示例', icon: Cloud },
         { label: '商业版引擎', href: commercialUrl, note: '自研原生 Office 引擎，高还原与极致性能', icon: Gem },
         { label: 'GitHub Sponsors', href: githubSponsorsUrl, note: '一次性或持续赞助开源维护', icon: HandCoins },
         { label: '飞鱼开源工作室', href: studioUrl, note: '了解 Flyfish Dev 的产品与服务', icon: Building2 }
       ]
     : [
-        { label: 'Live demo', href: demoUrl, note: 'Try the main viewer, uploads, and the full sample matrix', icon: MonitorPlay, featured: true },
-        { label: 'Documentation', href: docsUrl, note: 'doc.file-viewer.app for integration, formats, deployment, and APIs', icon: BookOpen, featured: true },
-        { label: 'Compare demo', href: compareUrl, note: 'Side-by-side preview with sync scroll, search, and anchors', icon: PanelTop, featured: true },
+        { label: 'Live demo', href: localizedDemoUrl.value, note: 'Try the main viewer, uploads, and the full sample matrix', icon: MonitorPlay, featured: true },
+        { label: 'Documentation', href: localizedDocsUrl.value, note: 'doc.file-viewer.app for integration, formats, deployment, and APIs', icon: BookOpen, featured: true },
+        { label: 'Compare demo', href: localizedCompareUrl.value, note: 'Side-by-side preview with sync scroll, search, and anchors', icon: PanelTop, featured: true },
         { label: 'GitHub monorepo', href: githubUrl, note: 'Source, releases, artifacts, and issues', icon: GitHubMark, featured: true },
         { label: 'npm packages', href: 'https://www.npmjs.com/search?q=%40file-viewer', note: 'core, renderer, preset, and standard component packages', icon: PackageCheck },
-        { label: 'Docker deployment', href: dockerDocsUrl, note: 'amd64 / arm64 deployment for docs and examples', icon: Cloud },
+        { label: 'Docker deployment', href: resolveLocalizedDocsUrl('guide/docker'), note: 'amd64 / arm64 deployment for docs and examples', icon: Cloud },
         { label: 'Commercial engine', href: commercialUrl, note: 'Native Office engine for high fidelity and extreme performance', icon: Gem },
         { label: 'GitHub Sponsors', href: githubSponsorsUrl, note: 'One-time or recurring support for open-source maintenance', icon: HandCoins },
         { label: 'Flyfish Dev', href: studioUrl, note: 'Explore Flyfish Dev products and services', icon: Building2 }
@@ -604,14 +628,14 @@ const quickStartItems = computed<QuickStartItem[]>(() => [
   {
     label: isZh.value ? 'Vanilla JS Full' : 'Vanilla JS Full',
     packageName: '@file-viewer/web-full',
-    install: 'npm install @file-viewer/web-full@2.1.30',
+    install: 'npm install @file-viewer/web-full@2.2.0',
     title: isZh.value ? '完整部署 dist，零 copy 直接预览' : 'Deploy the complete dist with zero copy steps',
     summary: isZh.value
       ? 'web-full 内置 preset-all；完整 dist 已包含 renderer、Worker、WASM、字体和 vendor，保持目录结构部署即可。'
       : 'web-full includes preset-all; its complete dist already contains renderers, Workers, WASM, fonts, and vendor assets.',
     language: 'HTML',
     highlightLanguage: 'xml',
-    href: `${docsUrl}guide/quickstart-web`,
+    href: resolveLocalizedDocsUrl('guide/quickstart-web'),
     tone: 'violet',
     icon: MonitorPlay,
     code: `<!-- Deploy @file-viewer/web-full/dist intact at /file-viewer/. -->
@@ -646,7 +670,7 @@ controller.zoomIn()
       : 'Full includes preset-all with no separate preset option; Vite publishes assets automatically, or the non-Vite CLI copies them once.',
     language: 'Vue SFC',
     highlightLanguage: 'typescript',
-    href: `${docsUrl}guide/quickstart-vue3`,
+    href: resolveLocalizedDocsUrl('guide/quickstart-vue3'),
     tone: 'green',
     icon: PanelTop,
     code: `${snippetImport("{ createApp } from 'vue'")}
@@ -675,7 +699,7 @@ createApp(App).use(FileViewer).mount('#app')
       : 'The standard package stays light; presets or single renderers control the installed capability set.',
     language: 'Vue SFC',
     highlightLanguage: 'typescript',
-    href: `${docsUrl}guide/quickstart-vue3`,
+    href: resolveLocalizedDocsUrl('guide/quickstart-vue3'),
     tone: 'green',
     icon: PanelTop,
     code: `${snippetImport("{ createApp } from 'vue'")}
@@ -706,7 +730,7 @@ createApp(App).use(FileViewer).mount('#app')
       : 'Includes preset-all and the same-version complete asset payload, while keeping components, hooks, callbacks, and ref/controller APIs.',
     language: 'TSX',
     highlightLanguage: 'typescript',
-    href: `${docsUrl}guide/quickstart-react`,
+    href: resolveLocalizedDocsUrl('guide/quickstart-react'),
     tone: 'blue',
     icon: Rocket,
     code: `${snippetImport("FileViewer, { useFileViewer } from '@file-viewer/react-full'")}
@@ -739,7 +763,7 @@ export function Preview() {
       : 'Svelte Full includes preset-all and complete offline assets while keeping the shared options, events, themes, search, zoom, print, and export APIs.',
     language: 'Svelte',
     highlightLanguage: 'xml',
-    href: `${docsUrl}guide/quickstart-svelte`,
+    href: resolveLocalizedDocsUrl('guide/quickstart-svelte'),
     tone: 'cyan',
     icon: Zap,
     code: `<script lang="ts">
@@ -767,7 +791,7 @@ ${'<\\/script>'}
       : 'Vue 2.7 and Vue 2.6 Full both include preset-all, the same-version copy CLI, and the same props, events, and style entry.',
     language: 'Vue 2',
     highlightLanguage: 'javascript',
-    href: `${docsUrl}guide/quickstart-vue2`,
+    href: resolveLocalizedDocsUrl('guide/quickstart-vue2'),
     tone: 'amber',
     icon: Layers3,
     code: `${snippetImport("Vue from 'vue'")}
@@ -802,7 +826,7 @@ new Vue({
       : 'Includes preset-all and same-version complete assets, with controller, event cleanup, destroy, and runtime updates for classic apps.',
     language: 'JavaScript',
     highlightLanguage: 'javascript',
-    href: `${docsUrl}guide/ecosystem#jquery`,
+    href: resolveLocalizedDocsUrl('guide/ecosystem#jquery'),
     tone: 'orange',
     icon: Wrench,
     code: `${snippetImport("{ mountViewer } from '@file-viewer/jquery-full'")}
@@ -832,7 +856,7 @@ controller.load({ url: '/files/contract.pdf' })`
       : 'Full brings preset-all; the plugin publishes every Worker, WASM, font, and vendor asset in dev/build for root or subpath deployments.',
     language: 'Vite',
     highlightLanguage: 'typescript',
-    href: `${docsUrl}guide/on-demand-renderers`,
+    href: resolveLocalizedDocsUrl('guide/on-demand-renderers'),
     tone: 'blue',
     icon: Layers3,
     code: `${snippetImport("{ defineConfig } from 'vite'")}
@@ -859,7 +883,7 @@ export default defineConfig({
       : 'The command comes with the installed Full package, copies its same-version complete payload, and writes the manifest; runtime stays off public CDNs.',
     language: 'Shell',
     highlightLanguage: 'bash',
-    href: `${docsUrl}guide/distribution`,
+    href: resolveLocalizedDocsUrl('guide/distribution'),
     tone: 'cyan',
     icon: Boxes,
     code: `npx --no-install file-viewer-copy-assets ./public/file-viewer
@@ -895,7 +919,7 @@ const commercialComparison = computed<CommercialComparisonItem[]>(() =>
         {
           dimension: '文件格式',
           openSource:
-            '覆盖 206 个扩展名，包含 PDF/OFD、Office、CAD、Typst、压缩包、邮件、绘图、媒体、3D 和数据资产；通过 lite / office / engineering / all preset 按需启用。',
+            '覆盖 208 个扩展名，包含 PDF/OFD、Office、CAD、Typst、压缩包、邮件、绘图、媒体、3D 和数据资产；通过 lite / office / engineering / all preset 按需启用。',
           commercial:
             '重点增强 Word、Excel、PowerPoint 深水区，可替换 office preset 中的 Word / Spreadsheet / Presentation 能力；PDF、OFD、CAD、Archive 等其它格式继续由开源 renderer 承接。',
           icon: FileText
@@ -903,7 +927,7 @@ const commercialComparison = computed<CommercialComparisonItem[]>(() =>
         {
           dimension: '还原度',
           openSource:
-            '目标是可读、可搜索、可打印、可嵌入业务系统；DOCX 当前偏流式阅读，Excel/PPTX 覆盖常见业务预览，不承诺原生 Office 逐像素一致。',
+            '目标是可读、可搜索、可打印、可嵌入业务系统；DOCX 当前偏流式阅读，Excel 与 PPT/PPTX 覆盖常见业务预览，不承诺原生 Office 逐像素一致。',
           commercial:
             '自研原生文档引擎面向分页、字体、表格、图形、页眉页脚、批注修订和复杂演示布局，适合合同、报告、档案和正式交付预览。',
           icon: Scale
@@ -919,7 +943,7 @@ const commercialComparison = computed<CommercialComparisonItem[]>(() =>
         {
           dimension: '授权与支持',
           openSource:
-            'Apache-2.0 开源，可用于商业项目；社区 issue、打赏和优先支持可协助定位，但上线验收与兼容性风险由项目自行把控。',
+            '本仓库产出的 File Viewer 源码与软件包采用 Apache-2.0；可选外部依赖保留各自许可。社区 issue、打赏和优先支持可协助定位，但上线验收与兼容性风险由项目自行把控。',
           commercial:
             '商业授权、私有交付、优先技术支持、样本回归和定制兼容路线，适合需要明确责任边界、交付周期和企业支持的场景。',
           icon: ShieldCheck
@@ -929,7 +953,7 @@ const commercialComparison = computed<CommercialComparisonItem[]>(() =>
         {
           dimension: 'Formats',
           openSource:
-            'Covers 206 extensions across PDF/OFD, Office, CAD, Typst, archives, email, diagrams, media, 3D, and data assets through lite / office / engineering / all presets.',
+            'Covers 208 extensions across PDF/OFD, Office, CAD, Typst, archives, email, diagrams, media, 3D, and data assets through lite / office / engineering / all presets.',
           commercial:
             'Strengthens the Word, Excel, and PowerPoint deep end. It can replace the Word / Spreadsheet / Presentation capability in the office preset while PDF, OFD, CAD, Archive, and other formats continue to use open-source renderers.',
           icon: FileText
@@ -937,7 +961,7 @@ const commercialComparison = computed<CommercialComparisonItem[]>(() =>
         {
           dimension: 'Fidelity',
           openSource:
-            'Optimized for readable, searchable, printable previews embedded in business systems. DOCX is currently flow-first, and Excel/PPTX target common preview needs rather than native Office pixel parity.',
+            'Optimized for readable, searchable, printable previews embedded in business systems. DOCX is currently flow-first, and Excel plus PPT/PPTX target common preview needs rather than native Office pixel parity.',
           commercial:
             'The self-developed native document engine targets pagination, fonts, tables, shapes, headers/footers, comments/revisions, and complex deck layouts for contracts, reports, archives, and formal delivery.',
           icon: Scale
@@ -953,7 +977,7 @@ const commercialComparison = computed<CommercialComparisonItem[]>(() =>
         {
           dimension: 'Licensing and support',
           openSource:
-            'Apache-2.0 open source and usable in commercial products. Community issues, sponsorship, and priority support can help, but final launch validation remains with the product team.',
+            'File Viewer source and packages produced by this repository use Apache-2.0; optional external dependencies keep their own licenses. Community issues, sponsorship, and priority support can help, but final launch validation remains with the product team.',
           commercial:
             'Commercial licensing, private delivery, priority support, sample regression, and custom compatibility work for teams that need clear ownership, delivery timelines, and enterprise support.',
           icon: ShieldCheck
@@ -1055,23 +1079,34 @@ const viewerOptions = {
 />`
 )
 
-const qrItems = computed<QrItem[]>(() =>
-  isZh.value
-    ? [
-        { label: '微信打赏', note: '请我们喝杯柠檬水', image: '/donate-wx.jpg' },
-        { label: '支付宝打赏', note: '支持开源持续迭代', image: '/donate-alipay.jpg' },
-        { label: '客服微信', note: '优先支持与商业沟通', image: '/contact.jpg' },
-        { label: '公众号', note: '关注更新与实践文章', image: '/wechat-mp.png' },
-        { label: '交流群', note: '加入用户交流群', image: '/invite.webp' }
-      ]
-    : [
-        { label: 'WeChat Sponsor', note: 'Buy us a lemonade', image: '/donate-wx.jpg' },
-        { label: 'Alipay Sponsor', note: 'Support open-source work', image: '/donate-alipay.jpg' },
-        { label: 'Support Contact', note: 'Priority support and business inquiries', image: '/contact.jpg' },
-        { label: 'Official Account', note: 'Updates and engineering notes', image: '/wechat-mp.png' },
-        { label: 'Community Group', note: 'Join the user community', image: '/invite.webp' }
-      ]
-)
+const qrItems: QrItem[] = [
+  { label: '微信打赏', note: '请我们喝杯柠檬水', image: '/donate-wx.jpg' },
+  { label: '支付宝打赏', note: '支持开源持续迭代', image: '/donate-alipay.jpg' },
+  { label: '客服微信', note: '优先支持与商业沟通', image: '/contact.jpg' },
+  { label: '公众号', note: '关注更新与实践文章', image: '/wechat-mp.png' },
+  { label: '交流群', note: '加入用户交流群', image: '/invite.webp' }
+]
+
+const englishSupportOptions: SupportOption[] = [
+  {
+    label: 'GitHub Sponsors',
+    note: 'Make a one-time or recurring contribution to open-source maintenance.',
+    href: githubSponsorsUrl,
+    icon: HandCoins
+  },
+  {
+    label: 'Support Shop',
+    note: 'Buy us a lemonade or choose a maintainer support option that fits your team.',
+    href: prioritySupportUrl,
+    icon: ShoppingCart
+  },
+  {
+    label: 'Commercial Edition',
+    note: 'Explore the native Office engine for higher fidelity, private delivery, and enterprise support.',
+    href: commercialUrl,
+    icon: Gem
+  }
+]
 
 const currentCopy = computed(() => copy[locale.value])
 
@@ -2009,7 +2044,7 @@ onBeforeUnmount(() => {
           <Languages :size="16" />
           {{ nextLocaleLabel }}
         </button>
-        <a class="topbar-action" :href="demoUrl" target="_blank" rel="noreferrer">
+        <a class="topbar-action" :href="localizedDemoUrl" target="_blank" rel="noreferrer">
           {{ currentCopy.nav.demo }}
           <ArrowRight :size="16" />
         </a>
@@ -2034,11 +2069,11 @@ onBeforeUnmount(() => {
         </h1>
         <p class="hero-subtitle">{{ currentCopy.hero.subtitle }}</p>
         <div class="hero-actions">
-          <a class="button primary" :href="demoUrl" target="_blank" rel="noreferrer">
+          <a class="button primary" :href="localizedDemoUrl" target="_blank" rel="noreferrer">
             <span>{{ currentCopy.hero.primary }}</span>
             <MonitorPlay :size="18" />
           </a>
-          <a class="button secondary" :href="docsUrl" target="_blank" rel="noreferrer">
+          <a class="button secondary" :href="localizedDocsUrl" target="_blank" rel="noreferrer">
             <span>{{ currentCopy.hero.secondary }}</span>
             <BookOpen :size="18" />
           </a>
@@ -2129,11 +2164,11 @@ onBeforeUnmount(() => {
             <p>{{ currentCopy.demoIntro }}</p>
           </div>
           <div class="inline-actions">
-            <a class="button primary" :href="demoUrl" target="_blank" rel="noreferrer">
+            <a class="button primary" :href="localizedDemoUrl" target="_blank" rel="noreferrer">
               <span>{{ currentCopy.nav.demo }}</span>
               <MonitorPlay :size="18" />
             </a>
-            <a class="button secondary" :href="compareUrl" target="_blank" rel="noreferrer">
+            <a class="button secondary" :href="localizedCompareUrl" target="_blank" rel="noreferrer">
               <span>{{ isZh ? '文档比对' : 'Compare Demo' }}</span>
               <PanelTop :size="18" />
             </a>
@@ -2153,8 +2188,9 @@ onBeforeUnmount(() => {
             </div>
             <iframe
               v-if="demoFrameMounted"
-              :src="demoUrl"
-              title="Flyfish File Viewer live demo"
+              :key="`demo-${locale}`"
+              :src="localizedDemoUrl"
+              :title="isZh ? 'Flyfish File Viewer 在线 Demo' : 'Flyfish File Viewer live demo'"
               loading="lazy"
             ></iframe>
             <div v-else class="demo-frame-placeholder">
@@ -2310,11 +2346,11 @@ onBeforeUnmount(() => {
         <p>{{ currentCopy.docsIntro }}</p>
       </div>
       <div class="docs-quick-nav" aria-label="Documentation shortcuts">
-        <a :href="docsQuickstartUrl" target="_blank" rel="noreferrer">{{ isZh ? '快速开始' : 'Quickstart' }}</a>
-        <a :href="`${docsUrl}guide/on-demand-renderers`" target="_blank" rel="noreferrer">{{ isZh ? '按需装配' : 'On-demand' }}</a>
-        <a :href="`${docsUrl}guide/formats`" target="_blank" rel="noreferrer">{{ isZh ? '支持格式' : 'Formats' }}</a>
-        <a :href="`${docsUrl}guide/usage`" target="_blank" rel="noreferrer">{{ isZh ? '组件参数' : 'Options' }}</a>
-        <a :href="`${docsUrl}guide/distribution`" target="_blank" rel="noreferrer">{{ isZh ? '部署分发' : 'Distribution' }}</a>
+        <a :href="localizedDocsQuickstartUrl" target="_blank" rel="noreferrer">{{ isZh ? '快速开始' : 'Quickstart' }}</a>
+        <a :href="resolveLocalizedDocsUrl('guide/on-demand-renderers')" target="_blank" rel="noreferrer">{{ isZh ? '按需装配' : 'On-demand' }}</a>
+        <a :href="resolveLocalizedDocsUrl('guide/formats')" target="_blank" rel="noreferrer">{{ isZh ? '支持格式' : 'Formats' }}</a>
+        <a :href="resolveLocalizedDocsUrl('guide/usage')" target="_blank" rel="noreferrer">{{ isZh ? '组件参数' : 'Options' }}</a>
+        <a :href="resolveLocalizedDocsUrl('guide/distribution')" target="_blank" rel="noreferrer">{{ isZh ? '部署分发' : 'Distribution' }}</a>
       </div>
       <div ref="docsFrame" class="docs-frame-card">
         <div class="demo-browser-bar">
@@ -2325,8 +2361,9 @@ onBeforeUnmount(() => {
         </div>
         <iframe
           v-if="docsFrameMounted"
-          :src="docsQuickstartUrl"
-          title="Flyfish File Viewer quickstart documentation"
+          :key="`docs-${locale}`"
+          :src="localizedDocsQuickstartUrl"
+          :title="isZh ? 'Flyfish File Viewer 快速开始文档' : 'Flyfish File Viewer quickstart documentation'"
           loading="lazy"
         ></iframe>
         <div v-else class="demo-frame-placeholder docs-frame-placeholder">
@@ -2480,7 +2517,7 @@ onBeforeUnmount(() => {
           <GitHubMark />
           <span>GitHub</span>
         </a>
-        <a :href="dockerDocsUrl" target="_blank" rel="noreferrer">
+        <a :href="resolveLocalizedDocsUrl('guide/docker')" target="_blank" rel="noreferrer">
           <Wrench :size="19" />
           <span>Docker</span>
         </a>
@@ -2495,18 +2532,18 @@ onBeforeUnmount(() => {
         </div>
         <h2>{{ currentCopy.supportTitle }}</h2>
         <p>{{ currentCopy.supportIntro }}</p>
-        <div class="footer-links">
+        <div v-if="isZh" class="footer-links">
           <a :href="githubSponsorsUrl" target="_blank" rel="noreferrer">
             <HandCoins :size="16" />
             GitHub Sponsors
           </a>
           <a :href="domesticSponsorUrl" target="_blank" rel="noreferrer">
             <QrCode :size="16" />
-            {{ isZh ? '微信 / 支付宝' : 'WeChat / Alipay' }}
+            微信 / 支付宝
           </a>
           <a :href="prioritySupportUrl" target="_blank" rel="noreferrer">
             <HeartHandshake :size="16" />
-            {{ isZh ? '企业技术支持' : 'Enterprise Support' }}
+            企业技术支持
           </a>
           <a :href="studioUrl" target="_blank" rel="noreferrer">
             <Rocket :size="16" />
@@ -2518,7 +2555,7 @@ onBeforeUnmount(() => {
           </a>
         </div>
       </div>
-      <div class="qr-grid">
+      <div v-if="isZh" class="qr-grid">
         <article v-for="item in qrItems" :key="item.label" class="qr-card">
           <div class="qr-image">
             <img :src="item.image" :alt="item.label" loading="lazy" decoding="async" />
@@ -2529,6 +2566,23 @@ onBeforeUnmount(() => {
           </strong>
           <span>{{ item.note }}</span>
         </article>
+      </div>
+      <div v-else class="support-option-grid" aria-label="Ways to support File Viewer">
+        <a
+          v-for="item in englishSupportOptions"
+          :key="item.label"
+          class="support-option-card"
+          :href="item.href"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span class="support-option-icon"><component :is="item.icon" :size="24" /></span>
+          <span class="support-option-copy">
+            <strong>{{ item.label }}</strong>
+            <span>{{ item.note }}</span>
+          </span>
+          <ArrowRight class="support-option-arrow" :size="20" aria-hidden="true" />
+        </a>
       </div>
       <div class="footer-bottom">
         <p>{{ currentCopy.footer }}</p>

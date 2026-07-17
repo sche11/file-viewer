@@ -13,17 +13,20 @@ interface OpenDocumentPage {
 type OpenDocumentTranslator = ReturnType<typeof createFileViewerTranslator>;
 
 const openDocumentStyle = `
-.odf-viewer{min-height:100%;padding:28px;overflow:auto;background:#dfe5eb;box-sizing:border-box}
+.odf-viewer{min-height:100%;padding:28px;overflow:auto;background:var(--file-viewer-render-surface-background,#dfe5eb);box-sizing:border-box}
 .odf-shell{width:min(100%,980px);margin:0 auto}.odf-shell>header{margin-bottom:18px;padding:18px 22px;border-radius:8px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.1);box-sizing:border-box}
 .odf-shell>header span{color:#0f766e;font-size:12px;font-weight:800}.odf-shell>header h2{margin:6px 0 0;color:#132235;font-size:24px}
 .odf-page{min-height:360px;margin:0 auto 18px;padding:42px 48px;border-radius:4px;background:#fff;box-shadow:0 16px 38px rgba(15,23,42,.12);color:#1f2937;box-sizing:border-box}
 .odf-page h3{margin:0 0 20px;color:#334155;font-size:18px}.odf-page p{margin:0 0 12px;font-size:15px;line-height:1.85;white-space:pre-wrap}
-.flyfish-rtf-viewer{min-height:100%;padding:28px;overflow:auto;background:#dfe5eb;color:#1f2937;box-sizing:border-box}
+.flyfish-rtf-viewer{min-height:100%;padding:28px;overflow:auto;background:var(--file-viewer-render-surface-background,#dfe5eb);color:#1f2937;box-sizing:border-box}
 .flyfish-rtf-header{width:min(100%,900px);margin:0 auto 18px;padding:18px 22px;border-radius:8px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.1);box-sizing:border-box}
 .flyfish-rtf-header span{display:block;color:#0f766e;font-size:12px;font-weight:800}.flyfish-rtf-header strong{display:block;margin-top:6px;color:#132235;font-size:24px}
 .flyfish-rtf-paper{width:min(100%,900px);min-height:980px;margin:0 auto;padding:54px 62px;background:#fff;box-shadow:0 16px 38px rgba(15,23,42,.12);line-height:1.75;box-sizing:border-box}.flyfish-rtf-paper p{margin:0 0 12px}
-[data-viewer-theme='dark'] .odf-viewer,[data-viewer-theme='dark'] .flyfish-rtf-viewer{background:#111827}[data-viewer-theme='dark'] .odf-shell>header,[data-viewer-theme='dark'] .odf-page,[data-viewer-theme='dark'] .flyfish-rtf-header,[data-viewer-theme='dark'] .flyfish-rtf-paper{background:#f8fafc;color:#1f2937}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .odf-viewer,[data-viewer-theme='system'] .flyfish-rtf-viewer{background:#111827}[data-viewer-theme='system'] .odf-shell>header,[data-viewer-theme='system'] .odf-page,[data-viewer-theme='system'] .flyfish-rtf-header,[data-viewer-theme='system'] .flyfish-rtf-paper{background:#f8fafc;color:#1f2937}}
+[data-viewer-theme='dark'] .odf-viewer,[data-viewer-theme='dark'] .flyfish-rtf-viewer{color-scheme:dark;background:var(--file-viewer-render-surface-background,#0d1117);color:#e6edf3}
+[data-viewer-theme='dark'] .odf-shell>header,[data-viewer-theme='dark'] .odf-page,[data-viewer-theme='dark'] .flyfish-rtf-header,[data-viewer-theme='dark'] .flyfish-rtf-paper{border:1px solid rgba(139,148,158,.24);background:#161b22;color:#e6edf3;box-shadow:0 18px 44px rgba(0,0,0,.34)}
+[data-viewer-theme='dark'] .odf-shell>header h2,[data-viewer-theme='dark'] .odf-page h3,[data-viewer-theme='dark'] .flyfish-rtf-header strong{color:#f0f6fc}
+[data-viewer-theme='dark'] .odf-shell>header span,[data-viewer-theme='dark'] .flyfish-rtf-header span{color:#6ee7b7}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .odf-viewer,[data-viewer-theme='system'] .flyfish-rtf-viewer{color-scheme:dark;background:var(--file-viewer-render-surface-background,#0d1117);color:#e6edf3}[data-viewer-theme='system'] .odf-shell>header,[data-viewer-theme='system'] .odf-page,[data-viewer-theme='system'] .flyfish-rtf-header,[data-viewer-theme='system'] .flyfish-rtf-paper{border:1px solid rgba(139,148,158,.24);background:#161b22;color:#e6edf3;box-shadow:0 18px 44px rgba(0,0,0,.34)}[data-viewer-theme='system'] .odf-shell>header h2,[data-viewer-theme='system'] .odf-page h3,[data-viewer-theme='system'] .flyfish-rtf-header strong{color:#f0f6fc}[data-viewer-theme='system'] .odf-shell>header span,[data-viewer-theme='system'] .flyfish-rtf-header span{color:#6ee7b7}}
 @media (max-width:720px){.odf-viewer,.flyfish-rtf-viewer{padding:14px}.odf-page{padding:28px 24px}.flyfish-rtf-paper{padding:36px 28px}}
 `;
 

@@ -3,6 +3,8 @@ import {
   createFileViewerTranslator,
   createFileViewerZoomChangeEmitter as createZoomChangeEmitter,
   registerFileViewerZoomProvider,
+  resolveFileViewerColorScheme,
+  resolveFileViewerRuntimeAssetBaseUrl,
   resolveFileViewerSpreadsheetWorkerUrl,
   unregisterFileViewerZoomProvider,
   type FileRenderContext,
@@ -109,7 +111,7 @@ const E_VIRT_TABLE_STYLE_MARKERS = [
 ] as const;
 
 const spreadsheetStyle = `
-.excel-wrapper{position:relative;width:100%;height:100%;display:flex;flex-direction:column;background:#fff;color:#172033;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.excel-wrapper{position:relative;width:100%;height:100%;display:flex;flex-direction:column;background:var(--file-viewer-render-surface-background,#fff);color:#172033;font-family:Aptos,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
 .excel-wrapper *{box-sizing:border-box}
 .excel-wrapper .table-wrapper{position:relative;width:100%;flex:1;min-height:0;background:#fff;overflow:hidden}
 .excel-wrapper .table-host{position:absolute;inset:0}
@@ -141,12 +143,18 @@ const spreadsheetStyle = `
 .excel-wrapper .sheet-tab.active{border-color:rgba(33,163,102,.28);background:rgba(33,163,102,.12);color:#137347}
 .excel-wrapper .summary{flex:0 0 auto;max-width:42%;overflow:hidden;color:#64748b;font-size:12px;font-weight:700;white-space:nowrap;text-overflow:ellipsis}
 .excel-wrapper .hidden{display:none!important}
-[data-viewer-theme='dark'] .excel-wrapper{background:#0f172a;color:#e5e7eb}
-[data-viewer-theme='dark'] .excel-wrapper .table-wrapper{background:#111827}
-[data-viewer-theme='dark'] .excel-wrapper .toolbar{background:#111827;border-color:rgba(148,163,184,.22)}
-[data-viewer-theme='dark'] .excel-wrapper .sheet-tab{color:#cbd5e1}
-[data-viewer-theme='dark'] .excel-wrapper .sheet-tab:hover{background:#1f2937}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .excel-wrapper{background:#0f172a;color:#e5e7eb}[data-viewer-theme='system'] .excel-wrapper .table-wrapper{background:#111827}[data-viewer-theme='system'] .excel-wrapper .toolbar{background:#111827;border-color:rgba(148,163,184,.22)}[data-viewer-theme='system'] .excel-wrapper .sheet-tab{color:#cbd5e1}[data-viewer-theme='system'] .excel-wrapper .sheet-tab:hover{background:#1f2937}}
+.excel-wrapper[data-spreadsheet-theme='dark']{color-scheme:dark;background:var(--file-viewer-render-surface-background,#0f172a);color:#e5e7eb}
+.excel-wrapper[data-spreadsheet-theme='dark'] .table-wrapper{background:#111827}
+.excel-wrapper[data-spreadsheet-theme='dark'] .toolbar{background:#111827;border-color:rgba(148,163,184,.22)}
+.excel-wrapper[data-spreadsheet-theme='dark'] .sheet-tab{color:#cbd5e1}
+.excel-wrapper[data-spreadsheet-theme='dark'] .sheet-tab:hover{background:#1f2937}
+.excel-wrapper[data-spreadsheet-theme='dark'] .sheet-tab.active{border-color:rgba(52,211,153,.38);background:rgba(33,163,102,.2);color:#6ee7b7}
+.excel-wrapper[data-spreadsheet-theme='dark'] .summary,.excel-wrapper[data-spreadsheet-theme='dark'] .sheet-loading-summary{color:#94a3b8}
+.excel-wrapper[data-spreadsheet-theme='dark'] .loading{background:rgba(2,6,23,.9)}
+.excel-wrapper[data-spreadsheet-theme='dark'] .loading-card{border-color:rgba(52,211,153,.2);background:rgba(17,24,39,.96);box-shadow:0 24px 58px rgba(0,0,0,.42)}
+.excel-wrapper[data-spreadsheet-theme='dark'] .loading-copy strong{color:#f0fdf4}
+.excel-wrapper[data-spreadsheet-theme='dark'] .loading-copy p{color:#94a3b8}
+.excel-wrapper[data-spreadsheet-theme='dark'] .error{border-color:rgba(251,146,60,.28);background:#2a1710;color:#fdba74;box-shadow:0 20px 48px rgba(0,0,0,.36)}
 @keyframes sheet-loading-spin{to{transform:rotate(360deg)}}
 @keyframes sheet-loading-pulse{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}
 @media (max-width:720px){.excel-wrapper .toolbar{align-items:stretch;flex-direction:column}.excel-wrapper .btn-group{flex:0 0 auto}.excel-wrapper .summary{max-width:none;white-space:normal}.excel-wrapper .sheet-loading{left:12px;right:12px;bottom:58px;justify-content:center}.excel-wrapper .loading-card{margin:18px;flex-direction:column;text-align:center}}
@@ -269,9 +277,7 @@ const getTargetWindow = (target: HTMLDivElement) => {
 };
 
 const getDocumentBaseUrl = (target: HTMLDivElement) => {
-  return target.ownerDocument.baseURI ||
-    target.ownerDocument.URL ||
-    'file:///';
+  return resolveFileViewerRuntimeAssetBaseUrl(target.ownerDocument);
 };
 
 const callListener = (listener: SpreadsheetMessageListener, event: Event) => {
@@ -695,7 +701,7 @@ const writeSpreadsheetClipboard = async (documentRef: Document, text: string) =>
 const renderFileViewerSpreadsheet = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
-  _type?: string,
+  type?: string,
   context?: FileRenderContext
 ): Promise<AppWrapper> => {
   const documentRef = target.ownerDocument;
@@ -703,9 +709,12 @@ const renderFileViewerSpreadsheet = async (
   const EVirtTable = loadedEVirtTable.constructor;
   const t = createFileViewerTranslator(context?.options);
   const zoomEmitter = createZoomChangeEmitter();
+  const systemDark = documentRef.defaultView?.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  const darkMode = resolveFileViewerColorScheme(context?.options?.theme, systemDark) === 'dark';
 
   const root = documentRef.createElement('div');
   root.className = 'excel-wrapper';
+  root.dataset.spreadsheetTheme = darkMode ? 'dark' : 'light';
   root.dataset.viewerZoomProvider = 'xlsx';
 
   const loading = documentRef.createElement('div');
@@ -1091,6 +1100,7 @@ const renderFileViewerSpreadsheet = async (
   const buildTableView = () => ({
     config: createTableConfig({
       hostHeight: getHostHeight(),
+      darkMode,
       resizableColumns,
       resizableRows,
       copySelection: copySpreadsheetSelection,
@@ -1154,6 +1164,7 @@ const renderFileViewerSpreadsheet = async (
       columns: [],
       config: createTableConfig({
         hostHeight: getHostHeight(),
+        darkMode,
         resizableColumns,
         resizableRows,
         copySelection: copySpreadsheetSelection,
@@ -1180,6 +1191,7 @@ const renderFileViewerSpreadsheet = async (
     const view = {
       config: createTableConfig({
         hostHeight: getHostHeight(),
+        darkMode,
         resizableColumns,
         resizableRows,
         copySelection: copySpreadsheetSelection,
@@ -1708,7 +1720,12 @@ const renderFileViewerSpreadsheet = async (
   }
 
   const emitParseWorkbook = () => {
-    emitWorker('parseWorkbook', { workbook: buffer });
+    emitWorker('parseWorkbook', {
+      workbook: buffer,
+      fileType: type,
+      filename: context?.filename,
+      textEncoding: context?.options?.spreadsheet?.textEncoding,
+    });
   };
 
   controller.onWorkerEvent('sheets', ({ sheets: list }: { sheets: SheetDefinition[] }) => {

@@ -1,5 +1,3 @@
-import './assets/main.css'
-
 async function bootstrap() {
   // Keep the component shell out of the initial entry. The HTML boot screen is
   // immediately visible while the standard Vue component loads on demand.

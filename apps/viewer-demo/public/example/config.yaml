@@ -2,8 +2,8 @@ viewer:
   name: Flyfish Viewer
   mode: component
   packages:
-    vue3: "@flyfish-group/file-viewer3@1.0.26"
-    vue2: "@flyfish-group/file-viewer@1.0.26"
+    vue3: "@file-viewer/vue3@2.2.0"
+    vue2: "@file-viewer/vue2.7@2.2.0"
   lazy: true
   defaultInput: url
   toolbar:
@@ -13,7 +13,7 @@ viewer:
   groups:
     documents:
       label: Documents
-      formats: [doc, docx, rtf, odt, pdf, ofd, typ, typst]
+      formats: [doc, docx, rtf, odt, ppt, pptx, pdf, ofd, typ, typst]
       defaultScale: fit-width
     drawings:
       label: Drawings

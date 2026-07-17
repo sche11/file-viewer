@@ -1,6 +1,7 @@
 import {
   createFileViewerTranslator,
   disposeFileViewerRendered,
+  resolveFileViewerColorScheme,
 } from '@file-viewer/core';
 import type {
   FileRenderContext,
@@ -77,9 +78,14 @@ const emailStyle = `
 .email-error{position:absolute;right:18px;bottom:18px;width:min(460px,calc(100% - 36px));padding:14px;border-radius:14px;background:#fff7e8;color:#8a4b00;box-shadow:0 16px 36px rgba(23,32,51,.14);z-index:3}
 .email-error p{margin:6px 0 0}
 @keyframes email-spin{to{transform:rotate(360deg)}}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .email-viewer{background:#172033;color:#e5eef8}[data-viewer-theme='system'] .email-header,[data-viewer-theme='system'] .attachment-item,[data-viewer-theme='system'] .email-html,[data-viewer-theme='system'] .email-text{background:#fff;color:#172033}}
 [data-viewer-theme='dark'] .email-viewer{background:#172033;color:#e5eef8}
-[data-viewer-theme='dark'] .email-header,[data-viewer-theme='dark'] .attachment-item,[data-viewer-theme='dark'] .email-html,[data-viewer-theme='dark'] .email-text{background:#fff;color:#172033}
+[data-viewer-theme='dark'] .email-header,[data-viewer-theme='dark'] .email-sidebar,[data-viewer-theme='dark'] .attachment-item,[data-viewer-theme='dark'] .email-text,[data-viewer-theme='dark'] .attachment-preview-head{border-color:rgba(139,148,158,.2);background:#111827;color:#e5eef8}
+[data-viewer-theme='dark'] .email-meta p,[data-viewer-theme='dark'] .attachment-item em,[data-viewer-theme='dark'] .attachment-title span,[data-viewer-theme='dark'] .attachment-empty{color:#94a3b8}
+[data-viewer-theme='dark'] .email-meta strong,[data-viewer-theme='dark'] .attachment-title,[data-viewer-theme='dark'] .attachment-item strong{color:#f8fafc}
+[data-viewer-theme='dark'] .body-tabs{background:rgba(139,148,158,.12)}[data-viewer-theme='dark'] .body-tabs button{color:#94a3b8}[data-viewer-theme='dark'] .body-tabs button.active{background:#1f2937;color:#f8fafc}
+[data-viewer-theme='dark'] .email-html{background:#111827;color-scheme:dark}
+[data-viewer-theme='dark'] .email-state{background:rgba(13,17,23,.9);color:#cbd5e1}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .email-viewer{background:#172033;color:#e5eef8}[data-viewer-theme='system'] .email-header,[data-viewer-theme='system'] .email-sidebar,[data-viewer-theme='system'] .attachment-item,[data-viewer-theme='system'] .email-text,[data-viewer-theme='system'] .attachment-preview-head{border-color:rgba(139,148,158,.2);background:#111827;color:#e5eef8}[data-viewer-theme='system'] .email-meta p,[data-viewer-theme='system'] .attachment-item em,[data-viewer-theme='system'] .attachment-title span,[data-viewer-theme='system'] .attachment-empty{color:#94a3b8}[data-viewer-theme='system'] .email-meta strong,[data-viewer-theme='system'] .attachment-title,[data-viewer-theme='system'] .attachment-item strong{color:#f8fafc}[data-viewer-theme='system'] .body-tabs{background:rgba(139,148,158,.12)}[data-viewer-theme='system'] .body-tabs button{color:#94a3b8}[data-viewer-theme='system'] .body-tabs button.active{background:#1f2937;color:#f8fafc}[data-viewer-theme='system'] .email-html{background:#111827;color-scheme:dark}[data-viewer-theme='system'] .email-state{background:rgba(13,17,23,.9);color:#cbd5e1}}
 @media (max-width:860px){.email-meta,.email-body{grid-template-columns:1fr}.email-body{grid-template-rows:auto minmax(0,1fr)}.email-sidebar{border-right:0;border-bottom:1px solid rgba(23,32,51,.08)}}
 `;
 
@@ -308,13 +314,16 @@ const getAttachmentExtension = (name: string) => {
   return index >= 0 ? name.slice(index + 1).toLowerCase() : 'txt';
 };
 
-const createHtmlSrcdoc = (html: string, cidUrls: Map<string, string>) => {
+const createHtmlSrcdoc = (html: string, cidUrls: Map<string, string>, darkMode = false) => {
   let next = html;
   cidUrls.forEach((url, cid) => {
     const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     next = next.replace(new RegExp(`cid:${escaped}`, 'gi'), url);
   });
-  return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:18px;font-family:Aptos,"Segoe UI",sans-serif;line-height:1.6;color:#172033;word-break:break-word;}img{max-width:100%;height:auto;}</style></head><body>${next}</body></html>`;
+  const pageStyle = darkMode
+    ? ':root{color-scheme:dark}body{background:#111827;color:#e5e7eb}'
+    : ':root{color-scheme:light}body{background:#fff;color:#172033}';
+  return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>${pageStyle}body{margin:0;padding:18px;font-family:Aptos,"Segoe UI",sans-serif;line-height:1.6;word-break:break-word;}img{max-width:100%;height:auto;}</style></head><body>${next}</body></html>`;
 };
 
 const appendMeta = (meta: HTMLElement, label: string, value: string) => {
@@ -336,6 +345,8 @@ export default async function renderEmail(
   const objectUrls: string[] = [];
   const cidUrls = new Map<string, string>();
   const t = createFileViewerTranslator(context?.options);
+  const systemDark = target.ownerDocument.defaultView?.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  const darkMode = resolveFileViewerColorScheme(context?.options?.theme, systemDark) === 'dark';
   const cleanups: Array<() => void> = [];
   let nestedRendered: FileViewerRenderedInstance | undefined;
   let overlay: HTMLDivElement | null = null;
@@ -437,7 +448,7 @@ export default async function renderEmail(
       if (activeBody === 'html' && parsed.html) {
         const iframe = createElement('iframe', 'email-html') as HTMLIFrameElement;
         iframe.setAttribute('sandbox', '');
-        iframe.srcdoc = createHtmlSrcdoc(parsed.html, cidUrls);
+        iframe.srcdoc = createHtmlSrcdoc(parsed.html, cidUrls, darkMode);
         messageContent.append(iframe);
         return;
       }

@@ -11,7 +11,7 @@ The open-source File Viewer and the commercial edition are not mutually exclusiv
 | Formats | Covers 200+ extensions across PDF/OFD, Office, CAD, Typst, archives, email, diagrams, media, 3D, and data assets through `preset-lite`, `preset-office`, `preset-engineering`, and `preset-all` | Strengthens the Word, Excel, and PowerPoint deep end. It can replace the Word / Spreadsheet / Presentation capability in `preset-office` while PDF, OFD, CAD, Archive, and other formats continue to use open-source renderers |
 | Fidelity | Optimized for readable, searchable, printable previews embedded in business systems. DOCX is currently flow-first, and Excel/PPTX target common preview needs rather than native Office pixel parity | The self-developed native document engine targets pagination, fonts, tables, shapes, headers/footers, comments/revisions, and complex deck layouts for contracts, reports, archives, and formal delivery |
 | Performance | A light core plus lazy renderer loading keeps most attachment centers responsive. Worker/WASM assets load on demand, while extreme large files should be validated with real samples | Large documents, large spreadsheets, and complex decks get Worker parsing, paginated or chunked rendering, virtual scrolling, caching, and memory tuning to keep the main thread smooth |
-| Licensing and support | Apache-2.0 open source and usable in commercial products. Community issues, sponsorship, and priority support can help, but final launch validation remains with the product team | Commercial licensing, private delivery, priority support, sample regression, and custom compatibility work for teams that need clear ownership, delivery timelines, and enterprise support |
+| Licensing and support | File Viewer-authored code is Apache-2.0 and usable in commercial products. The independently versioned binary-`.ppt` engine, `@file-viewer/ppt`, keeps its own license and its public runtime is included in Demo/Full/CDN assets with the visible watermark. Community issues, sponsorship, and priority support can help, but final launch validation remains with the product team | Commercial licensing, private delivery, priority support, sample regression, custom compatibility work, and watermark-free PPT delivery for teams that need clear ownership and timelines |
 
 ## Replacing the Office capability
 
@@ -63,7 +63,7 @@ Many production systems can combine both approaches:
 
 - Use File Viewer for instant browser-side preview by default.
 - Trigger backend PDF conversion for archival, contracts, audit, or strict consistency cases.
-- Self-host Worker, WASM, font, and vendor assets with the rest of the app's static resources.
+- Deploy File Viewer Worker, WASM, font, and vendor assets with the rest of the app's static resources. The Full/CDN payload includes binary `.ppt` under `vendor/ppt/`; use `options.presentation.pptModuleUrl` and matching asset URLs only for a non-standard route.
 - Collect real compatibility feedback through issues and sanitized samples instead of trusting synthetic files only.
 
 ## Validation checklist

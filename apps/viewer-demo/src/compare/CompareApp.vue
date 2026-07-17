@@ -146,6 +146,7 @@ const samplesByLocale: Record<DemoLocale, CompareSample[]> = {
     { label: 'DOC 旧版合同', description: 'Word 97-2003 示例', url: '/example/test.doc' },
     { label: 'DOCX 中文长文档', description: '表格图示与正式页', url: '/example/word.docx' },
     { label: 'PDF 技术说明', description: '真实 PDF 页面', url: '/example/pdf.pdf' },
+    { label: 'PowerPoint 97–2003', description: '25 页传统二进制演示稿', url: '/example/office-demo.ppt' },
     { label: 'NASA 月球战略 PPTX', description: '20 页专业演示稿', url: '/example/ppt.pptx' },
     { label: 'Typst 源文件', description: 'Typst 直读渲染', url: '/example/report.typ' },
     { label: 'Markdown 文档', description: '轻量文本排版', url: '/example/markdown.md' }
@@ -154,6 +155,7 @@ const samplesByLocale: Record<DemoLocale, CompareSample[]> = {
     { label: 'DOCX rich document', description: 'Open English DOCX sample', url: '/example/en/calibre-demo.docx' },
     { label: 'PDF publication', description: 'Real PDF pages with artwork', url: '/example/en/prince-sample.pdf' },
     { label: 'Excel workbook', description: 'Microsoft financial workbook', url: '/example/en/financial-sample.xlsx' },
+    { label: 'PowerPoint 97–2003', description: '25-slide binary presentation', url: '/example/office-demo.ppt' },
     { label: 'NASA lunar strategy PPTX', description: 'Professional public NASA deck', url: '/example/en/sample-presentation.pptx' },
     { label: 'Typst source', description: 'Local Typst rendering sample', url: '/example/report.typ' },
     { label: 'Markdown document', description: 'Lightweight rich text layout', url: '/example/en/markdown.md' }
@@ -225,7 +227,7 @@ const viewerOptions = computed<FileViewerOptions>(() => ({
 const uploadAccept = [
   '.doc', '.docx', '.docm', '.dot', '.dotx', '.dotm',
   '.pdf', '.ofd', '.typ', '.typst', '.ppt', '.pptx', '.pptm', '.potx', '.potm', '.ppsx', '.ppsm',
-  '.xls', '.xlsx', '.xlsm', '.xlsb', '.xlt', '.xltx', '.xltm', '.csv', '.ods', '.md', '.markdown', '.txt', '.html',
+  '.xls', '.xlsx', '.xlsm', '.xlsb', '.xlt', '.xltx', '.xltm', '.csv', '.tsv', '.ods', '.md', '.markdown', '.txt', '.html',
   '.htm', '.eml', '.msg', '.epub', '.umd', '.png', '.jpg', '.jpeg'
 ].join(',')
 

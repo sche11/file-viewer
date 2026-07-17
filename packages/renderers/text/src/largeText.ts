@@ -242,6 +242,14 @@ export const shouldVirtualizeTextBuffer = (buffer: ArrayBuffer, context?: FileRe
   return buffer.byteLength > threshold
 }
 
+export const shouldVirtualizeMarkdownBuffer = (buffer: ArrayBuffer, context?: FileRenderContext) => {
+  const configured = context?.options?.text?.markdownVirtualizeAboveBytes
+  if (!Number.isFinite(configured)) {
+    return false
+  }
+  return buffer.byteLength > Math.max(0, Number(configured))
+}
+
 const largeTextStyle = `
 .code-viewer--virtual{height:100%;min-height:240px;display:flex;flex-direction:column;overflow:hidden}
 .code-viewer--virtual .code-toolbar{flex:0 0 42px}
@@ -255,7 +263,7 @@ const largeTextStyle = `
 .code-virtual-number{position:sticky;left:0;z-index:1;display:inline-block;width:var(--code-line-number-width,7ch);flex:0 0 var(--code-line-number-width,7ch);padding:0 1.25ch 0 .75ch;border-right:1px solid var(--code-border);background:var(--code-bg);color:var(--code-muted);text-align:right;user-select:none;box-sizing:border-box}
 .code-virtual-content{display:inline-block;padding:0 18px;white-space:pre}
 .code-virtual-content mark{border-radius:2px;background:#ffd54f;color:#1f2328}
-.code-line-segments{position:sticky;left:var(--code-line-number-width,7ch);z-index:1;display:inline-flex;height:100%;align-items:center;gap:2px;padding:0 4px;border-right:1px solid var(--code-border);background:var(--code-toolbar-bg)}
+.code-line-segments{position:sticky;left:var(--code-line-number-offset,var(--code-line-number-width,7ch));z-index:1;display:inline-flex;height:100%;align-items:center;gap:2px;padding:0 4px;border-right:1px solid var(--code-border);background:var(--code-toolbar-bg)}
 .code-line-segments button{width:22px;height:18px;padding:0;border:1px solid var(--code-border);border-radius:4px;background:var(--code-bg);color:var(--code-muted);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;cursor:pointer}
 .code-line-segments button:disabled{cursor:not-allowed;opacity:.4}
 .code-line-segments span{min-width:64px;color:var(--code-muted);font-size:11px;line-height:1;text-align:center}
@@ -278,6 +286,10 @@ export default async function renderLargeText(
   const overscan = Number.isFinite(configuredOverscan)
     ? clamp(Math.trunc(Number(configuredOverscan)), 2, 100)
     : DEFAULT_LARGE_TEXT_OVERSCAN_LINES
+  const showToolbar = context?.options?.text?.toolbar !== false
+  // Undefined preserves the large-text renderer's pre-option behavior. An
+  // explicit boolean has the same meaning in both regular and virtual views.
+  const showLineNumbers = context?.options?.text?.lineNumbers !== false
   let disposed = false
   let zoom = 1
   let scheduledFrame = 0
@@ -290,9 +302,13 @@ export default async function renderLargeText(
   const style = documentRef.createElement('style')
   style.textContent = `${codeStyle}\n${largeTextStyle}`
   const root = documentRef.createElement('div')
-  root.className = 'code-viewer code-viewer--virtual'
+  root.className = showLineNumbers
+    ? 'code-viewer code-viewer--virtual code-viewer--line-numbers'
+    : 'code-viewer code-viewer--virtual'
   root.dataset.viewerZoomProvider = 'code'
   root.dataset.viewerSearchProvider = 'code-virtual'
+  root.dataset.textToolbar = String(showToolbar)
+  root.dataset.lineNumbers = String(showLineNumbers)
   const toolbar = documentRef.createElement('div')
   toolbar.className = 'code-toolbar'
   const extensionLabel = documentRef.createElement('span')
@@ -304,7 +320,9 @@ export default async function renderLargeText(
   status.textContent = t('text.code.indexingLargeFile', { progress: 0 })
   toolbarMeta.append(status, lineSummary)
   toolbar.append(extensionLabel, toolbarMeta)
-  root.append(toolbar)
+  if (showToolbar) {
+    root.append(toolbar)
+  }
   target.replaceChildren(style, root)
   context?.onProgressiveRender?.()
 
@@ -321,6 +339,7 @@ export default async function renderLargeText(
   root.dataset.totalLines = String(index.lineCount)
   lineSummary.textContent = `${formatLargeNumber(index.lineCount)} lines`
   root.style.setProperty('--code-line-number-width', `${Math.max(6, String(index.lineCount).length + 2)}ch`)
+  root.style.setProperty('--code-line-number-offset', showLineNumbers ? 'var(--code-line-number-width)' : '0px')
 
   const viewport = documentRef.createElement('div')
   viewport.className = 'code-virtual-scroll'
@@ -417,10 +436,13 @@ export default async function renderLargeText(
       if (line.lineIndex === activeLine) {
         row.classList.add('code-virtual-line--match')
       }
-      const number = documentRef.createElement('span')
-      number.className = 'code-virtual-number'
-      number.textContent = String(line.lineIndex + 1)
-      row.append(number)
+      if (showLineNumbers) {
+        const number = documentRef.createElement('span')
+        number.className = 'code-virtual-number'
+        number.setAttribute('aria-hidden', 'true')
+        number.textContent = String(line.lineIndex + 1)
+        row.append(number)
+      }
 
       const currentSegment = lineSegments.get(line.lineIndex) ?? 0
       const decoded = decodeLargeTextSegment(index, line, currentSegment, segmentBytes)

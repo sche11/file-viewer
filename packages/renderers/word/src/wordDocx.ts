@@ -2,6 +2,7 @@ import type { DocxProgressEvent, Options, renderAsync } from '@file-viewer/docx'
 import {
   resolveFileViewerDocxWorkerJsZipUrl,
   resolveFileViewerDocxWorkerUrl,
+  resolveFileViewerRuntimeAssetBaseUrl,
 } from '@file-viewer/core/assets'
 
 import {
@@ -45,6 +46,8 @@ type DocxLibraryImport = DocxLibrary & {
   default?: DocxLibrary
 }
 
+type DocxRenderAsync = typeof renderAsync
+
 // Modern bundlers expose the ESM named exports, while some legacy webpack
 // configurations wrap the CommonJS browser API in `default`.
 const resolveDocxLibrary = (module: DocxLibraryImport): DocxLibrary => {
@@ -69,6 +72,45 @@ const loadLibrary = (() => {
     return resolveDocxLibrary(await loader.load())
   }
 })()
+
+export const isMissingDocxHeaderFooterRootError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  return /(?:undefined|null).*children|children.*(?:undefined|null)/i.test(error.message) &&
+    /renderHeaderFooter/i.test(error.stack || '')
+}
+
+/**
+ * Some malformed or partially generated DOCX files reference a header/footer
+ * part whose parsed root is missing. @file-viewer/docx 0.3.21 skips that part;
+ * this retry keeps older installed engines usable while the dependency update
+ * rolls through lockfiles and private registries.
+ */
+export const renderDocxWithHeaderFooterFallback = async (
+  render: DocxRenderAsync,
+  buffer: ArrayBuffer,
+  target: HTMLDivElement,
+  options: Options
+) => {
+  try {
+    await render(buffer, target, undefined, options)
+    return false
+  } catch (error) {
+    if (!isMissingDocxHeaderFooterRootError(error)) {
+      throw error
+    }
+
+    target.innerHTML = ''
+    await render(buffer, target, undefined, {
+      ...options,
+      renderHeaders: false,
+      renderFooters: false
+    })
+    return true
+  }
+}
 
 /**
  * DOCX / DOCM / DOTX / DOTM are OOXML packages, so a valid file must start
@@ -117,12 +159,16 @@ const shouldUseDocxWorker = (
     return true
   }
 
+  // Auto mode is asset-aware. A browser can expose Worker even when a host has
+  // not copied the optional DOCX vendor files; probing that missing URL often
+  // returns an SPA HTML fallback and emits a SyntaxError before main-thread
+  // rendering recovers. Full packages inject workerUrl, so they still use it.
   const WorkerCtor = getTargetWindow(target)?.Worker ?? globalThis.Worker
-  if (!WorkerCtor) {
-    return false
-  }
-
-  return !DOCX_WORKER_UNSAFE_PROTOCOLS.has(getTargetProtocol(target))
+  return Boolean(
+    WorkerCtor &&
+    docxOptions?.workerUrl &&
+    !DOCX_WORKER_UNSAFE_PROTOCOLS.has(getTargetProtocol(target))
+  )
 }
 
 const prefersDarkColorScheme = (target: HTMLDivElement) => {
@@ -164,7 +210,7 @@ const createDocxOptions = (
   notifyProgressiveRender: () => void
 ): Partial<Options> => {
   const docxOptions = context?.options?.docx
-  const documentBaseUrl = target.ownerDocument.URL || undefined
+  const documentBaseUrl = resolveFileViewerRuntimeAssetBaseUrl(target.ownerDocument)
   const useWorker = shouldUseDocxWorker(target, docxOptions)
   const usePagedLayout = docxOptions?.visualPagination === true
   const darkMode = resolveDocxDarkMode(target, context, docxOptions)
@@ -238,11 +284,11 @@ const DOCX_RESPONSIVE_CSS = `
   box-sizing: border-box;
   height: 100%;
   overflow: auto;
-  background: #ececec;
+  background: var(--file-viewer-render-surface-background, #ececec);
   color-scheme: light;
 }
 .docx-fit-viewer[data-docx-dark-mode='true'] {
-  background: #242424;
+  background: var(--file-viewer-render-surface-background, #242424);
   color-scheme: dark;
 }
 .docx-fit-viewer .docx-wrapper {
@@ -250,10 +296,10 @@ const DOCX_RESPONSIVE_CSS = `
   min-width: 0 !important;
   width: 100% !important;
   padding: 24px 14px 40px !important;
-  background: #e7e9ec !important;
+  background: var(--file-viewer-render-surface-background, #e7e9ec) !important;
 }
 .docx-fit-viewer[data-docx-dark-mode='true'] .docx-wrapper {
-  background: #242424 !important;
+  background: var(--file-viewer-render-surface-background, #242424) !important;
 }
 .docx-fit-viewer .docx-page-frame {
   position: relative;
@@ -624,10 +670,11 @@ export default async function(buffer: ArrayBuffer, target: HTMLDivElement, conte
 
   target.dataset.docxWorker = docxOptions.useWorker ? 'self' : 'false'
   target.dataset.docxDarkMode = docxOptions.darkMode ? 'true' : 'false'
-  await renderAsync(buffer, target, undefined, {
+  const usedHeaderFooterFallback = await renderDocxWithHeaderFooterFallback(renderAsync, buffer, target, {
     ...defaultOptions,
     ...docxOptions
   })
+  target.dataset.docxHeaderFooterFallback = usedHeaderFooterFallback ? 'true' : 'false'
   notifyProgressiveRender()
 
   const disposeResponsive = makeDocxResponsive(target, context)
@@ -657,6 +704,7 @@ export default async function(buffer: ArrayBuffer, target: HTMLDivElement, conte
       disposeResponsive()
       delete target.dataset.docxWorker
       delete target.dataset.docxDarkMode
+      delete target.dataset.docxHeaderFooterFallback
       target.innerHTML = ''
     }
   }

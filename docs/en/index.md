@@ -29,8 +29,8 @@ Flyfish Viewer is browser-side file preview infrastructure for business applicat
 <a class="doc-action" href="/en/guide/quickstart">Open quickstart</a>
 </div>
 <div class="doc-start-stats" aria-label="Flyfish Viewer capability metrics">
-<div><strong>206</strong><span>extension mappings</span></div>
-<div><strong>24</strong><span>preview pipelines</span></div>
+<div><strong>208</strong><span>extension mappings</span></div>
+<div><strong>25</strong><span>preview pipelines</span></div>
 <div><strong>Offline</strong><span>self-hosted Worker / WASM / fonts</span></div>
 <div><strong>Modular</strong><span>preset and renderer composition</span></div>
 </div>
@@ -72,7 +72,7 @@ Flyfish Viewer is browser-side file preview infrastructure for business applicat
 <p>From format detection, rendering orchestration, asset loading, and user interaction to deployment, Flyfish Viewer splits complex preview behavior into controlled, testable, and upgradeable capability modules.</p>
 </div>
 <div class="doc-feature-grid">
-<article class="doc-card"><strong>Format fidelity</strong><h3>Real business attachments</h3><p>PDF, Word, Excel, PPTX, OFD, Typst, CAD, DWF, PSD, Mermaid, PlantUML, and nested archive preview are maintained as focused modules.</p></article>
+<article class="doc-card"><strong>Format fidelity</strong><h3>Real business attachments</h3><p>PDF, Word, Excel, PPT/PPTX, OFD, Typst, CAD, DWF, PSD, Mermaid, PlantUML, and nested archive preview are maintained as focused modules.</p></article>
 <article class="doc-card"><strong>Performance by design</strong><h3>Heavy dependencies load on demand</h3><p>Renderers, workers, WASM, fonts, and vendor assets are layered so the full IIFE entry does not push every capability into the first script.</p></article>
 <article class="doc-card"><strong>Consistent interaction</strong><h3>Viewer-level operations stay unified</h3><p>Search, zoom, print, export, download, watermark, toolbar permissions, and lifecycle hooks stay consistent across preview pipelines.</p></article>
 <article class="doc-card"><strong>Style isolation</strong><h3>Host CSS should not break preview surfaces</h3><p>Web Component / IIFE entries default to Shadow DOM. Framework packages can opt in with <code>styleIsolation</code>, then customize through tokens and <code>::part()</code>.</p></article>
@@ -172,7 +172,7 @@ npx --no-install file-viewer-copy-assets ./public/file-viewer</code></pre>
 <p>Heavy parsers, workers, WASM files, and offline vendor assets load only when the active file type needs them.</p>
 </div>
 <div class="doc-format-grid">
-<div><strong>Office</strong><span>DOCX / XLSX / PPTX / PDF / OFD / Typst</span></div>
+<div><strong>Office</strong><span>DOCX / XLSX / PPT / PPTX / PDF / OFD / Typst</span></div>
 <div><strong>Engineering</strong><span>DWG / DXF / DWF / 3D / GIS / EDA / OLB / DRA</span></div>
 <div><strong>Knowledge</strong><span>Markdown / Code / Git patch / Git bundle / Mermaid / PlantUML</span></div>
 <div><strong>Assets</strong><span>PSD / Images / HEIC / Audio / Video / Fonts / SQLite / Parquet</span></div>

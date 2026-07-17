@@ -1,6 +1,6 @@
 # @file-viewer/renderer-3d
 
-Standalone 3D model renderer package for Flyfish File Viewer. It uses Three.js, OrbitControls, and format-specific Three.js loaders to preview GLB/GLTF, OBJ, STL, PLY, FBX, DAE, 3DS, 3MF, AMF, USD, KMZ, PCD, VRML, XYZ, VTK, and related model files directly in the browser.
+Standalone 3D model renderer for Flyfish File Viewer. It uses Three.js, OrbitControls, and lazy format-specific loaders for GLB / GLTF, OBJ, STL, PLY, FBX, DAE, 3DS, 3MF, AMF, USD, KMZ, PCD, VRML, XYZ, VTK, and related files. STEP / STP, IGES / IGS, and BREP use a local OCCT worker for real geometry decoding and rendering.
 
 ## Usage
 
@@ -11,24 +11,29 @@ import { modelRenderer } from '@file-viewer/renderer-3d'
 const options = {
   rendererMode: 'replace',
   renderers: modelRenderer,
+  model: {
+    workerUrl: '/viewer-assets/wasm/model/occt-worker.js',
+    runtimeUrl: '/viewer-assets/wasm/model/occt-import-js.js',
+    wasmUrl: '/viewer-assets/wasm/model/occt-import-js.wasm',
+    workerTimeoutMs: 120_000,
+  },
 }
 ```
 
-You can combine it with other renderer packages:
+`modelRenderer` can be combined with CAD and other renderer packages, or consumed through `@file-viewer/preset-all`. Full packages and `@file-viewer/vite-plugin` prepare the default offline assets. A renderer-only integration must self-host the OCCT worker, runtime, WASM, and both license notices.
 
-```ts
-import { modelRenderer } from '@file-viewer/renderer-3d'
-import { cadRenderer } from '@file-viewer/renderer-cad'
+Default paths:
 
-const options = {
-  rendererMode: 'replace',
-  renderers: [modelRenderer, cadRenderer],
-}
-```
+- `wasm/model/occt-worker.js`
+- `wasm/model/occt-import-js.js`
+- `wasm/model/occt-import-js.wasm`
 
-## Capabilities
+For subpath deployments or a dedicated asset origin, provide final URLs through `options.model.workerUrl`, `runtimeUrl`, and `wasmUrl`. There is no runtime CDN fallback. A strict CSP must allow that origin in `worker-src`, `script-src`, and `connect-src`; some browsers also require `script-src 'wasm-unsafe-eval'`.
 
-- Supports WebGL preview, orbit controls, fit-to-view, grid, axes, wireframe, and auto-rotate.
-- For `gltf`, `dae`, and `fbx` files with external textures or binary resources, the original URL directory is used as the resource base.
-- STEP, IGES, IFC, 3DM, and BREP entries use `@file-viewer/geometry-engine` for lightweight signature detection and accurate conversion guidance; full decoding should keep evolving through dedicated OpenCascade / web-ifc / rhino3dm WASM renderer paths.
-- `@file-viewer/core` no longer bundles the 3D renderer and no longer depends directly on `three`. Install this package explicitly for 3D model preview, or use `@file-viewer/preset-all`, which aggregates this renderer automatically.
+## Boundaries
+
+- STEP / STP, IGES / IGS, and BREP are tessellated by `occt-import-js` / OpenCascade in a worker. Assembly hierarchy, instances, normals, and face colors are preserved when the Three.js scene is built.
+- General models support WebGL orbit controls, fit-to-view, grid, axes, wireframe, and auto-rotate. External textures or binary resources referenced by `gltf`, `dae`, and `fbx` continue to resolve against the original file URL directory.
+- Unified global zoom: the renderer registers the standard zoom provider, so the outer toolbar's zoom in, zoom out, reset, and fit actions control the camera. Wheel, trackpad, and pinch zoom also update the shared zoom state.
+- IFC and 3DM currently provide signature detection and explicit integration guidance only. They still need dedicated `web-ifc` / That Open and `rhino3dm` renderers and are not reported as successful previews.
+- `@file-viewer/core` does not bundle Three.js or a geometry kernel. Install this renderer, the matching preset, or a full package when model preview is required.

@@ -27,6 +27,10 @@ export function createViewerOptions(theme) {
       workerJsZipUrl: `${fileViewerAssetBaseUrl}vendor/docx/jszip.min.js`
     },
     presentation: {
+      pptModuleUrl: `${fileViewerAssetBaseUrl}vendor/ppt/index.mjs`,
+      pptWorkerUrl: `${fileViewerAssetBaseUrl}vendor/ppt/worker.mjs`,
+      pptWasmUrl: `${fileViewerAssetBaseUrl}vendor/ppt/ppt-native.wasm`,
+      pptFontUrl: `${fileViewerAssetBaseUrl}vendor/ppt/ppt-font-cjk.otf`,
       workerUrl: `${fileViewerAssetBaseUrl}vendor/pptx/pptx.worker.js`
     },
     spreadsheet: {

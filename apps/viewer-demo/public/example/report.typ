@@ -56,7 +56,7 @@ The renderer keeps mathematical layout and text positioning in SVG:
 $ integral_0^1 x^2 dif x = 1/3 quad and quad E = m c^2 $
 
 ```ts
-import FileViewer from '@flyfish-group/file-viewer3'
+import FileViewer from '@file-viewer/vue3'
 
 const options = {
   toolbar: { print: true, exportHtml: true },

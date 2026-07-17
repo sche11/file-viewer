@@ -1,17 +1,25 @@
 <script setup lang='ts'>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   Check,
   ChevronDown,
   ChevronUp,
   Code2,
   Copy,
+  Download,
   FileSearch,
+  FolderOpen,
+  History,
   Link2,
   MoreHorizontal,
   Moon,
+  Printer,
   RotateCcw,
+  Scan,
   Search,
+  Settings2,
+  Sparkles,
+  Stamp,
   Sun,
   Upload,
   X,
@@ -19,13 +27,28 @@ import {
   ZoomOut
 } from '@lucide/vue'
 import {
-  DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH,
-  DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH,
   resolveFileViewerColorScheme,
   toggleFileViewerColorScheme
 } from '@file-viewer/core'
 import { allRenderers } from '@file-viewer/preset-all'
 import { createDemoFileHandoff } from '@/components/utils'
+import DemoFileTypeIcon from '@/components/demo/DemoFileTypeIcon.vue'
+import DemoRecentFiles from '@/components/demo/DemoRecentFiles.vue'
+import DemoViewerSettingsPanel from '@/components/demo/DemoViewerSettingsPanel.vue'
+import { useDemoCopy } from '@/composables/useDemoCopy'
+import { useDemoFileCapsuleMotion } from '@/composables/useDemoFileCapsuleMotion'
+import { useDemoFileTypes } from '@/composables/useDemoFileTypes'
+import { useDemoFloatingPanels } from '@/composables/useDemoFloatingPanels'
+import { useDemoRecentFiles } from '@/composables/useDemoRecentFiles'
+import {
+  createDemoModelOptions,
+  resolveDemoFormatSettingsSection,
+  useDemoViewerSettings
+} from '@/composables/useDemoViewerSettings'
+import type { DemoFormatSettingsSection } from '@/composables/useDemoViewerSettings'
+import type { DemoLocale } from '@/composables/useDemoCopy'
+import type { DemoSourcePanelAnchor } from '@/composables/useDemoFloatingPanels'
+import type { DemoRecentFile } from '@/composables/useDemoRecentFiles'
 import type {
   FileViewerFileRef as FileRef,
   FileViewerFitMode,
@@ -35,17 +58,35 @@ import type {
   FileViewerSearchState,
   FileViewerThemeMode,
   FileViewerUiDensity,
+  FileViewerViewState,
+  FileViewerViewStateChange,
   FileViewerZoomState
 } from '@file-viewer/core'
 import brandLogo from '@/assets/logo.png'
+import githubMark from '@/assets/github-mark.svg'
 
 const demoFileHandoff = createDemoFileHandoff()
+const { extensionOf, fileNameOf, safeDecodeURIComponent, getFileIconMeta } = useDemoFileTypes()
+const {
+  recentFiles,
+  hasRecentFiles,
+  rememberUrl,
+  rememberSample,
+  rememberLocalFile,
+  dismissRecentFile
+} = useDemoRecentFiles()
 
-const hidden = ref(demoFileHandoff.isEmbedRequest)
-const input = ref(true)
+// An explicit URL is an integration entry, not a navigation action inside the
+// product demo. Keep that contract synchronous so the full demo chrome never
+// flashes before the standalone viewer mounts.
+const immersiveMode = ref(demoFileHandoff.isImmersiveRequest)
 const filename = ref('')
 const file = ref<FileRef | undefined>()
-type DemoLocale = 'zh-CN' | 'en-US'
+const isMobileDemoViewport = () => window.matchMedia?.('(max-width: 720px)').matches ?? false
+const recentPanelOpen = ref(!isMobileDemoViewport())
+const wasMobileViewport = ref(isMobileDemoViewport())
+const recentLocalReselectName = ref('')
+const recentLocalFiles = new Map<string, File>()
 
 const DEMO_LOCALE_STORAGE_KEY = 'file-viewer-demo-locale'
 const DEMO_THEME_STORAGE_KEY = 'file-viewer-demo-theme'
@@ -54,15 +95,22 @@ const DEFAULT_DEMO_URL_BY_LOCALE: Record<DemoLocale, string> = {
   'en-US': '/example/en/calibre-demo.docx'
 }
 const githubRepositoryUrl = 'https://github.com/flyfish-dev/file-viewer'
-const githubRepositoryApiUrl = 'https://api.github.com/repos/flyfish-dev/file-viewer'
-const githubStarCountFallback = 942
-const githubStarCacheKey = 'file-viewer-demo-github-stars'
-const githubStarCacheRefreshMs = 30 * 60 * 1000
-const githubStarCacheMaxAgeMs = 7 * 24 * 60 * 60 * 1000
 
-type GithubStarCache = {
-  count: number
-  updatedAt: number
+const readDemoStorage = (key: string): string | null => {
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+const writeDemoStorage = (key: string, value: string) => {
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    // Restricted/private browser contexts may disable storage. The live UI
+    // remains authoritative for the current session.
+  }
 }
 
 const normalizeDemoLocale = (value?: string | null): DemoLocale => {
@@ -83,7 +131,7 @@ const resolveInitialDemoLocale = (): DemoLocale => {
   if (explicitLocale) {
     return normalizeDemoLocale(explicitLocale)
   }
-  const storedLocale = window.localStorage.getItem(DEMO_LOCALE_STORAGE_KEY)
+  const storedLocale = readDemoStorage(DEMO_LOCALE_STORAGE_KEY)
   if (storedLocale) {
     return normalizeDemoLocale(storedLocale)
   }
@@ -101,37 +149,56 @@ const resolveInitialDemoTheme = (): FileViewerThemeMode => {
   if (explicitTheme) {
     return normalizeDemoTheme(explicitTheme)
   }
-  return normalizeDemoTheme(window.localStorage.getItem(DEMO_THEME_STORAGE_KEY))
+  return normalizeDemoTheme(readDemoStorage(DEMO_THEME_STORAGE_KEY))
 }
 
 const demoLocale = ref<DemoLocale>(resolveInitialDemoLocale())
+const { copy: demoCopy, getCopy: getDemoCopy } = useDemoCopy(demoLocale)
 const demoDensity = ref<FileViewerUiDensity>(resolveInitialDemoDensity())
 const demoTheme = ref<FileViewerThemeMode>(resolveInitialDemoTheme())
 const systemPrefersDark = ref(window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 const url = ref(demoFileHandoff.isEmbedRequest && !demoFileHandoff.initialUrl ? '' : DEFAULT_DEMO_URL_BY_LOCALE[demoLocale.value])
-const githubStarCount = ref(readGithubStarCache()?.count ?? githubStarCountFallback)
 const preview = ref('')
-const scenarioPickerOpen = ref(false)
 const samplePickerOpen = ref(false)
 const expandedSampleGroupIndex = ref<number | null>(0)
-const scenarioPickerRef = ref<HTMLElement | null>(null)
 const samplePickerRef = ref<HTMLElement | null>(null)
 const controlPanelRef = ref<HTMLElement | null>(null)
-const sampleMenuPlacement = ref<'bottom' | 'top'>('bottom')
-const sampleMenuMaxHeight = ref('min(52vh, 520px)')
+const settingsButtonRef = ref<HTMLButtonElement | null>(null)
+const mobileMoreButtonRef = ref<HTMLButtonElement | null>(null)
+const mobileActionsPanelRef = ref<HTMLElement | null>(null)
+const morePanelRef = ref<HTMLElement | null>(null)
+const fileIdentityButtonRef = ref<HTMLButtonElement | null>(null)
+const topCapsuleNavigationRef = ref<HTMLElement | null>(null)
+const linkTriggerButtonRef = ref<HTMLButtonElement | null>(null)
+const uploadTriggerButtonRef = ref<HTMLButtonElement | null>(null)
+const sampleRailButtonRef = ref<HTMLButtonElement | null>(null)
 const watermarkEnabled = ref(false)
-const printMenuOpen = ref(false)
+const desktopActionsOpen = ref(false)
 const fitMode = ref<FileViewerFitMode | 'default'>('default')
 const runtimeOptions = shallowRef<FileViewerOptions>({})
 const mobileControlsOpen = ref(false)
 const mobileActionsOpen = ref(false)
+const {
+  sourcePanelOpen: desktopSourcePanelOpen,
+  sourcePanelMode: desktopSourceMode,
+  sourcePanelAnchor,
+  sourcePanelStyle,
+  openSourcePanel,
+  closeSourcePanel,
+  toggleSourcePanel,
+  updatePosition: updateDesktopSourcePanelPosition
+} = useDemoFloatingPanels({
+  linkTrigger: linkTriggerButtonRef,
+  uploadTrigger: uploadTriggerButtonRef,
+  samplesTrigger: sampleRailButtonRef,
+  fileTrigger: fileIdentityButtonRef
+})
 const viewerSearchOpen = ref(false)
 const viewerSearchQuery = ref('')
 const viewerSearchInputRef = ref<HTMLInputElement | null>(null)
 const snippetCopied = ref(false)
 const snippetDialogOpen = ref(false)
-const snippetLaunchRef = ref<HTMLButtonElement | null>(null)
 const snippetCloseRef = ref<HTMLButtonElement | null>(null)
 const snippetDialogRef = ref<HTMLElement | null>(null)
 const viewerSearchState = ref<FileViewerSearchState>({
@@ -145,7 +212,118 @@ const viewerSearchState = ref<FileViewerSearchState>({
 type ViewerAction = 'download' | 'print' | 'exportHtml' | 'zoomIn' | 'zoomOut' | 'resetZoom'
 
 const fileViewerRef = ref<FileViewerExpose | null>(null)
-const viewerAvailability = ref<FileViewerOperationAvailability>({
+const {
+  settingsPanelOpen,
+  settingsActiveTab,
+  settingsFormatSection,
+  appliedViewerSettings,
+  settingsDraft,
+  viewerRevision,
+  settingsNoticeVisible,
+  settingsApplying,
+  settingsApplyError,
+  openSettingsPanel: openViewerSettingsPanel,
+  closeSettingsPanel: closeViewerSettingsPanel,
+  resetSettingsDraft,
+  clearPendingViewState,
+  applySettings: applyViewerSettings,
+  handleViewerLoadComplete
+} = useDemoViewerSettings({
+  initialTheme: demoTheme,
+  initialDensity: demoDensity,
+  fileViewerRef,
+  hasActivePreview: () => Boolean(file.value || preview.value),
+  applyTheme: nextTheme => {
+    demoTheme.value = nextTheme
+    writeDemoStorage(DEMO_THEME_STORAGE_KEY, nextTheme)
+    syncDemoDocumentChrome()
+  },
+  applyDensity: nextDensity => {
+    demoDensity.value = nextDensity
+  },
+  applyFit: async (nextFit, context) => {
+    fitMode.value = nextFit.fitMode
+    if (
+      context.needsRendererRefresh && context.hasActivePreview ||
+      nextFit.fitMode === 'default'
+    ) {
+      return
+    }
+    await nextTick()
+    await fileViewerRef.value?.fitToView({
+      mode: nextFit.fitMode,
+      resize: nextFit.fitResize,
+      padding: nextFit.fitPadding,
+      minScale: nextFit.fitMinScale,
+      maxScale: nextFit.fitMaxScale
+    })
+  },
+  applyWatermark: nextWatermark => {
+    watermarkEnabled.value = nextWatermark.watermarkEnabled
+  },
+  beforeApply: async ({ next }) => {
+    if (!next.searchEnabled && viewerSearchOpen.value) {
+      await closeViewerSearch()
+    }
+  }
+})
+const desktopFileCapsuleMotionQuery = window.matchMedia?.(
+  '(min-width: 721px) and (hover: hover) and (pointer: fine)'
+)
+const reducedFileCapsuleMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+const resolveFileCapsuleMergeTarget = () => {
+  const trigger = uploadTriggerButtonRef.value
+  if (!trigger) return null
+  const bounds = trigger.getBoundingClientRect()
+  const configuredWidth = Number.parseFloat(
+    window.getComputedStyle(trigger).getPropertyValue('--demo-file-capsule-merged-width')
+  )
+  const width = Number.isFinite(configuredWidth) && configuredWidth > 0
+    ? configuredWidth
+    : bounds.width
+  // The navigation stays centered while its first slot grows. Compensating by
+  // half the width delta gives the file capsule its exact resting rect before
+  // the fusion transition starts, avoiding a final lateral jump.
+  const left = bounds.left - (width - bounds.width) / 2
+  return {
+    top: bounds.top,
+    right: left + width,
+    bottom: bounds.bottom,
+    left,
+    width,
+    height: bounds.height
+  }
+}
+const {
+  state: fileCapsuleState,
+  motionStyle: fileCapsuleMotionStyle,
+  stableMerged: fileCapsuleMerged,
+  actionLocked: fileCapsuleActionLocked,
+  reset: resetFileCapsuleMotion,
+  handlePointerEnter: handleFileCapsulePointerEnter,
+  handlePointerLeave: handleFileCapsulePointerLeave,
+  handleFocusIn: handleFileCapsuleFocusIn,
+  handleFocusOut: handleFileCapsuleFocusOut
+} = useDemoFileCapsuleMotion({
+  enabled: () => Boolean(
+    desktopFileCapsuleMotionQuery?.matches &&
+    !reducedFileCapsuleMotionQuery?.matches &&
+    !immersiveMode.value
+  ),
+  canMerge: () => !(
+    desktopSourcePanelOpen.value ||
+    settingsPanelOpen.value ||
+    desktopActionsOpen.value ||
+    viewerSearchOpen.value ||
+    mobileControlsOpen.value ||
+    mobileActionsOpen.value ||
+    snippetDialogOpen.value
+  ),
+  resolveFileBounds: () => fileIdentityButtonRef.value?.getBoundingClientRect() || null,
+  resolveTriggerBounds: () => topCapsuleNavigationRef.value?.getBoundingClientRect() || null,
+  resolveMergeTarget: resolveFileCapsuleMergeTarget
+})
+const createEmptyViewerAvailability = (): FileViewerOperationAvailability => ({
   download: false,
   print: false,
   exportHtml: false,
@@ -154,13 +332,19 @@ const viewerAvailability = ref<FileViewerOperationAvailability>({
   zoomOut: false,
   zoomReset: false
 })
-const viewerZoomState = ref<FileViewerZoomState>({
+
+const createEmptyViewerZoomState = (): FileViewerZoomState => ({
   scale: 1,
   label: '100%',
   canZoomIn: false,
   canZoomOut: false,
   canReset: false
 })
+
+const viewerAvailability = ref<FileViewerOperationAvailability>(createEmptyViewerAvailability())
+const viewerZoomState = ref<FileViewerZoomState>(createEmptyViewerZoomState())
+const viewerViewState = ref<FileViewerViewState>({})
+let viewerProviderEpoch = 0
 
 type PresetFile = {
   name: string
@@ -174,248 +358,41 @@ type SampleGroup = {
   items: PresetFile[]
 }
 
-type ScenarioPick = {
-  title: string
-  description: string
-  url: string
-  family: string
-}
-
-const demoCopyMap: Record<DemoLocale, Record<string, string>> = {
-  'zh-CN': {
-    pageTitle: 'Flyfish File Viewer 在线预览器 Vue3',
-    pureWeb: 'Pure Web',
-    local: '本地',
-    link: '链接',
-    upload: '上传',
-    samples: '样例',
-    search: '搜索',
-    more: '更多',
-    quickSamples: '快速试用',
-    quickSamplesHint: '常用格式一键打开',
-    sampleFile: '示例文件',
-    collapse: '收起',
-    open: '打开',
-    address: '地址',
-    addressPlaceholder: '输入文件地址',
-    preview: '预览',
-    closePanel: '关闭操作面板',
-    chooseFile: '点击选择文件',
-    openLocal: '从本机打开',
-    unselected: '未选择文件',
-    previewActions: '预览操作',
-    zoomOut: '缩小预览',
-    zoomIn: '放大预览',
-    resetZoom: '还原比例',
-    fitMode: '适配',
-    fitDefault: '默认',
-    fitAuto: '自动',
-    fitContain: '完整',
-    fitCover: '铺满',
-    fitWidth: '宽度',
-    fitHeight: '高度',
-    fitActual: '100%',
-    fitScaleDown: '缩小',
-    download: '下载',
-    downloadTitle: '下载原始文件',
-    print: '打印',
-    printTitle: '打印完整渲染内容',
-    printDirect: '直接打印',
-    printMask: '掩膜打印',
-    printMaskTitle: '遮盖敏感区域后再打印',
-    exportHtml: 'HTML',
-    exportHtmlTitle: '导出当前渲染后的 HTML',
-    watermark: '水印',
-    watermarkTitle: '切换水印',
-    searchDocument: '文档搜索',
-    searchPlaceholder: '搜索当前文档',
-    previousResult: '上一个搜索结果',
-    nextResult: '下一个搜索结果',
-    closeSearch: '关闭搜索',
-    closeMobileControls: '关闭移动端操作面板',
-    openLinkSettings: '打开链接设置',
-    openSamples: '打开示例文件',
-    uploadLocalFile: '上传本地文件',
-    searchCurrentDocument: '搜索当前文档',
-    openMoreActions: '打开更多操作',
-    reset: '还原',
-    auto: 'AUTO',
-    language: '语言',
-    theme: '主题',
-    themeToLight: '切换为浅色模式',
-    themeToDark: '切换为深色模式',
-    integrationSnippet: '接入代码',
-    openIntegrationSnippet: '查看接入代码',
-    integrationSnippetHint: '在浮层中查看并复制示例',
-    integrationSnippetDescription: 'React 完整接入示例',
-    closeIntegrationSnippet: '关闭接入代码',
-    copySnippet: '复制代码',
-    copiedSnippet: '已复制'
-  },
-  'en-US': {
-    pageTitle: 'Flyfish File Viewer Demo for Vue 3',
-    pureWeb: 'Pure Web',
-    local: 'Local',
-    link: 'URL',
-    upload: 'Upload',
-    samples: 'Samples',
-    search: 'Search',
-    more: 'More',
-    quickSamples: 'Quick samples',
-    quickSamplesHint: 'Open common formats',
-    sampleFile: 'Sample file',
-    collapse: 'Collapse',
-    open: 'Open',
-    address: 'URL',
-    addressPlaceholder: 'Paste a file URL',
-    preview: 'Preview',
-    closePanel: 'Close control panel',
-    chooseFile: 'Choose a file',
-    openLocal: 'Open from this device',
-    unselected: 'No file selected',
-    previewActions: 'Preview actions',
-    zoomOut: 'Zoom out',
-    zoomIn: 'Zoom in',
-    resetZoom: 'Reset zoom',
-    fitMode: 'Fit',
-    fitDefault: 'Default',
-    fitAuto: 'Auto',
-    fitContain: 'Contain',
-    fitCover: 'Cover',
-    fitWidth: 'Width',
-    fitHeight: 'Height',
-    fitActual: '100%',
-    fitScaleDown: 'Scale down',
-    download: 'Download',
-    downloadTitle: 'Download original file',
-    print: 'Print',
-    printTitle: 'Print complete rendered content',
-    printDirect: 'Print now',
-    printMask: 'Mask & print',
-    printMaskTitle: 'Cover sensitive areas before printing',
-    exportHtml: 'HTML',
-    exportHtmlTitle: 'Export rendered HTML',
-    watermark: 'Watermark',
-    watermarkTitle: 'Toggle watermark',
-    searchDocument: 'Document search',
-    searchPlaceholder: 'Search this document',
-    previousResult: 'Previous search result',
-    nextResult: 'Next search result',
-    closeSearch: 'Close search',
-    closeMobileControls: 'Close mobile controls',
-    openLinkSettings: 'Open URL settings',
-    openSamples: 'Open sample files',
-    uploadLocalFile: 'Upload a local file',
-    searchCurrentDocument: 'Search this document',
-    openMoreActions: 'Open more actions',
-    reset: 'Reset',
-    auto: 'AUTO',
-    language: 'Language',
-    theme: 'Theme',
-    themeToLight: 'Switch to light mode',
-    themeToDark: 'Switch to dark mode',
-    integrationSnippet: 'Integration code',
-    openIntegrationSnippet: 'View integration code',
-    integrationSnippetHint: 'Open and copy a focused example',
-    integrationSnippetDescription: 'Complete React integration example',
-    closeIntegrationSnippet: 'Close integration code',
-    copySnippet: 'Copy code',
-    copiedSnippet: 'Copied'
+const recentTimeFormatter = computed(() => new Intl.DateTimeFormat(demoLocale.value, {
+  hour: '2-digit',
+  minute: '2-digit'
+}))
+const recentDisplayEntries = computed(() => (
+  recentFiles.value.slice(0, 3).map(entry => ({
+    ...entry,
+    ...getFileIconMeta(entry.iconTarget),
+    timeLabel: recentTimeFormatter.value.format(new Date(entry.timestamp)),
+    timeIso: new Date(entry.timestamp).toISOString()
+  }))
+))
+const recentFilesCopy = computed(() => ({
+  title: demoCopy.value.recentOpened,
+  close: demoCopy.value.closeRecent,
+  open: demoCopy.value.openRecent,
+  dismiss: demoCopy.value.dismissRecent
+}))
+const recentLocalReselectNotice = computed(() => {
+  if (!recentLocalReselectName.value) {
+    return ''
   }
-}
-
-const demoCopy = computed(() => demoCopyMap[demoLocale.value])
+  return demoCopy.value.reselectLocalFile.replace('{name}', recentLocalReselectName.value)
+})
 const resolvedDemoTheme = computed(() => resolveFileViewerColorScheme(demoTheme.value, systemPrefersDark.value))
 const demoThemeButtonTitle = computed(() => {
   return resolvedDemoTheme.value === 'dark'
     ? demoCopy.value.themeToLight
     : demoCopy.value.themeToDark
 })
-const githubStarsLabel = computed(() => formatStarCount(githubStarCount.value))
-const githubStarsAriaLabel = computed(() =>
+const githubRepositoryAriaLabel = computed(() =>
   demoLocale.value === 'zh-CN'
-    ? `GitHub 开源总仓库，${githubStarsLabel.value} stars`
-    : `GitHub repository, ${githubStarsLabel.value} stars`
+    ? 'GitHub 开源总仓库'
+    : 'GitHub repository'
 )
-
-function formatStarCount(count: number) {
-  if (count >= 1000000) {
-    return `${Number((count / 1000000).toFixed(1))}m`
-  }
-  if (count >= 1000) {
-    return `${Number((count / 1000).toFixed(1))}k`
-  }
-  return `${count}`
-}
-
-function readGithubStarCache(maxAgeMs = githubStarCacheMaxAgeMs): GithubStarCache | undefined {
-  try {
-    const rawCache = window.localStorage.getItem(githubStarCacheKey)
-    if (!rawCache) {
-      return undefined
-    }
-    const cache = JSON.parse(rawCache) as Partial<GithubStarCache>
-    if (
-      typeof cache.count !== 'number' ||
-      !Number.isFinite(cache.count) ||
-      typeof cache.updatedAt !== 'number' ||
-      !Number.isFinite(cache.updatedAt) ||
-      Date.now() - cache.updatedAt > maxAgeMs
-    ) {
-      return undefined
-    }
-    return {
-      count: cache.count,
-      updatedAt: cache.updatedAt
-    }
-  } catch {
-    return undefined
-  }
-}
-
-function writeGithubStarCache(count: number) {
-  try {
-    window.localStorage.setItem(githubStarCacheKey, JSON.stringify({
-      count,
-      updatedAt: Date.now()
-    }))
-  } catch {
-    // Local storage can be unavailable in restricted browser contexts.
-  }
-}
-
-async function refreshGithubStarCount() {
-  const freshCache = readGithubStarCache(githubStarCacheRefreshMs)
-  if (freshCache) {
-    githubStarCount.value = freshCache.count
-    return
-  }
-
-  const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), 5000)
-  try {
-    const response = await fetch(githubRepositoryApiUrl, {
-      signal: controller.signal,
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      }
-    })
-    if (!response.ok) {
-      return
-    }
-    const payload = await response.json() as { stargazers_count?: unknown }
-    if (typeof payload.stargazers_count === 'number' && Number.isFinite(payload.stargazers_count)) {
-      githubStarCount.value = payload.stargazers_count
-      writeGithubStarCache(payload.stargazers_count)
-    }
-  } catch {
-    // Keep the cached or baked-in count when GitHub is unreachable or rate limited.
-  } finally {
-    window.clearTimeout(timeoutId)
-  }
-}
 
 const sampleGroupsZh: SampleGroup[] = [
   {
@@ -450,9 +427,10 @@ const sampleGroupsZh: SampleGroup[] = [
   },
   {
     title: '演示与图纸',
-    description: 'PPTX / CAD',
+    description: 'PPT / PPTX / CAD',
     family: 'cad',
     items: [
+      { name: 'PowerPoint 97–2003', url: '/example/office-demo.ppt' },
       { name: 'NASA 月球战略 PPTX', url: '/example/ppt.pptx' },
       { name: 'ODP', url: '/example/slides.odp' },
       { name: 'DXF', url: '/example/drawing.dxf' },
@@ -476,14 +454,14 @@ const sampleGroupsZh: SampleGroup[] = [
   },
   {
     title: '3D 模型和地理数据',
-    description: 'GLTF / OBJ / STL / GeoJSON / KML / GPX',
+    description: 'GLTF / STEP / OBJ / STL / GeoJSON / KML / GPX',
     family: 'model',
     items: [
       { name: 'GLTF', url: '/example/model.gltf' },
+      { name: 'STEP 工程模型', url: '/example/model.step' },
       { name: 'OBJ', url: '/example/model.obj' },
       { name: 'STL', url: '/example/model.stl' },
       { name: 'PLY', url: '/example/model.ply' },
-      { name: 'STEP', url: '/example/model.step' },
       { name: 'GeoJSON', url: '/example/map.geojson' },
       { name: 'KML', url: '/example/route.kml' },
       { name: 'GPX', url: '/example/track.gpx' }
@@ -629,9 +607,9 @@ const sampleGroupsZh: SampleGroup[] = [
 const englishGroupCopy: Array<Pick<SampleGroup, 'title' | 'description'>> = [
   { title: 'Documents', description: 'Word / PDF / OFD / Typst' },
   { title: 'Spreadsheets', description: 'Excel / CSV / ODS' },
-  { title: 'Slides & CAD', description: 'PPTX / CAD' },
+  { title: 'Slides & CAD', description: 'PPT / PPTX / CAD' },
   { title: 'Mindmaps & Diagrams', description: 'XMind / Mermaid / PlantUML / draw.io' },
-  { title: '3D Models & Geospatial Data', description: 'GLTF / OBJ / STL / GeoJSON / KML / GPX' },
+  { title: '3D Models & Geospatial Data', description: 'GLTF / STEP / OBJ / STL / GeoJSON / KML / GPX' },
   { title: 'Ebooks', description: 'EPUB / UMD' },
   { title: 'Archives', description: 'ZIP / TAR.GZ / Encrypted' },
   { title: 'Email & EDA', description: 'EML / MSG / OLB / DRA / GDS / OASIS' },
@@ -681,6 +659,7 @@ const englishSampleNameMap: Record<string, string> = {
   '/example/excel.ods': 'ODS spreadsheet',
   '/example/excel.fods': 'Flat ODS spreadsheet',
   '/example/excel.numbers': 'Numbers workbook',
+  '/example/office-demo.ppt': 'PowerPoint 97–2003 sample',
   '/example/en/sample-presentation.pptx': 'NASA lunar strategy PPTX',
   '/example/slides.odp': 'ODP presentation',
   '/example/drawing.dxf': 'DXF drawing',
@@ -721,6 +700,7 @@ const englishSampleNameMap: Record<string, string> = {
   '/example/en/code.ts': 'TypeScript integration sample',
   '/example/en/code.js': 'JavaScript integration sample',
   '/example/en/model.gltf': 'glTF embedded model',
+  '/example/model.step': 'STEP engineering model',
   '/example/en/map.geojson': 'GeoJSON Bay route',
   '/example/change.patch': 'Patch side-by-side diff',
   '/example/repository.bundle': 'Git bundle history',
@@ -745,25 +725,6 @@ const sampleGroupsEn: SampleGroup[] = sampleGroupsZh.map((group, index) => ({
 const sampleGroups = computed(() => demoLocale.value === 'zh-CN' ? sampleGroupsZh : sampleGroupsEn)
 const presetFiles = computed(() => sampleGroups.value.flatMap(group => group.items))
 const allPresetFiles = [...sampleGroupsZh, ...sampleGroupsEn].flatMap(group => group.items)
-const scenarioPicks = computed<ScenarioPick[]>(() => demoLocale.value === 'zh-CN'
-  ? [
-      { title: '试试 Word 合同', description: 'DOCX 长文档', url: '/example/word.docx', family: 'word' },
-      { title: '试试 Excel 报表', description: '多 sheet 表格', url: '/example/excel.xlsx', family: 'sheet' },
-      { title: '试试 NASA PPT', description: '专业演示稿', url: '/example/ppt.pptx', family: 'slide' },
-      { title: '试试 DWG 图纸', description: '工程图纸', url: '/example/sample.dwg', family: 'cad' },
-      { title: '试试 GeoJSON', description: '地理数据叠加层', url: '/example/map.geojson', family: 'model' },
-      { title: '试试压缩包', description: '嵌套预览', url: '/example/archive.zip', family: 'archive' },
-      { title: '试试邮件', description: 'EML 附件', url: '/example/sample.eml', family: 'email' }
-    ]
-  : [
-      { title: 'Try Word doc', description: 'Rich DOCX', url: '/example/en/calibre-demo.docx', family: 'word' },
-      { title: 'Try Excel report', description: 'Workbook', url: '/example/en/financial-sample.xlsx', family: 'sheet' },
-      { title: 'Try NASA deck', description: 'Professional PPTX', url: '/example/en/sample-presentation.pptx', family: 'slide' },
-      { title: 'Try DWG drawing', description: 'CAD sample', url: '/example/sample.dwg', family: 'cad' },
-      { title: 'Try GeoJSON', description: 'Geospatial overlay', url: '/example/en/map.geojson', family: 'model' },
-      { title: 'Try archive', description: 'Nested files', url: '/example/en/archive.zip', family: 'archive' },
-      { title: 'Try email', description: 'EML message', url: '/example/sample.eml', family: 'email' }
-    ])
 const integrationSnippet = computed(() => {
   if (file.value) {
     return `import FileViewer from '@file-viewer/react-full'
@@ -782,7 +743,7 @@ export function Preview() {
 const extraUploadExtensions = [
   'docm', 'dot', 'dotx', 'dotm', 'rtf', 'odt',
   'xlt', 'xltx', 'xltm',
-  'pptm', 'potx', 'potm', 'ppsx', 'ppsm', 'odp',
+  'ppt', 'pptm', 'potx', 'potm', 'ppsx', 'ppsm', 'odp',
   'avif', 'jxl', 'heic', 'heif', 'webm', 'm3u8', 'mpeg', 'wav', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba', 'midi',
   'glb', 'fbx', 'dae', '3ds', '3mf', 'amf', 'usd', 'usda', 'usdc', 'usdz', 'kmz',
   'step', 'stp', 'iges', 'igs', 'ifc', '3dm', 'pcd', 'wrl', 'vrml', 'xyz', 'vtk', 'vtp', 'shp',
@@ -803,220 +764,6 @@ const uploadAccept = Array.from(new Set([
   .filter(Boolean)
   .join(',')
 
-const fileIconMeta: Record<string, { icon: string; family: string }> = {
-  doc: { icon: 'W', family: 'word' },
-  docx: { icon: 'W', family: 'word' },
-  docm: { icon: 'W', family: 'word' },
-  dot: { icon: 'DOT', family: 'word' },
-  dotx: { icon: 'DOT', family: 'word' },
-  dotm: { icon: 'DOT', family: 'word' },
-  rtf: { icon: 'RTF', family: 'word' },
-  odt: { icon: 'ODT', family: 'word' },
-  xlsx: { icon: 'XL', family: 'sheet' },
-  xltx: { icon: 'XLT', family: 'sheet' },
-  xlsm: { icon: 'XL', family: 'sheet' },
-  xlsb: { icon: 'XL', family: 'sheet' },
-  xls: { icon: 'XL', family: 'sheet' },
-  xlt: { icon: 'XLT', family: 'sheet' },
-  xltm: { icon: 'XLT', family: 'sheet' },
-  csv: { icon: 'CSV', family: 'sheet' },
-  ods: { icon: 'ODS', family: 'sheet' },
-  fods: { icon: 'ODS', family: 'sheet' },
-  numbers: { icon: 'NO', family: 'sheet' },
-  pptx: { icon: 'P', family: 'slide' },
-  pptm: { icon: 'P', family: 'slide' },
-  potx: { icon: 'POT', family: 'slide' },
-  potm: { icon: 'POT', family: 'slide' },
-  ppsx: { icon: 'PPS', family: 'slide' },
-  ppsm: { icon: 'PPS', family: 'slide' },
-  odp: { icon: 'ODP', family: 'slide' },
-  pdf: { icon: 'PDF', family: 'pdf' },
-  ofd: { icon: 'OFD', family: 'layout' },
-  typ: { icon: 'TYP', family: 'layout' },
-  typst: { icon: 'TYP', family: 'layout' },
-  dxf: { icon: 'CAD', family: 'cad' },
-  dwg: { icon: 'CAD', family: 'cad' },
-  dwf: { icon: 'DWF', family: 'cad' },
-  dwfx: { icon: 'DWFx', family: 'cad' },
-  xps: { icon: 'XPS', family: 'cad' },
-  xmind: { icon: 'XM', family: 'drawing' },
-  mermaid: { icon: 'MER', family: 'drawing' },
-  mmd: { icon: 'MER', family: 'drawing' },
-  plantuml: { icon: 'UML', family: 'drawing' },
-  puml: { icon: 'UML', family: 'drawing' },
-  glb: { icon: '3D', family: 'model' },
-  gltf: { icon: '3D', family: 'model' },
-  obj: { icon: 'OBJ', family: 'model' },
-  stl: { icon: 'STL', family: 'model' },
-  ply: { icon: 'PLY', family: 'model' },
-  fbx: { icon: 'FBX', family: 'model' },
-  dae: { icon: 'DAE', family: 'model' },
-  '3ds': { icon: '3DS', family: 'model' },
-  '3mf': { icon: '3MF', family: 'model' },
-  amf: { icon: 'AMF', family: 'model' },
-  usd: { icon: 'USD', family: 'model' },
-  usda: { icon: 'USD', family: 'model' },
-  usdc: { icon: 'USD', family: 'model' },
-  usdz: { icon: 'USD', family: 'model' },
-  kmz: { icon: 'KMZ', family: 'model' },
-  geojson: { icon: 'GEO', family: 'model' },
-  kml: { icon: 'KML', family: 'model' },
-  gpx: { icon: 'GPX', family: 'model' },
-  shp: { icon: 'SHP', family: 'model' },
-  step: { icon: 'STEP', family: 'model' },
-  stp: { icon: 'STEP', family: 'model' },
-  iges: { icon: 'IGES', family: 'model' },
-  igs: { icon: 'IGES', family: 'model' },
-  ifc: { icon: 'IFC', family: 'model' },
-  '3dm': { icon: '3DM', family: 'model' },
-  pcd: { icon: 'PCD', family: 'model' },
-  wrl: { icon: 'WRL', family: 'model' },
-  vrml: { icon: 'VRML', family: 'model' },
-  xyz: { icon: 'XYZ', family: 'model' },
-  vtk: { icon: 'VTK', family: 'model' },
-  vtp: { icon: 'VTP', family: 'model' },
-  excalidraw: { icon: 'EX', family: 'drawing' },
-  drawio: { icon: 'DIO', family: 'drawing' },
-  dio: { icon: 'DIO', family: 'drawing' },
-  epub: { icon: 'EPUB', family: 'ebook' },
-  umd: { icon: 'UMD', family: 'ebook' },
-  zip: { icon: 'ZIP', family: 'archive' },
-  zipx: { icon: 'ZIP', family: 'archive' },
-  '7z': { icon: '7Z', family: 'archive' },
-  rar: { icon: 'RAR', family: 'archive' },
-  tar: { icon: 'TAR', family: 'archive' },
-  gz: { icon: 'GZ', family: 'archive' },
-  gzip: { icon: 'GZ', family: 'archive' },
-  tgz: { icon: 'TGZ', family: 'archive' },
-  bz2: { icon: 'BZ2', family: 'archive' },
-  bzip2: { icon: 'BZ2', family: 'archive' },
-  tbz: { icon: 'TBZ', family: 'archive' },
-  tbz2: { icon: 'TBZ', family: 'archive' },
-  xz: { icon: 'XZ', family: 'archive' },
-  txz: { icon: 'TXZ', family: 'archive' },
-  lzma: { icon: 'LZ', family: 'archive' },
-  zst: { icon: 'ZST', family: 'archive' },
-  tzst: { icon: 'ZST', family: 'archive' },
-  cab: { icon: 'CAB', family: 'archive' },
-  ar: { icon: 'AR', family: 'archive' },
-  cpio: { icon: 'CPIO', family: 'archive' },
-  iso: { icon: 'ISO', family: 'archive' },
-  xar: { icon: 'XAR', family: 'archive' },
-  lha: { icon: 'LHA', family: 'archive' },
-  lzh: { icon: 'LZH', family: 'archive' },
-  jar: { icon: 'JAR', family: 'archive' },
-  war: { icon: 'WAR', family: 'archive' },
-  ear: { icon: 'EAR', family: 'archive' },
-  apk: { icon: 'APK', family: 'archive' },
-  cbz: { icon: 'CBZ', family: 'archive' },
-  cbr: { icon: 'CBR', family: 'archive' },
-  eml: { icon: 'EML', family: 'email' },
-  msg: { icon: 'MSG', family: 'email' },
-  mbox: { icon: 'MBOX', family: 'email' },
-  olb: { icon: 'OLB', family: 'eda' },
-  dra: { icon: 'DRA', family: 'eda' },
-  gds: { icon: 'GDS', family: 'eda' },
-  oas: { icon: 'OAS', family: 'eda' },
-  oasis: { icon: 'OAS', family: 'eda' },
-  md: { icon: 'MD', family: 'text' },
-  markdown: { icon: 'MD', family: 'text' },
-  txt: { icon: 'TXT', family: 'text' },
-  json: { icon: '{}', family: 'code' },
-  jsonc: { icon: '{}', family: 'code' },
-  json5: { icon: 'J5', family: 'code' },
-  ipynb: { icon: 'NB', family: 'code' },
-  js: { icon: 'JS', family: 'code' },
-  mjs: { icon: 'JS', family: 'code' },
-  cjs: { icon: 'JS', family: 'code' },
-  ts: { icon: 'TS', family: 'code' },
-  tsx: { icon: 'TSX', family: 'code' },
-  jsx: { icon: 'JSX', family: 'code' },
-  css: { icon: 'CSS', family: 'code' },
-  html: { icon: 'HTML', family: 'code' },
-  htm: { icon: 'HTML', family: 'code' },
-  xml: { icon: 'XML', family: 'code' },
-  vue: { icon: 'VUE', family: 'code' },
-  react: { icon: 'RE', family: 'code' },
-  yaml: { icon: 'YML', family: 'code' },
-  yml: { icon: 'YML', family: 'code' },
-  toml: { icon: 'TOML', family: 'code' },
-  ini: { icon: 'INI', family: 'code' },
-  proto: { icon: 'PB', family: 'code' },
-  hcl: { icon: 'HCL', family: 'code' },
-  tex: { icon: 'TEX', family: 'code' },
-  gv: { icon: 'GV', family: 'code' },
-  http: { icon: 'HTTP', family: 'code' },
-  sh: { icon: 'SH', family: 'code' },
-  bash: { icon: 'SH', family: 'code' },
-  sql: { icon: 'SQL', family: 'code' },
-  go: { icon: 'GO', family: 'code' },
-  rs: { icon: 'RS', family: 'code' },
-  php: { icon: 'PHP', family: 'code' },
-  c: { icon: 'C', family: 'code' },
-  cpp: { icon: 'C++', family: 'code' },
-  cc: { icon: 'C++', family: 'code' },
-  h: { icon: 'H', family: 'code' },
-  hpp: { icon: 'H++', family: 'code' },
-  cs: { icon: 'CS', family: 'code' },
-  diff: { icon: 'DIFF', family: 'code' },
-  patch: { icon: 'PATCH', family: 'code' },
-  bundle: { icon: 'GIT', family: 'code' },
-  bdl: { icon: 'GIT', family: 'code' },
-  java: { icon: 'JV', family: 'code' },
-  py: { icon: 'PY', family: 'code' },
-  rb: { icon: 'RB', family: 'code' },
-  swift: { icon: 'SW', family: 'code' },
-  kt: { icon: 'KT', family: 'code' },
-  log: { icon: 'LOG', family: 'text' },
-  png: { icon: 'IMG', family: 'image' },
-  jpg: { icon: 'IMG', family: 'image' },
-  jpeg: { icon: 'IMG', family: 'image' },
-  gif: { icon: 'GIF', family: 'image' },
-  bmp: { icon: 'IMG', family: 'image' },
-  tiff: { icon: 'IMG', family: 'image' },
-  tif: { icon: 'IMG', family: 'image' },
-  svg: { icon: 'SVG', family: 'image' },
-  webp: { icon: 'WEBP', family: 'image' },
-  avif: { icon: 'AVIF', family: 'image' },
-  ico: { icon: 'ICO', family: 'image' },
-  heic: { icon: 'HEIC', family: 'image' },
-  heif: { icon: 'HEIF', family: 'image' },
-  jxl: { icon: 'JXL', family: 'image' },
-  mp3: { icon: 'MP3', family: 'audio' },
-  mpeg: { icon: 'MP3', family: 'audio' },
-  wav: { icon: 'WAV', family: 'audio' },
-  ogg: { icon: 'OGG', family: 'audio' },
-  oga: { icon: 'OGG', family: 'audio' },
-  opus: { icon: 'OPUS', family: 'audio' },
-  m4a: { icon: 'M4A', family: 'audio' },
-  aac: { icon: 'AAC', family: 'audio' },
-  flac: { icon: 'FLAC', family: 'audio' },
-  weba: { icon: 'WEBA', family: 'audio' },
-  midi: { icon: 'MIDI', family: 'audio' },
-  mid: { icon: 'MIDI', family: 'audio' },
-  mp4: { icon: 'MP4', family: 'video' },
-  webm: { icon: 'WEBM', family: 'video' },
-  m3u8: { icon: 'HLS', family: 'video' },
-  ttf: { icon: 'FONT', family: 'data' },
-  otf: { icon: 'FONT', family: 'data' },
-  woff: { icon: 'FONT', family: 'data' },
-  woff2: { icon: 'FONT', family: 'data' },
-  psd: { icon: 'PSD', family: 'data' },
-  ai: { icon: 'AI', family: 'data' },
-  eps: { icon: 'EPS', family: 'data' },
-  sqlite: { icon: 'SQL', family: 'data' },
-  wasm: { icon: 'WASM', family: 'data' },
-  parquet: { icon: 'PARQ', family: 'data' },
-  avro: { icon: 'AVRO', family: 'data' },
-  webarchive: { icon: 'WEB', family: 'data' }
-}
-
-const extensionOf = (target: string) => {
-  const clean = target.split(/[?#]/)[0] || target
-  const dotIndex = clean.lastIndexOf('.')
-  return dotIndex === -1 ? '' : clean.slice(dotIndex + 1).toLowerCase()
-}
-
 const localUrlBase = () => {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin
@@ -1027,10 +774,13 @@ const localUrlBase = () => {
 const sampleUrlKey = (target: string) => {
   const clean = target.split(/[?#]/)[0] || target
   try {
-    return decodeURIComponent(new URL(clean, localUrlBase()).pathname)
+    const parsed = new URL(clean, localUrlBase())
+    const isLocal = parsed.origin === new URL(localUrlBase()).origin
+    const originKey = isLocal ? '' : parsed.origin.toLowerCase()
+    return `${originKey}${safeDecodeURIComponent(parsed.pathname)}`
   } catch {
     const path = clean.startsWith('/') ? clean : `/${clean}`
-    return decodeURIComponent(path)
+    return safeDecodeURIComponent(path)
   }
 }
 
@@ -1060,15 +810,6 @@ const isSameSampleUrl = (left: string, right: string) => {
   return sampleUrlKey(left) === sampleUrlKey(right)
 }
 
-const fileNameOf = (target: string) => {
-  const clean = target.split(/[?#]/)[0] || target
-  return decodeURIComponent(clean.split('/').pop() || target)
-}
-
-const getFileIconMeta = (target: string) => {
-  return fileIconMeta[extensionOf(target)] || { icon: 'FILE', family: 'generic' }
-}
-
 const activePreset = computed(() => {
   return presetFiles.value.find(item => isSameSampleUrl(item.url, url.value))
 })
@@ -1082,8 +823,38 @@ const activeIconMeta = computed(() => {
   return getFileIconMeta(activePreset.value?.url || url.value)
 })
 
-const displayMode = computed(() => {
-  return file.value ? demoCopy.value.local : demoCopy.value.link
+const currentFileTarget = computed(() => {
+  if (file.value && filename.value) {
+    return filename.value
+  }
+  return preview.value || url.value || displayName.value
+})
+
+const currentIconMeta = computed(() => getFileIconMeta(currentFileTarget.value))
+const fileSamplesOpen = computed(() => (
+  wasMobileViewport.value
+    ? mobileControlsOpen.value && desktopSourceMode.value === 'samples'
+    : desktopSourcePanelOpen.value && desktopSourceMode.value === 'samples' && sourcePanelAnchor.value === 'file'
+))
+
+const currentSettingsFormatSection = computed<Exclude<DemoFormatSettingsSection, 'current'>>(() => {
+  return resolveDemoFormatSettingsSection(currentFileTarget.value)
+})
+
+const desktopSourcePanelTitle = computed(() => {
+  if (desktopSourceMode.value === 'upload') {
+    return demoCopy.value.uploadPanelTitle
+  }
+  if (desktopSourceMode.value === 'samples') {
+    return demoCopy.value.samplesPanelTitle
+  }
+  return demoCopy.value.linkPanelTitle
+})
+
+const desktopSourcePanelHint = computed(() => {
+  return desktopSourceMode.value === 'upload'
+    ? demoCopy.value.uploadPanelHint
+    : demoCopy.value.linkPanelHint
 })
 
 const displayName = computed(() => {
@@ -1091,8 +862,7 @@ const displayName = computed(() => {
     return filename.value
   }
   if (preview.value) {
-    const name = preview.value.split('/').pop() || preview.value
-    return decodeURIComponent(name)
+    return fileNameOf(preview.value) || preview.value
   }
   return activePreset.value?.name || demoCopy.value.unselected
 })
@@ -1113,7 +883,18 @@ const previewType = computed(() => {
   return ext.toUpperCase()
 })
 
+const fileIdentityAriaLabel = computed(() => (
+  `${displayName.value}, ${previewType.value}, ${demoCopy.value.openSamples}`
+))
+
+watch(currentFileTarget, (nextTarget, previousTarget) => {
+  if (nextTarget !== previousTarget) {
+    resetFileCapsuleMotion()
+  }
+})
+
 const externalToolbar = computed(() => {
+  const settings = appliedViewerSettings.value
   const toolbar = runtimeOptions.value.toolbar
   if (toolbar === false) {
     return {
@@ -1125,34 +906,22 @@ const externalToolbar = computed(() => {
   }
   if (toolbar && typeof toolbar === 'object') {
     return {
-      download: toolbar.download !== false,
-      print: toolbar.print !== false,
-      exportHtml: toolbar.exportHtml !== false,
-      zoom: toolbar.zoom !== false
+      download: settings.toolbarDownload && toolbar.download !== false,
+      print: settings.toolbarPrint && toolbar.print !== false,
+      exportHtml: settings.toolbarExportHtml && toolbar.exportHtml !== false,
+      zoom: settings.toolbarZoom && toolbar.zoom !== false
     }
   }
   return {
-    download: true,
-    print: true,
-    exportHtml: true,
-    zoom: true
+    download: settings.toolbarDownload,
+    print: settings.toolbarPrint,
+    exportHtml: settings.toolbarExportHtml,
+    zoom: settings.toolbarZoom
   }
 })
 
 const visibleExternalToolbar = computed(() => {
-  const toolbar = externalToolbar.value
-  const availability = viewerAvailability.value
-  return {
-    download: toolbar.download && availability.download,
-    print: toolbar.print && availability.print,
-    exportHtml: toolbar.exportHtml && availability.exportHtml,
-    zoom: toolbar.zoom && availability.zoom
-  }
-})
-
-const showExternalToolbar = computed(() => {
-  const toolbar = visibleExternalToolbar.value
-  return toolbar.download || toolbar.print || toolbar.exportHtml || toolbar.zoom
+  return externalToolbar.value
 })
 
 const fitModeOptions = computed<Array<{ value: FileViewerFitMode | 'default'; label: string }>>(() => [
@@ -1167,6 +936,14 @@ const fitModeOptions = computed<Array<{ value: FileViewerFitMode | 'default'; la
 ])
 
 const viewerActionDisabled = computed(() => !file.value && !preview.value)
+const viewerZoomDisplayLabel = computed(() => (
+  !viewerActionDisabled.value && viewerAvailability.value.zoom
+    ? viewerZoomState.value.label
+    : '—'
+))
+const viewerZoomResetLabel = computed(() => (
+  `${demoCopy.value.resetZoom}: ${viewerZoomDisplayLabel.value}`
+))
 
 const viewerDensity = computed<FileViewerUiDensity>(() => {
   return runtimeOptions.value.ui?.density
@@ -1182,55 +959,167 @@ const viewerSearchSummary = computed(() => {
   return state.total ? `${state.currentIndex + 1}/${state.total}` : '0/0'
 })
 
+const viewerPageLabel = computed(() => {
+  const pageCount = viewerViewState.value.pageCount
+  if (pageCount && pageCount > 0) {
+    return `${viewerViewState.value.page || 1} / ${pageCount}`
+  }
+  return previewType.value
+})
+
 const viewerOptions = computed((): FileViewerOptions => {
   const runtime = runtimeOptions.value
+  const settings = appliedViewerSettings.value
+  const megabyte = 1024 * 1024
   const options = { ...(runtime as Record<string, unknown>) } as FileViewerOptions
   options.renderers = runtime.renderers ?? allRenderers
   if (!options.locale && !options.i18n?.locale) {
     options.locale = demoLocale.value
   }
-  if (!options.theme) {
+  if (!immersiveMode.value) {
+    options.theme = settings.theme
+    options.styleIsolation = settings.styleIsolation
+  } else if (!options.theme) {
     options.theme = demoTheme.value
   }
-  if (runtime.ui || viewerDensity.value === 'compact') {
+  if (runtime.ui || viewerDensity.value === 'compact' || !immersiveMode.value) {
     options.ui = {
       ...runtime.ui,
-      density: viewerDensity.value
+      density: viewerDensity.value,
+      ...(!immersiveMode.value
+        ? { surfaceBackground: settings.surfaceBackground }
+        : {})
     }
   } else {
     delete options.ui
   }
 
   options.archive = {
-    workerUrl: `/${DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH}`,
     cache: true,
-    ...runtime.archive
+    ...runtime.archive,
+    ...(!immersiveMode.value
+      ? {
+          cache: settings.archiveCache,
+          maxArchiveSize: settings.archiveMaxSizeMb * megabyte,
+          maxEntryPreviewSize: settings.archiveMaxEntryPreviewMb * megabyte,
+          entryActions: {
+            ...runtime.archive?.entryActions,
+            download: settings.archiveEntryDownload
+          }
+        }
+      : {})
   }
   options.spreadsheet = {
     worker: 'auto',
-    workerUrl: `/${DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH}`,
     resizableColumns: true,
     resizableRows: true,
-    ...runtime.spreadsheet
+    ...runtime.spreadsheet,
+    ...(!immersiveMode.value
+      ? {
+          resizableColumns: settings.spreadsheetResizableColumns,
+          resizableRows: settings.spreadsheetResizableRows,
+          textEncoding: settings.spreadsheetTextEncoding,
+          workerAutoThreshold: settings.spreadsheetWorkerThresholdMb * megabyte
+        }
+      : {})
   }
-  options.geo = {
-    basemap: 'openfreemap-liberty',
-    ...runtime.geo
+  options.presentation = {
+    pptModuleUrl: 'vendor/ppt/index.mjs',
+    pptWorkerUrl: 'vendor/ppt/worker.mjs',
+    pptWasmUrl: 'vendor/ppt/ppt-native.wasm',
+    pptFontUrl: 'vendor/ppt/ppt-font-cjk.otf',
+    ...runtime.presentation
   }
-  options.drawing = { ...runtime.drawing }
+  if (!immersiveMode.value) {
+    options.pdf = {
+      ...runtime.pdf,
+      toolbar: settings.pdfToolbar,
+      navigation: settings.pdfNavigation,
+      defaultNavigationVisible: settings.pdfDefaultNavigationVisible,
+      thumbnails: settings.pdfThumbnails,
+      rotation: settings.pdfRotation,
+      streaming: settings.pdfStreaming,
+      cjkFontFallback: settings.pdfCjkFontFallback,
+      identityFontRepair: settings.pdfIdentityFontRepair
+    }
+    options.docx = {
+      ...runtime.docx,
+      progressive: settings.docxProgressive,
+      visualPagination: settings.docxVisualPagination,
+      strictWordCompatibility: settings.docxStrictWordCompatibility,
+      awaitLayout: settings.docxAwaitLayout,
+      hideWebHiddenContent: settings.docxHideWebHiddenContent,
+      ignoreLastRenderedPageBreak: settings.docxIgnoreLastRenderedPageBreak
+    }
+    options.text = {
+      ...runtime.text,
+      toolbar: settings.textToolbar,
+      lineNumbers: settings.textLineNumbers,
+      virtualizeAboveBytes: settings.textVirtualizeAboveKb * 1024,
+      markdownVirtualizeAboveBytes: settings.textMarkdownVirtualizeAboveKb > 0
+        ? settings.textMarkdownVirtualizeAboveKb * 1024
+        : undefined,
+      maxRenderedLineBytes: settings.textMaxRenderedLineKb * 1024,
+      virtualOverscanLines: settings.textVirtualOverscanLines
+    }
+    const runtimeSearch = runtime.search && typeof runtime.search === 'object' ? runtime.search : {}
+    options.search = {
+      ...runtimeSearch,
+      enabled: settings.searchEnabled,
+      caseSensitive: settings.searchCaseSensitive,
+      wholeWord: settings.searchWholeWord,
+      maxMatches: settings.searchMaxMatches
+    }
+    options.cad = {
+      ...runtime.cad,
+      renderer: settings.cadRenderer,
+      fitMode: settings.cadFitMode,
+      fitPadding: settings.cadFitPadding,
+      includePaperSpace: settings.cadIncludePaperSpace,
+      dwfLineWeightMode: settings.cadDwfLineWeightMode
+    }
+    options.geo = {
+      ...runtime.geo,
+      basemap: settings.geoBasemap,
+      inferProjection: settings.geoInferProjection,
+      preferMapEngine: settings.geoPreferMapEngine,
+      fitPadding: settings.geoFitPadding
+    }
+    options.model = createDemoModelOptions(settings, runtime.model)
+    options.drawing = {
+      ...runtime.drawing,
+      preferOfficial: settings.drawingPreferOfficial
+    }
+  } else {
+    options.geo = {
+      basemap: 'openfreemap-liberty',
+      ...runtime.geo
+    }
+    options.drawing = { ...runtime.drawing }
+  }
   if (fitMode.value !== 'default') {
     options.fit = {
       mode: fitMode.value,
-      resize: 'until-interaction'
+      resize: settings.fitResize,
+      padding: settings.fitPadding,
+      minScale: settings.fitMinScale,
+      maxScale: settings.fitMaxScale
     }
+  } else if (!immersiveMode.value) {
+    delete options.fit
   }
-  options.toolbar = hidden.value ? runtime.toolbar ?? true : false
-  options.watermark = watermarkEnabled.value
+  options.toolbar = immersiveMode.value ? runtime.toolbar ?? true : false
+  options.watermark = !immersiveMode.value && !watermarkEnabled.value
+    ? false
+    : watermarkEnabled.value
     ? {
-        text: 'Flyfish Viewer',
-        opacity: 0.16,
-        rotate: -24,
-        color: '#1f7a58',
+        text: settings.watermarkText || 'Flyfish Viewer',
+        opacity: settings.watermarkOpacity,
+        rotate: settings.watermarkRotate,
+        gapX: settings.watermarkGapX,
+        gapY: settings.watermarkGapY,
+        fontSize: settings.watermarkFontSize,
+        color: settings.watermarkColor,
         ...(
           typeof runtime.watermark === 'object' && runtime.watermark
             ? runtime.watermark
@@ -1242,12 +1131,105 @@ const viewerOptions = computed((): FileViewerOptions => {
   return options
 })
 
+const isVisibleControl = (element: HTMLElement | null): element is HTMLElement => (
+  Boolean(element && element.getClientRects().length)
+)
+
+function focusActionsTrigger() {
+  const trigger = isVisibleControl(settingsButtonRef.value)
+    ? settingsButtonRef.value
+    : mobileMoreButtonRef.value
+  trigger?.focus()
+}
+
+function focusSourceTrigger(anchor = sourcePanelAnchor.value) {
+  const trigger = anchor === 'file'
+    ? fileIdentityButtonRef.value
+    : anchor === 'upload'
+      ? uploadTriggerButtonRef.value
+      : anchor === 'samples'
+        ? sampleRailButtonRef.value
+        : linkTriggerButtonRef.value
+  if (isVisibleControl(trigger)) {
+    trigger.focus()
+  }
+}
+
+function focusSourcePanel(mode = desktopSourceMode.value) {
+  const selector = mode === 'link'
+    ? '#preview-url'
+    : mode === 'upload'
+      ? '.desktop-upload-dropzone input'
+      : '.sample-card.active, .sample-group-header'
+  controlPanelRef.value?.querySelector<HTMLElement>(selector)?.focus()
+}
+
+function closeDesktopSourcePanel(returnFocus = false) {
+  const previousAnchor = sourcePanelAnchor.value
+  closeSourcePanel()
+  samplePickerOpen.value = false
+  if (returnFocus) {
+    void nextTick(() => focusSourceTrigger(previousAnchor))
+  }
+}
+
+function closeSettingsPanel(returnFocus = false) {
+  if (!settingsPanelOpen.value) {
+    return
+  }
+  closeViewerSettingsPanel()
+  if (returnFocus) {
+    void nextTick(focusActionsTrigger)
+  }
+}
+
+function closeDesktopTransientUi(except?: 'source' | 'settings' | 'search' | 'more') {
+  if (except !== 'source') {
+    closeDesktopSourcePanel()
+  }
+  if (except !== 'settings') {
+    closeSettingsPanel()
+  }
+  if (except !== 'more') {
+    desktopActionsOpen.value = false
+  }
+  if (except !== 'search' && viewerSearchOpen.value) {
+    void closeViewerSearch()
+  }
+}
+
+async function toggleSettingsPanel() {
+  if (settingsPanelOpen.value) {
+    closeSettingsPanel(true)
+    return
+  }
+  closeDesktopTransientUi('settings')
+  mobileControlsOpen.value = false
+  mobileActionsOpen.value = false
+  recentPanelOpen.value = false
+  openViewerSettingsPanel({
+    theme: demoTheme.value,
+    density: viewerDensity.value,
+    fitMode: fitMode.value,
+    watermarkEnabled: watermarkEnabled.value
+  })
+  await nextTick()
+  controlPanelRef.value?.querySelector<HTMLElement>('.settings-tabs button')?.focus()
+}
+
+async function applySettingsAndRestoreFocus() {
+  const result = await applyViewerSettings()
+  if (result) {
+    await nextTick()
+    focusActionsTrigger()
+  }
+}
+
 let copyResetTimer: number | undefined
 const clipboardWriteTimeoutMs = 800
 
 async function openSnippetDialog() {
-  scenarioPickerOpen.value = false
-  samplePickerOpen.value = false
+  closeDesktopTransientUi()
   mobileActionsOpen.value = false
   snippetDialogOpen.value = true
   await nextTick()
@@ -1259,7 +1241,7 @@ function closeSnippetDialog() {
     return
   }
   snippetDialogOpen.value = false
-  void nextTick(() => snippetLaunchRef.value?.focus())
+  void nextTick(focusActionsTrigger)
 }
 
 function copyIntegrationSnippetFallback() {
@@ -1316,30 +1298,80 @@ async function copyIntegrationSnippet() {
   }
 }
 
-function closePrintMenu() {
-  printMenuOpen.value = false
-}
-
-function togglePrintMenu() {
-  if (viewerActionDisabled.value) {
+async function toggleDesktopActions() {
+  if (!desktopActionsOpen.value) {
+    closeDesktopTransientUi('more')
+  }
+  desktopActionsOpen.value = !desktopActionsOpen.value
+  if (!desktopActionsOpen.value) {
+    await nextTick()
+    focusActionsTrigger()
     return
   }
-  printMenuOpen.value = !printMenuOpen.value
+  await nextTick()
+  morePanelRef.value?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus()
+}
+
+function handleMoreMenuKeydown(event: KeyboardEvent) {
+  const buttons = Array.from(morePanelRef.value?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') || [])
+  if (!buttons.length) {
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    desktopActionsOpen.value = false
+    void nextTick(focusActionsTrigger)
+    return
+  }
+  const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement)
+  let nextIndex: number | null = null
+  if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % buttons.length
+  if (event.key === 'ArrowUp') nextIndex = currentIndex < 0 ? buttons.length - 1 : (currentIndex - 1 + buttons.length) % buttons.length
+  if (event.key === 'Home') nextIndex = 0
+  if (event.key === 'End') nextIndex = buttons.length - 1
+  if (nextIndex === null) {
+    return
+  }
+  event.preventDefault()
+  buttons[nextIndex]?.focus()
+}
+
+async function fitCurrentDocument() {
+  desktopActionsOpen.value = false
+  mobileActionsOpen.value = false
+  const providerEpoch = viewerProviderEpoch
+  const settings = appliedViewerSettings.value
+  const mode = fitMode.value === 'default' ? 'auto' : fitMode.value
+  const result = await fileViewerRef.value?.fitToView({
+    mode,
+    resize: settings.fitResize,
+    padding: settings.fitPadding,
+    minScale: settings.fitMinScale,
+    maxScale: settings.fitMaxScale
+  })
+  if (providerEpoch !== viewerProviderEpoch) {
+    return
+  }
+  if (result?.applied) {
+    viewerZoomState.value = fileViewerRef.value?.getZoomState() || viewerZoomState.value
+    viewerAvailability.value = fileViewerRef.value?.getOperationAvailability() || viewerAvailability.value
+  }
 }
 
 async function printDirect() {
-  closePrintMenu()
+  desktopActionsOpen.value = false
   mobileActionsOpen.value = false
   await fileViewerRef.value?.printRenderedHtml()
 }
 
 async function printWithMask() {
-  closePrintMenu()
+  desktopActionsOpen.value = false
   mobileActionsOpen.value = false
   await fileViewerRef.value?.printWithMask()
 }
 
 function triggerViewerAction(action: ViewerAction) {
+  desktopActionsOpen.value = false
   mobileActionsOpen.value = false
   if (action === 'download') {
     void fileViewerRef.value?.downloadOriginalFile()
@@ -1358,7 +1390,11 @@ function triggerViewerAction(action: ViewerAction) {
     : action === 'zoomOut'
       ? fileViewerRef.value?.zoomOut()
       : fileViewerRef.value?.resetZoom()
+  const providerEpoch = viewerProviderEpoch
   void nextAction?.then(state => {
+    if (providerEpoch !== viewerProviderEpoch) {
+      return
+    }
     viewerZoomState.value = state
     viewerAvailability.value = fileViewerRef.value?.getOperationAvailability() || viewerAvailability.value
   })
@@ -1367,9 +1403,18 @@ function triggerViewerAction(action: ViewerAction) {
 async function selectFitMode(event: Event) {
   const value = (event.target as HTMLSelectElement).value as FileViewerFitMode | 'default'
   fitMode.value = value
+  appliedViewerSettings.value = {
+    ...appliedViewerSettings.value,
+    fitMode: value
+  }
   await nextTick()
   if (value !== 'default') {
-    const result = await fileViewerRef.value?.fitToView(value)
+    const settings = appliedViewerSettings.value
+    const result = await fileViewerRef.value?.fitToView({
+      mode: value,
+      resize: settings.fitResize,
+      padding: settings.fitPadding
+    })
     if (result?.applied) {
       viewerZoomState.value = fileViewerRef.value?.getZoomState() || viewerZoomState.value
       viewerAvailability.value = fileViewerRef.value?.getOperationAvailability() || viewerAvailability.value
@@ -1387,7 +1432,14 @@ async function runViewerSearch() {
 }
 
 async function openViewerSearch() {
+  if (!appliedViewerSettings.value.searchEnabled) {
+    return
+  }
+  closeDesktopTransientUi('search')
   mobileActionsOpen.value = false
+  if (isMobileDemoViewport()) {
+    recentPanelOpen.value = false
+  }
   viewerSearchOpen.value = true
   await nextTick()
   viewerSearchInputRef.value?.focus()
@@ -1399,24 +1451,82 @@ async function closeViewerSearch() {
   viewerSearchState.value = await fileViewerRef.value?.clearDocumentSearch() || viewerSearchState.value
 }
 
+async function openDesktopSourcePanel(
+  mode: 'link' | 'upload' | 'samples' = 'link',
+  anchor: DemoSourcePanelAnchor = mode
+) {
+  if (mode === 'upload') {
+    recentLocalReselectName.value = ''
+  }
+  closeDesktopTransientUi('source')
+  mobileActionsOpen.value = false
+  await openSourcePanel(mode, anchor)
+
+  if (mode === 'samples') {
+    samplePickerOpen.value = true
+    expandedSampleGroupIndex.value = activeSampleGroupIndex.value >= 0 ? activeSampleGroupIndex.value : 0
+    await nextTick()
+    focusSourcePanel(mode)
+    return
+  }
+
+  samplePickerOpen.value = false
+  await nextTick()
+  focusSourcePanel(mode)
+}
+
+async function toggleDesktopSourcePanel(
+  mode: 'link' | 'upload' | 'samples',
+  anchor: DemoSourcePanelAnchor = mode
+) {
+  if (mode === 'upload') {
+    recentLocalReselectName.value = ''
+  }
+  closeDesktopTransientUi('source')
+  mobileActionsOpen.value = false
+  const opened = await toggleSourcePanel(mode, anchor)
+  samplePickerOpen.value = opened && mode === 'samples'
+  if (samplePickerOpen.value) {
+    expandedSampleGroupIndex.value = activeSampleGroupIndex.value >= 0 ? activeSampleGroupIndex.value : 0
+    await nextTick()
+    focusSourcePanel(mode)
+  } else if (opened) {
+    await nextTick()
+    focusSourcePanel(mode)
+  } else {
+    focusSourceTrigger(anchor)
+  }
+}
+
 function resetViewerSearch() {
   viewerSearchQuery.value = ''
   void closeViewerSearch()
 }
 
-async function openMobileControls(mode: 'link' | 'upload' | 'samples' = 'link') {
-  input.value = mode !== 'upload'
+async function openMobileControls(
+  mode: 'link' | 'upload' | 'samples' = 'link',
+  anchor: DemoSourcePanelAnchor = mode
+) {
+  if (mode === 'upload') {
+    recentLocalReselectName.value = ''
+  }
+  closeDesktopTransientUi()
+  desktopSourceMode.value = mode
+  sourcePanelAnchor.value = anchor
+  sourcePanelStyle.value = {}
   mobileControlsOpen.value = true
   mobileActionsOpen.value = false
-  closePrintMenu()
+  recentPanelOpen.value = false
   if (mode === 'samples') {
     samplePickerOpen.value = true
     expandedSampleGroupIndex.value = activeSampleGroupIndex.value >= 0 ? activeSampleGroupIndex.value : 0
     await nextTick()
-    updateSampleMenuGeometry()
+    focusSourcePanel(mode)
     return
   }
   samplePickerOpen.value = false
+  await nextTick()
+  focusSourcePanel(mode)
 }
 
 function closeMobileControls() {
@@ -1424,19 +1534,41 @@ function closeMobileControls() {
   samplePickerOpen.value = false
 }
 
-function toggleMobileActions() {
+async function toggleMobileActions() {
   mobileActionsOpen.value = !mobileActionsOpen.value
   if (mobileActionsOpen.value) {
     mobileControlsOpen.value = false
+    recentPanelOpen.value = false
+    await nextTick()
+    mobileActionsPanelRef.value?.querySelector<HTMLElement>(
+      '.mobile-action-source-grid button:not([disabled]), select'
+    )?.focus()
   } else {
-    closePrintMenu()
+    await nextTick()
+    mobileMoreButtonRef.value?.focus()
   }
+}
+
+async function toggleFileSamples() {
+  if (isMobileDemoViewport()) {
+    if (mobileControlsOpen.value && desktopSourceMode.value === 'samples') {
+      closeMobileControls()
+      return
+    }
+    await openMobileControls('samples', 'file')
+    return
+  }
+  await toggleDesktopSourcePanel('samples', 'file')
 }
 
 function toggleWatermark() {
   watermarkEnabled.value = !watermarkEnabled.value
+  appliedViewerSettings.value = {
+    ...appliedViewerSettings.value,
+    watermarkEnabled: watermarkEnabled.value
+  }
+  desktopActionsOpen.value = false
   mobileActionsOpen.value = false
-  closePrintMenu()
 }
 
 async function nextViewerSearch() {
@@ -1466,6 +1598,13 @@ function handleViewerAvailabilityChange(availability: FileViewerOperationAvailab
   viewerZoomState.value = fileViewerRef.value?.getZoomState() || viewerZoomState.value
 }
 
+function handleViewerLoadStart() {
+  viewerProviderEpoch += 1
+  viewerAvailability.value = createEmptyViewerAvailability()
+  viewerZoomState.value = createEmptyViewerZoomState()
+  viewerViewState.value = {}
+}
+
 function handleViewerSearchChange(state: FileViewerSearchState) {
   viewerSearchState.value = state
 }
@@ -1474,13 +1613,20 @@ function handleViewerZoomChange(state: FileViewerZoomState) {
   viewerZoomState.value = state
 }
 
+function handleViewerViewStateChange(change: FileViewerViewStateChange) {
+  viewerViewState.value = change.state
+}
+
 const stopDemoFileHandoff = demoFileHandoff.listen((body, target, options) => {
-  hidden.value = true
+  immersiveMode.value = true
   runtimeOptions.value = options || {}
-  scenarioPickerOpen.value = false
   samplePickerOpen.value = false
+  settingsPanelOpen.value = false
+  if (body || target) {
+    clearPendingViewState()
+  }
   if (body) {
-    filename.value = body.name && decodeURIComponent(body.name) || ''
+    filename.value = fileNameOf(body.name) || body.name || ''
     file.value = body
   }
   if (target) {
@@ -1493,17 +1639,18 @@ const stopDemoFileHandoff = demoFileHandoff.listen((body, target, options) => {
 function syncDemoDocumentChrome(nextLocale = demoLocale.value) {
   document.documentElement.lang = nextLocale
   document.documentElement.dataset.demoTheme = resolvedDemoTheme.value
-  document.title = demoCopyMap[nextLocale].pageTitle
+  document.title = getDemoCopy(nextLocale).pageTitle
 }
 
 onMounted(() => {
   syncDemoDocumentChrome()
-  void refreshGithubStarCount()
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   document.addEventListener('keydown', handleDocumentKeydown)
   window.addEventListener('resize', handleWindowResize)
   systemThemeQuery?.addEventListener?.('change', handleSystemThemeChange)
-  if (url.value || !hidden.value) {
+  desktopFileCapsuleMotionQuery?.addEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
+  reducedFileCapsuleMotionQuery?.addEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
+  if (url.value || !immersiveMode.value) {
     openUrlPreview(url.value)
   }
 })
@@ -1513,23 +1660,48 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleDocumentKeydown)
   window.removeEventListener('resize', handleWindowResize)
   systemThemeQuery?.removeEventListener?.('change', handleSystemThemeChange)
+  desktopFileCapsuleMotionQuery?.removeEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
+  reducedFileCapsuleMotionQuery?.removeEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
   stopDemoFileHandoff()
   if (copyResetTimer) {
     window.clearTimeout(copyResetTimer)
   }
+  recentLocalFiles.clear()
 })
 
-function openUrlPreview(nextUrl = url.value) {
+type DemoRemoteRecentSource = 'auto' | 'url' | 'sample'
+
+function rememberRemotePreview(normalizedUrl: string, source: DemoRemoteRecentSource) {
+  if (immersiveMode.value || !normalizedUrl) {
+    return
+  }
+  const matchedSample = allPresetFiles.find(item => isSameSampleUrl(item.url, normalizedUrl))
+  const input = {
+    name: fileNameOf(normalizedUrl) || normalizedUrl,
+    url: normalizedUrl,
+    type: extensionOf(normalizedUrl),
+    iconTarget: normalizedUrl
+  }
+  if (source === 'sample' || (source === 'auto' && matchedSample)) {
+    rememberSample(input)
+    return
+  }
+  rememberUrl(input)
+}
+
+function openUrlPreview(nextUrl = url.value, recentSource: DemoRemoteRecentSource = 'auto') {
   const normalizedUrl = normalizeDemoUrl(nextUrl)
-  input.value = true
+  clearPendingViewState()
   file.value = undefined
+  recentLocalReselectName.value = ''
   resetViewerSearch()
   url.value = normalizedUrl
   preview.value = normalizedUrl
-  scenarioPickerOpen.value = false
   samplePickerOpen.value = false
+  desktopSourcePanelOpen.value = false
   mobileControlsOpen.value = false
   mobileActionsOpen.value = false
+  rememberRemotePreview(normalizedUrl, recentSource)
 }
 
 function setDemoLocale(nextLocale: DemoLocale) {
@@ -1538,7 +1710,7 @@ function setDemoLocale(nextLocale: DemoLocale) {
   }
   const previousDefaultUrl = DEFAULT_DEMO_URL_BY_LOCALE[demoLocale.value]
   demoLocale.value = nextLocale
-  window.localStorage.setItem(DEMO_LOCALE_STORAGE_KEY, nextLocale)
+  writeDemoStorage(DEMO_LOCALE_STORAGE_KEY, nextLocale)
   syncDemoDocumentChrome(nextLocale)
   if (!file.value && isSameSampleUrl(url.value || preview.value, previousDefaultUrl)) {
     const nextDefaultUrl = DEFAULT_DEMO_URL_BY_LOCALE[nextLocale]
@@ -1554,17 +1726,45 @@ function handleSystemThemeChange(event: MediaQueryListEvent) {
   }
 }
 
+function handleFileCapsuleMotionPreferenceChange() {
+  resetFileCapsuleMotion()
+}
+
 function toggleDemoTheme() {
   const nextTheme = toggleFileViewerColorScheme(demoTheme.value, systemPrefersDark.value)
   demoTheme.value = nextTheme
-  window.localStorage.setItem(DEMO_THEME_STORAGE_KEY, nextTheme)
+  appliedViewerSettings.value = {
+    ...appliedViewerSettings.value,
+    theme: nextTheme
+  }
+  writeDemoStorage(DEMO_THEME_STORAGE_KEY, nextTheme)
   syncDemoDocumentChrome()
 }
 
-function setInputMode(nextMode: boolean) {
-  input.value = nextMode
-  scenarioPickerOpen.value = false
+function activateLocalFile(value: File) {
+  clearPendingViewState()
   samplePickerOpen.value = false
+  desktopSourcePanelOpen.value = false
+  mobileControlsOpen.value = false
+  mobileActionsOpen.value = false
+  recentLocalReselectName.value = ''
+  resetViewerSearch()
+  filename.value = fileNameOf(value.name) || value.name
+  file.value = value
+  const recent = rememberLocalFile(value, { iconTarget: value.name })
+  if (recent) {
+    recentLocalFiles.set(recent.id, value)
+  }
+  pruneRecentLocalFiles()
+}
+
+function pruneRecentLocalFiles() {
+  const retainedIds = new Set(recentFiles.value.filter(entry => entry.source === 'local').map(entry => entry.id))
+  for (const id of recentLocalFiles.keys()) {
+    if (!retainedIds.has(id)) {
+      recentLocalFiles.delete(id)
+    }
+  }
 }
 
 async function handleChange(e: Event) {
@@ -1573,38 +1773,47 @@ async function handleChange(e: Event) {
   if (!value) {
     return
   }
-  input.value = false
-  scenarioPickerOpen.value = false
-  samplePickerOpen.value = false
-  mobileControlsOpen.value = false
-  mobileActionsOpen.value = false
-  resetViewerSearch()
-  filename.value = value.name && decodeURIComponent(value.name) || ''
-  file.value = value
+  activateLocalFile(value)
+  target.value = ''
 }
 
-async function toggleScenarioPicker() {
-  scenarioPickerOpen.value = !scenarioPickerOpen.value
-  if (scenarioPickerOpen.value) {
-    samplePickerOpen.value = false
-    await nextTick()
+async function openRecentFile(entry: DemoRecentFile) {
+  if (entry.source !== 'local') {
+    if (entry.url) {
+      openUrlPreview(entry.url, entry.source)
+    }
+    return
   }
+
+  const runtimeFile = recentLocalFiles.get(entry.id)
+  if (runtimeFile) {
+    activateLocalFile(runtimeFile)
+    return
+  }
+
+  recentPanelOpen.value = false
+  if (isMobileDemoViewport()) {
+    await openMobileControls('upload')
+  } else {
+    await openDesktopSourcePanel('upload', 'upload')
+  }
+  recentLocalReselectName.value = entry.name
+}
+
+function dismissRecentFileEntry(id: string) {
+  dismissRecentFile(id)
+  pruneRecentLocalFiles()
 }
 
 async function toggleSamplePicker() {
   samplePickerOpen.value = !samplePickerOpen.value
   if (samplePickerOpen.value) {
-    scenarioPickerOpen.value = false
     expandedSampleGroupIndex.value = activeSampleGroupIndex.value >= 0 ? activeSampleGroupIndex.value : 0
-    await nextTick()
-    updateSampleMenuGeometry()
   }
 }
 
-async function toggleSampleGroup(index: number) {
+function toggleSampleGroup(index: number) {
   expandedSampleGroupIndex.value = expandedSampleGroupIndex.value === index ? null : index
-  await nextTick()
-  updateSampleMenuGeometry()
 }
 
 function selectPreset(nextUrl: string) {
@@ -1612,11 +1821,11 @@ function selectPreset(nextUrl: string) {
   const nextGroupIndex = sampleGroups.value.findIndex(group => group.items.some(item => isSameSampleUrl(item.url, normalizedUrl)))
   url.value = normalizedUrl
   expandedSampleGroupIndex.value = nextGroupIndex >= 0 ? nextGroupIndex : expandedSampleGroupIndex.value
-  scenarioPickerOpen.value = false
   samplePickerOpen.value = false
+  desktopSourcePanelOpen.value = false
   mobileControlsOpen.value = false
   mobileActionsOpen.value = false
-  openUrlPreview(normalizedUrl)
+  openUrlPreview(normalizedUrl, 'sample')
 }
 
 function isActivePreset(item: PresetFile) {
@@ -1624,12 +1833,24 @@ function isActivePreset(item: PresetFile) {
 }
 
 function handleDocumentPointerDown(event: PointerEvent) {
-  if (!samplePickerOpen.value && !scenarioPickerOpen.value) {
+  if (
+    !samplePickerOpen.value &&
+    !desktopSourcePanelOpen.value &&
+    !settingsPanelOpen.value &&
+    !desktopActionsOpen.value &&
+    !viewerSearchOpen.value &&
+    !mobileActionsOpen.value
+  ) {
     return
   }
   const target = event.target
   if (
-    mobileControlsOpen.value &&
+    target instanceof Element &&
+    target.closest('.viewer-file-identity, .immersive-more-menu, .viewer-search-popover, .mobile-action-dock')
+  ) {
+    return
+  }
+  if (
     target instanceof Node &&
     controlPanelRef.value?.contains(target)
   ) {
@@ -1638,11 +1859,13 @@ function handleDocumentPointerDown(event: PointerEvent) {
   if (target instanceof Node && samplePickerRef.value?.contains(target)) {
     return
   }
-  if (target instanceof Node && scenarioPickerRef.value?.contains(target)) {
-    return
+  closeDesktopSourcePanel()
+  closeSettingsPanel()
+  desktopActionsOpen.value = false
+  mobileActionsOpen.value = false
+  if (viewerSearchOpen.value) {
+    void closeViewerSearch()
   }
-  scenarioPickerOpen.value = false
-  samplePickerOpen.value = false
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
@@ -1679,10 +1902,29 @@ function handleDocumentKeydown(event: KeyboardEvent) {
   }
 
   if (event.key === 'Escape') {
-    scenarioPickerOpen.value = false
-    samplePickerOpen.value = false
-    mobileControlsOpen.value = false
-    mobileActionsOpen.value = false
+    event.preventDefault()
+    if (settingsPanelOpen.value) {
+      closeSettingsPanel(true)
+      return
+    }
+    if (desktopActionsOpen.value) {
+      desktopActionsOpen.value = false
+      void nextTick(focusActionsTrigger)
+      return
+    }
+    if (desktopSourcePanelOpen.value) {
+      closeDesktopSourcePanel(true)
+      return
+    }
+    if (mobileControlsOpen.value) {
+      closeMobileControls()
+      return
+    }
+    if (mobileActionsOpen.value) {
+      mobileActionsOpen.value = false
+      void nextTick(focusActionsTrigger)
+      return
+    }
     if (viewerSearchOpen.value) {
       void closeViewerSearch()
     }
@@ -1690,28 +1932,28 @@ function handleDocumentKeydown(event: KeyboardEvent) {
 }
 
 function handleWindowResize() {
-  updateSampleMenuGeometry()
+  const mobile = isMobileDemoViewport()
+  resetFileCapsuleMotion()
+  if (mobile !== wasMobileViewport.value) {
+    const sourceMode = desktopSourceMode.value
+    const sourceAnchor = sourcePanelAnchor.value
+    if (mobile && desktopSourcePanelOpen.value) {
+      closeDesktopSourcePanel()
+      void openMobileControls(sourceMode, sourceAnchor)
+    } else if (!mobile && mobileControlsOpen.value) {
+      closeMobileControls()
+      void openDesktopSourcePanel(sourceMode, sourceAnchor)
+    }
+    if (mobile) {
+      recentPanelOpen.value = false
+    }
+    wasMobileViewport.value = mobile
+  }
+  if (desktopSourcePanelOpen.value) {
+    void updateDesktopSourcePanelPosition()
+  }
 }
 
-function updateSampleMenuGeometry() {
-  const picker = samplePickerRef.value
-  if (!samplePickerOpen.value || !picker) {
-    return
-  }
-  const rect = picker.getBoundingClientRect()
-  if (window.matchMedia('(max-width: 720px)').matches) {
-    sampleMenuPlacement.value = 'bottom'
-    sampleMenuMaxHeight.value = 'min(48dvh, 430px)'
-    return
-  }
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-  const bottomRoom = viewportHeight - rect.bottom - 18
-  const topRoom = rect.top - 18
-  const openUp = bottomRoom < 300 && topRoom > bottomRoom
-  const availableRoom = Math.max(96, openUp ? topRoom : bottomRoom)
-  sampleMenuPlacement.value = openUp ? 'top' : 'bottom'
-  sampleMenuMaxHeight.value = `${Math.min(520, Math.floor(availableRoom))}px`
-}
 </script>
 
 <template>
@@ -1719,110 +1961,155 @@ function updateSampleMenuGeometry() {
     class='demo-shell'
     :data-demo-density='viewerDensity'
     :data-demo-theme='resolvedDemoTheme'
+    :data-demo-mode='immersiveMode ? "immersive" : "product"'
+    :data-file-family='currentIconMeta.family'
+    :data-file-capsule-state='fileCapsuleState'
     :class="{
-      hidden,
+      hidden: immersiveMode,
       'mobile-controls-open': mobileControlsOpen,
       'mobile-actions-open': mobileActionsOpen,
       'sample-picker-open': samplePickerOpen
     }"
   >
     <main class='workspace'>
-      <div v-if='!hidden' class='layout-shell'>
-        <aside ref='controlPanelRef' class='control-panel'>
-          <div class='brand-card'>
-            <span class='brand-orbit' />
-            <a
-              class='brand-github-link'
-              :href='githubRepositoryUrl'
-              target='_blank'
-              rel='noreferrer'
-              :aria-label='githubStarsAriaLabel'
+      <div v-if='!immersiveMode' class='layout-shell'>
+        <div class='top-capsule-cluster'>
+          <nav
+            ref='topCapsuleNavigationRef'
+            class='rail-navigation'
+            :aria-label='demoCopy.previewActions'
+            @pointerenter='handleFileCapsulePointerEnter'
+            @pointerleave='handleFileCapsulePointerLeave'
+            @focusin='handleFileCapsuleFocusIn'
+            @focusout='handleFileCapsuleFocusOut'
+          >
+            <button
+              ref='linkTriggerButtonRef'
+              type='button'
+              class='rail-nav-button rail-nav-button--link'
+              :class='{ active: desktopSourcePanelOpen && desktopSourceMode === "link" }'
+              :aria-label='demoCopy.openFromLink'
+              :aria-pressed='desktopSourcePanelOpen && desktopSourceMode === "link"'
+              @click='toggleDesktopSourcePanel("link")'
             >
-              <svg class='brand-github-mark' viewBox='0 0 24 24' aria-hidden='true'>
-                <path d='M12 1.7C6.3 1.7 1.7 6.3 1.7 12c0 4.6 3 8.5 7.2 9.8.5.1.7-.2.7-.5v-1.8c-2.9.6-3.5-1.2-3.5-1.2-.5-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.6 1.1 1.6 1.1.9 1.6 2.4 1.1 2.9.9.1-.7.4-1.1.7-1.3-2.3-.3-4.7-1.2-4.7-5.1 0-1.1.4-2.1 1.1-2.8-.1-.3-.5-1.4.1-2.8 0 0 .9-.3 2.9 1.1.8-.2 1.7-.3 2.6-.3.9 0 1.8.1 2.6.3 2-1.4 2.9-1.1 2.9-1.1.6 1.4.2 2.5.1 2.8.7.8 1.1 1.7 1.1 2.8 0 4-2.4 4.8-4.7 5.1.4.3.8 1 .8 2v3c0 .3.2.6.8.5 4.2-1.3 7.2-5.2 7.2-9.8C22.3 6.3 17.7 1.7 12 1.7Z' />
-              </svg>
-              <span class='brand-github-stars' aria-hidden='true'>
-                <span>★</span>
-                {{ githubStarsLabel }}
-              </span>
-            </a>
-            <div class='brand-main'>
-              <span class='brand-mark'>
-                <img :src='brandLogo' alt='File Viewer' />
-              </span>
-              <div class='brand-copy'>
-                <span>FlyFish</span>
-                <h1>File Viewer</h1>
-              </div>
+              <Link2 :size='21' :stroke-width='2.15' />
+              <span>{{ demoCopy.pasteLink }}</span>
+            </button>
+            <button
+              ref='uploadTriggerButtonRef'
+              type='button'
+              class='rail-nav-button rail-nav-button--upload'
+              :class='{ active: desktopSourcePanelOpen && desktopSourceMode === "upload" }'
+              :aria-hidden='fileCapsuleMerged || fileCapsuleActionLocked ? "true" : undefined'
+              :aria-label='demoCopy.openFromDevice'
+              :aria-pressed='desktopSourcePanelOpen && desktopSourceMode === "upload"'
+              :tabindex='fileCapsuleMerged || fileCapsuleActionLocked ? -1 : undefined'
+              @click='toggleDesktopSourcePanel("upload")'
+            >
+              <FolderOpen :size='21' :stroke-width='2.15' />
+              <span>{{ demoCopy.openFile }}</span>
+            </button>
+            <button
+              ref='sampleRailButtonRef'
+              type='button'
+              class='rail-nav-button rail-nav-button--samples'
+              :class='{ active: desktopSourcePanelOpen && desktopSourceMode === "samples" }'
+              :aria-label='demoCopy.openSamples'
+              :aria-pressed='desktopSourcePanelOpen && desktopSourceMode === "samples"'
+              @click='toggleDesktopSourcePanel("samples", "samples")'
+            >
+              <Sparkles :size='21' :stroke-width='2.15' />
+              <span>{{ demoCopy.samples }}</span>
+            </button>
+          </nav>
+
+          <span
+            class='file-capsule-fusion'
+            :style='fileCapsuleMotionStyle'
+            aria-hidden='true'
+          />
+          <div
+            class='viewer-toolbar'
+            :style='fileCapsuleMotionStyle'
+          >
+            <div
+              class='viewer-file-identity'
+              @pointerenter='handleFileCapsulePointerEnter'
+              @pointerleave='handleFileCapsulePointerLeave'
+              @focusin='handleFileCapsuleFocusIn'
+              @focusout='handleFileCapsuleFocusOut'
+            >
+              <button
+                ref='fileIdentityButtonRef'
+                type='button'
+                class='viewer-copy'
+                :class='{ active: fileSamplesOpen }'
+                aria-haspopup='dialog'
+                :aria-expanded='fileSamplesOpen'
+                :aria-label='fileIdentityAriaLabel'
+                :tabindex='fileCapsuleActionLocked ? -1 : undefined'
+                @click='toggleFileSamples'
+              >
+                <DemoFileTypeIcon class='viewer-current-file-icon' :meta='currentIconMeta' :size='32' />
+                <span class='viewer-file-copy'>
+                  <strong :title='displayName'>{{ displayName }}</strong>
+                </span>
+                <span class='viewer-type'>{{ previewType }}</span>
+                <ChevronUp
+                  v-if='fileSamplesOpen'
+                  class='viewer-file-chevron'
+                  :size='17'
+                  :stroke-width='2.25'
+                  aria-hidden='true'
+                />
+                <ChevronDown v-else class='viewer-file-chevron' :size='17' :stroke-width='2.25' aria-hidden='true' />
+              </button>
             </div>
-            <div class='brand-meta-row'>
-              <span class='brand-pill'>{{ demoCopy.pureWeb }}</span>
-              <div class='brand-preferences'>
-                <button
-                  type='button'
-                  class='theme-toggle'
-                  :title='demoThemeButtonTitle'
-                  :aria-label='demoThemeButtonTitle'
-                  :aria-pressed='resolvedDemoTheme === "dark"'
-                  @click='toggleDemoTheme'
-                >
-                  <Sun v-if='resolvedDemoTheme === "dark"' :size='16' :stroke-width='2.35' />
-                  <Moon v-else :size='16' :stroke-width='2.35' />
-                </button>
-                <div class='locale-switch' :aria-label='demoCopy.language'>
-                  <button
-                    type='button'
-                    :class='{ active: demoLocale === "zh-CN" }'
-                    @click='setDemoLocale("zh-CN")'
-                  >
-                    中
-                  </button>
-                  <button
-                    type='button'
-                    :class='{ active: demoLocale === "en-US" }'
-                    @click='setDemoLocale("en-US")'
-                  >
-                    EN
-                  </button>
-                </div>
-              </div>
-            </div>
+            <div class='viewer-path'>{{ displayPath }}</div>
+          </div>
           </div>
 
-          <div class='current-card'>
-            <span class='current-badge'>{{ previewType }}</span>
-            <div class='current-copy'>
-              <span>{{ displayMode }}</span>
-              <strong>{{ displayName }}</strong>
-            </div>
-          </div>
+        <aside
+          ref='controlPanelRef'
+          class='control-panel'
+          :class='{ "desktop-source-open": desktopSourcePanelOpen, "settings-open": settingsPanelOpen }'
+          :data-source-mode='desktopSourceMode'
+        >
+          <header class='rail-brand'>
+            <span class='brand-mark'>
+              <img :src='brandLogo' alt='' />
+            </span>
+            <h1>File Viewer</h1>
+          </header>
 
           <button type='button' class='mobile-sheet-close' :aria-label='demoCopy.closePanel' @click='closeMobileControls'>
             <X :size='18' :stroke-width='2.5' />
           </button>
 
-          <div class='panel-body'>
-            <div class='panel-sticky-controls'>
-              <div class='mode-switch'>
-                <button
-                  type='button'
-                  class='mode-button'
-                  :class='{ active: input }'
-                  @click='setInputMode(true)'
-                >
-                  {{ demoCopy.link }}
-                </button>
-                <button
-                  type='button'
-                  class='mode-button'
-                  :class='{ active: !input }'
-                  @click='setInputMode(false)'
-                >
-                  {{ demoCopy.upload }}
-                </button>
-              </div>
+          <div
+            v-if='desktopSourcePanelOpen || mobileControlsOpen'
+            class='panel-body'
+            role='dialog'
+            :aria-label='desktopSourcePanelTitle'
+            :data-source-anchor='sourcePanelAnchor'
+            :style='sourcePanelStyle'
+          >
+            <header class='source-panel-header'>
+              <span>
+                <strong>{{ desktopSourcePanelTitle }}</strong>
+                <small v-if='desktopSourceMode !== "samples"'>{{ desktopSourcePanelHint }}</small>
+              </span>
+              <button
+                type='button'
+                :aria-label='demoCopy.closePanel'
+                @click='mobileControlsOpen ? closeMobileControls() : closeDesktopSourcePanel(true)'
+              >
+                <X :size='17' :stroke-width='2.4' />
+              </button>
+            </header>
 
-              <section v-if='input' class='source-command'>
+            <template v-if='desktopSourceMode === "link"'>
+              <section class='source-command source-command--focused'>
                 <label class='field-label' for='preview-url'>{{ demoCopy.address }}</label>
                 <div class='source-command-row'>
                   <input
@@ -1840,55 +2127,28 @@ function updateSampleMenuGeometry() {
                   </button>
                 </div>
               </section>
-            </div>
-
-            <template v-if='input'>
-              <div ref='scenarioPickerRef' class='scenario-picker' :class='{ open: scenarioPickerOpen }'>
-                <button
-                  type='button'
-                  class='scenario-trigger'
-                  aria-controls='scenario-menu'
-                  :aria-expanded="scenarioPickerOpen ? 'true' : 'false'"
-                  @click='toggleScenarioPicker'
-                >
-                  <span class='scenario-trigger-icon'>
-                    <FileSearch :size='17' :stroke-width='2.4' />
-                  </span>
-                  <span class='scenario-trigger-copy'>
-                    <strong>{{ demoCopy.quickSamples }}</strong>
-                    <em>{{ demoCopy.quickSamplesHint }}</em>
-                  </span>
-                  <ChevronUp v-if='scenarioPickerOpen' :size='16' :stroke-width='2.6' />
-                  <ChevronDown v-else :size='16' :stroke-width='2.6' />
-                </button>
-
-                <div
-                  v-if='scenarioPickerOpen'
-                  id='scenario-menu'
-                  class='scenario-popover'
-                  role='menu'
-                  aria-label='Demo scenarios'
-                >
-                  <button
-                    v-for='scenario in scenarioPicks'
-                    :key='scenario.url'
-                    type='button'
-                    class='scenario-card'
-                    :class='{ active: !file && isSameSampleUrl(url, scenario.url) }'
-                    role='menuitem'
-                    @click='selectPreset(scenario.url)'
-                  >
-                    <span class='sample-file-icon scenario-icon' :data-family='scenario.family'>
-                      <span>{{ getFileIconMeta(scenario.url).icon }}</span>
-                    </span>
-                    <span>
-                      <strong>{{ scenario.title }}</strong>
-                      <em>{{ scenario.description }}</em>
-                    </span>
-                  </button>
-                </div>
+              <div class='source-context-row'>
+                <Link2 :size='17' :stroke-width='2.2' />
+                <span>
+                  <small>{{ demoCopy.filePath }}</small>
+                  <strong>{{ displayPath }}</strong>
+                </span>
               </div>
+            </template>
 
+            <template v-else-if='desktopSourceMode === "upload"'>
+              <label class='desktop-upload-dropzone'>
+                <input type='file' :accept='uploadAccept' @change='handleChange' />
+                <span class='desktop-upload-icon'>
+                  <Upload :size='23' :stroke-width='2.1' />
+                </span>
+                <strong>{{ demoCopy.chooseFile }}</strong>
+                <small role='status'>{{ recentLocalReselectNotice || demoCopy.uploadPanelHint }}</small>
+                <em>{{ filename || demoCopy.openLocal }}</em>
+              </label>
+            </template>
+
+            <template v-else>
               <div ref='samplePickerRef' class='sample-picker' :class='{ open: samplePickerOpen }'>
                 <button
                   type='button'
@@ -1897,9 +2157,7 @@ function updateSampleMenuGeometry() {
                   :aria-expanded="samplePickerOpen ? 'true' : 'false'"
                   @click='toggleSamplePicker'
                 >
-                  <span class='sample-file-icon' :data-family='activeIconMeta.family'>
-                    <span>{{ activeIconMeta.icon }}</span>
-                  </span>
+                  <DemoFileTypeIcon :meta='activeIconMeta' :size='44' />
                   <span class='sample-trigger-copy'>
                     <span>{{ demoCopy.sampleFile }}</span>
                     <strong>{{ activePreset?.name || fileNameOf(url) }}</strong>
@@ -1912,8 +2170,6 @@ function updateSampleMenuGeometry() {
                   v-if='samplePickerOpen'
                   id='sample-menu'
                   class='sample-menu'
-                  :class='`sample-menu--${sampleMenuPlacement}`'
-                  :style='{ maxHeight: sampleMenuMaxHeight }'
                 >
                   <section
                     v-for='(group, groupIndex) in sampleGroups'
@@ -1947,9 +2203,7 @@ function updateSampleMenuGeometry() {
                         :class='{ active: isActivePreset(item) }'
                         @click='selectPreset(item.url)'
                       >
-                        <span class='sample-file-icon' :data-family='getFileIconMeta(item.url).family'>
-                          <span>{{ getFileIconMeta(item.url).icon }}</span>
-                        </span>
+                        <DemoFileTypeIcon :meta='getFileIconMeta(item.url)' :size='36' />
                         <span class='sample-card-copy'>
                           <strong>{{ item.name }}</strong>
                           <span>{{ fileNameOf(item.url) }}</span>
@@ -1959,177 +2213,138 @@ function updateSampleMenuGeometry() {
                   </section>
                 </div>
               </div>
-
-              <button
-                ref='snippetLaunchRef'
-                type='button'
-                class='snippet-launch'
-                aria-haspopup='dialog'
-                aria-controls='integration-snippet-dialog'
-                @click='openSnippetDialog'
-              >
-                <span class='snippet-launch-icon'>
-                  <Code2 :size='18' :stroke-width='2.3' />
-                </span>
-                <span class='snippet-launch-copy'>
-                  <strong>{{ demoCopy.openIntegrationSnippet }}</strong>
-                  <em>{{ demoCopy.integrationSnippetHint }}</em>
-                </span>
-                <span class='snippet-launch-action'>{{ demoCopy.open }}</span>
-              </button>
-            </template>
-
-            <template v-else>
-              <label class='upload-card'>
-                <input type='file' :accept='uploadAccept' @change='handleChange' />
-                <span class='upload-icon'>+</span>
-                <span class='upload-title'>{{ demoCopy.chooseFile }}</span>
-                <strong>{{ filename || demoCopy.openLocal }}</strong>
-              </label>
             </template>
           </div>
+
+          <DemoViewerSettingsPanel
+            v-if='settingsPanelOpen'
+            v-model:settings='settingsDraft'
+            v-model:active-tab='settingsActiveTab'
+            v-model:format-section='settingsFormatSection'
+            :copy='demoCopy'
+            :preview-type='previewType'
+            :current-format-section='currentSettingsFormatSection'
+            :fit-mode-options='fitModeOptions'
+            :applying='settingsApplying'
+            :error='settingsApplyError'
+            @close='closeSettingsPanel(true)'
+            @reset='resetSettingsDraft()'
+            @apply='applySettingsAndRestoreFocus'
+          />
         </aside>
 
         <section class='viewer-panel'>
-          <div class='viewer-toolbar'>
-            <div class='viewer-copy'>
-              <span class='viewer-status' />
-              <strong>{{ displayName }}</strong>
-              <span class='viewer-type'>{{ previewType }}</span>
-            </div>
-            <div class='viewer-path'>{{ displayPath }}</div>
-            <div class='viewer-tools'>
-              <label class='viewer-fit-control' :title='demoCopy.fitMode'>
-                <span>{{ demoCopy.fitMode }}</span>
-                <select :value='fitMode' :aria-label='demoCopy.fitMode' @change='selectFitMode'>
-                  <option
-                    v-for='option in fitModeOptions'
-                    :key='option.value'
-                    :value='option.value'
-                  >
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <div v-if='showExternalToolbar' class='viewer-action-group' :aria-label='demoCopy.previewActions'>
-                <template v-if='visibleExternalToolbar.zoom'>
-                  <button
-                    type='button'
-                    class='viewer-tool-button viewer-tool-button--icon'
-                    :disabled='viewerActionDisabled || !viewerAvailability.zoomOut'
-                    :title='demoCopy.zoomOut'
-                    :aria-label='demoCopy.zoomOut'
-                    @click='triggerViewerAction("zoomOut")'
-                  >
-                    <ZoomOut :size='15' :stroke-width='2.4' />
-                  </button>
-                  <button
-                    type='button'
-                    class='viewer-tool-button viewer-tool-button--meter'
-                    :disabled='viewerActionDisabled || !viewerAvailability.zoomReset'
-                    :title='demoCopy.resetZoom'
-                    @click='triggerViewerAction("resetZoom")'
-                  >
-                    {{ viewerZoomState.label }}
-                  </button>
-                  <button
-                    type='button'
-                    class='viewer-tool-button viewer-tool-button--icon'
-                    :disabled='viewerActionDisabled || !viewerAvailability.zoomIn'
-                    :title='demoCopy.zoomIn'
-                    :aria-label='demoCopy.zoomIn'
-                    @click='triggerViewerAction("zoomIn")'
-                  >
-                    <ZoomIn :size='15' :stroke-width='2.4' />
-                  </button>
-                  <button
-                    type='button'
-                    class='viewer-tool-button viewer-tool-button--icon'
-                    :disabled='viewerActionDisabled || !viewerAvailability.zoomReset'
-                    :title='demoCopy.resetZoom'
-                    :aria-label='demoCopy.resetZoom'
-                    @click='triggerViewerAction("resetZoom")'
-                  >
-                    <RotateCcw :size='14' :stroke-width='2.4' />
-                  </button>
-                </template>
+          <div class='viewer-global-actions'>
+            <a
+              class='viewer-github-link'
+              :href='githubRepositoryUrl'
+              target='_blank'
+              rel='noreferrer'
+              :aria-label='githubRepositoryAriaLabel'
+            >
+              <img :src='githubMark' alt='' />
+            </a>
+            <div class='locale-switch viewer-locale-switch' :aria-label='demoCopy.language'>
                 <button
-                  v-if='visibleExternalToolbar.download'
                   type='button'
-                  class='viewer-tool-button'
-                  :disabled='viewerActionDisabled'
-                  :title='demoCopy.downloadTitle'
-                  @click='triggerViewerAction("download")'
+                  :class='{ active: demoLocale === "zh-CN" }'
+                  @click='setDemoLocale("zh-CN")'
                 >
-                  {{ demoCopy.download }}
+                  中
                 </button>
-                <div
-                  v-if='visibleExternalToolbar.print'
-                  class='viewer-print-menu'
-                  :data-open='printMenuOpen ? "true" : "false"'
-                  @focusout='event => {
-                    const next = event.relatedTarget as Node | null
-                    if (!next || !(event.currentTarget as HTMLElement).contains(next)) {
-                      closePrintMenu()
-                    }
-                  }'
-                >
-                  <button
-                    type='button'
-                    class='viewer-tool-button'
-                    :disabled='viewerActionDisabled'
-                    :title='demoCopy.printTitle'
-                    :aria-haspopup='true'
-                    :aria-expanded='printMenuOpen'
-                    @click='togglePrintMenu'
-                  >
-                    {{ demoCopy.print }}
-                  </button>
-                  <div class='viewer-print-menu-panel' role='menu'>
-                    <button
-                      type='button'
-                      role='menuitem'
-                      class='viewer-tool-button'
-                      :disabled='viewerActionDisabled'
-                      :title='demoCopy.printTitle'
-                      @click='printDirect'
-                    >
-                      {{ demoCopy.printDirect }}
-                    </button>
-                    <button
-                      type='button'
-                      role='menuitem'
-                      class='viewer-tool-button'
-                      :disabled='viewerActionDisabled'
-                      :title='demoCopy.printMaskTitle'
-                      @click='printWithMask'
-                    >
-                      {{ demoCopy.printMask }}
-                    </button>
-                  </div>
-                </div>
                 <button
-                  v-if='visibleExternalToolbar.exportHtml'
                   type='button'
-                  class='viewer-tool-button'
-                  :disabled='viewerActionDisabled'
-                  :title='demoCopy.exportHtmlTitle'
-                  @click='triggerViewerAction("exportHtml")'
+                  :class='{ active: demoLocale === "en-US" }'
+                  @click='setDemoLocale("en-US")'
                 >
-                  HTML
+                  EN
                 </button>
               </div>
-              <button
-                type='button'
-                class='viewer-tool-button'
-                :class='{ active: watermarkEnabled }'
-                :title='demoCopy.watermarkTitle'
-                @click='toggleWatermark'
-              >
-                {{ demoCopy.watermark }}
-              </button>
-            </div>
           </div>
+
+          <nav class='immersive-right-toolbar' :aria-label='demoCopy.previewActions'>
+            <button
+              v-if='appliedViewerSettings.toolbarSearch && appliedViewerSettings.searchEnabled'
+              type='button'
+              :class='{ active: viewerSearchOpen }'
+              :data-tooltip='demoCopy.search'
+              :aria-label='demoCopy.searchDocument'
+              @click='openViewerSearch'
+            >
+              <Search :size='21' :stroke-width='2.1' />
+            </button>
+            <button
+              type='button'
+              :data-tooltip='demoCopy.theme'
+              :aria-label='demoThemeButtonTitle'
+              :aria-pressed='resolvedDemoTheme === "dark"'
+              @click='toggleDemoTheme'
+            >
+              <Sun v-if='resolvedDemoTheme === "dark"' :size='21' :stroke-width='2.05' />
+              <Moon v-else :size='21' :stroke-width='2.05' />
+            </button>
+            <button
+              v-if='visibleExternalToolbar.download'
+              type='button'
+              :disabled='viewerActionDisabled || !viewerAvailability.download'
+              :data-tooltip='demoCopy.download'
+              :aria-label='demoCopy.downloadTitle'
+              @click='triggerViewerAction("download")'
+            >
+              <Download :size='21' :stroke-width='2.05' />
+            </button>
+            <div class='immersive-more-menu' :data-open='desktopActionsOpen ? "true" : "false"'>
+              <button
+                ref='settingsButtonRef'
+                type='button'
+                data-viewer-action='more'
+                :class='{ active: desktopActionsOpen }'
+                :data-tooltip='demoCopy.more'
+                :aria-label='demoCopy.openMoreActions'
+                aria-haspopup='menu'
+                :aria-expanded='desktopActionsOpen'
+                @click='toggleDesktopActions'
+              >
+                <MoreHorizontal :size='22' :stroke-width='2.15' />
+              </button>
+              <div
+                v-if='desktopActionsOpen'
+                ref='morePanelRef'
+                class='immersive-more-panel'
+                role='menu'
+                @keydown='handleMoreMenuKeydown'
+              >
+                <button v-if='visibleExternalToolbar.print' type='button' role='menuitem' :disabled='!viewerAvailability.print' @click='printDirect'>
+                  <Printer :size='17' /><span>{{ demoCopy.printDirect }}</span>
+                </button>
+                <button v-if='visibleExternalToolbar.print' type='button' role='menuitem' :disabled='!viewerAvailability.print' @click='printWithMask'>
+                  <Stamp :size='17' /><span>{{ demoCopy.printMask }}</span>
+                </button>
+                <button v-if='visibleExternalToolbar.exportHtml' type='button' role='menuitem' :disabled='!viewerAvailability.exportHtml' @click='triggerViewerAction("exportHtml")'>
+                  <Code2 :size='17' /><span>{{ demoCopy.exportHtml }}</span>
+                </button>
+                <button type='button' role='menuitem' :class='{ active: watermarkEnabled }' @click='toggleWatermark'>
+                  <Stamp :size='17' /><span>{{ demoCopy.watermark }}</span>
+                </button>
+                <button type='button' role='menuitem' :disabled='!viewerAvailability.zoomReset' @click='triggerViewerAction("resetZoom")'>
+                  <RotateCcw :size='17' /><span>{{ demoCopy.resetZoom }}</span>
+                </button>
+                <button type='button' role='menuitem' @click='openSnippetDialog'>
+                  <Code2 :size='17' /><span>{{ demoCopy.integration }}</span>
+                </button>
+                <button type='button' role='menuitem' data-viewer-action='settings' @click='toggleSettingsPanel'>
+                  <Settings2 :size='17' /><span>{{ demoCopy.settings }}</span>
+                </button>
+              </div>
+            </div>
+          </nav>
+
+          <Transition name='settings-notice'>
+            <div v-if='settingsNoticeVisible' class='settings-notice' role='status'>
+              <Check :size='16' :stroke-width='2.5' />
+              <span>{{ demoCopy.settingsApplied }}</span>
+            </div>
+          </Transition>
 
           <div v-if='viewerSearchOpen' class='viewer-search-popover' role='search' :aria-label='demoCopy.searchDocument'>
             <input
@@ -2140,10 +2355,10 @@ function updateSampleMenuGeometry() {
               @keyup.enter='runViewerSearch'
             />
             <span class='viewer-search-summary'>{{ viewerSearchSummary }}</span>
-            <button type='button' :title='demoCopy.previousResult' :aria-label='demoCopy.previousResult' @click='previousViewerSearch'>
+            <button type='button' :disabled='viewerSearchState.total === 0' :title='demoCopy.previousResult' :aria-label='demoCopy.previousResult' @click='previousViewerSearch'>
               <ChevronUp class='viewer-search-icon' aria-hidden='true' />
             </button>
-            <button type='button' :title='demoCopy.nextResult' :aria-label='demoCopy.nextResult' @click='nextViewerSearch'>
+            <button type='button' :disabled='viewerSearchState.total === 0' :title='demoCopy.nextResult' :aria-label='demoCopy.nextResult' @click='nextViewerSearch'>
               <ChevronDown class='viewer-search-icon' aria-hidden='true' />
             </button>
             <button type='button' class='viewer-search-close' :title='demoCopy.closeSearch' @click='closeViewerSearch'>
@@ -2153,16 +2368,94 @@ function updateSampleMenuGeometry() {
 
           <div class='viewport'>
             <file-viewer
+              :key='viewerRevision'
               ref='fileViewerRef'
               :file='file'
               :url='preview'
               :options='viewerOptions'
+              @load-start='handleViewerLoadStart'
               @operation-availability-change='handleViewerAvailabilityChange'
+              @load-complete='handleViewerLoadComplete'
               @search-change='handleViewerSearchChange'
+              @view-state-change='handleViewerViewStateChange'
               @zoom-change='handleViewerZoomChange'
             />
           </div>
+          <div class='viewer-status-dock' :aria-label='demoCopy.previewActions'>
+            <span class='viewer-status-context'>{{ viewerPageLabel }}</span>
+            <i v-if='visibleExternalToolbar.zoom' class='viewer-status-divider' aria-hidden='true' />
+            <div
+              v-if='visibleExternalToolbar.zoom'
+              class='viewer-zoom-controls'
+              role='group'
+              :aria-label='demoCopy.zoomControls'
+            >
+              <button
+                type='button'
+                class='viewer-zoom-button'
+                data-demo-zoom-action='out'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoomOut'
+                :title='demoCopy.zoomOut'
+                :aria-label='demoCopy.zoomOut'
+                @click='triggerViewerAction("zoomOut")'
+              >
+                <ZoomOut :size='17' :stroke-width='2.25' aria-hidden='true' />
+              </button>
+              <button
+                type='button'
+                class='viewer-zoom-meter'
+                data-demo-zoom-action='reset'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoomReset'
+                :title='viewerZoomResetLabel'
+                :aria-label='viewerZoomResetLabel'
+                @click='triggerViewerAction("resetZoom")'
+              >
+                <span aria-live='polite' aria-atomic='true'>{{ viewerZoomDisplayLabel }}</span>
+              </button>
+              <button
+                type='button'
+                class='viewer-zoom-button'
+                data-demo-zoom-action='in'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoomIn'
+                :title='demoCopy.zoomIn'
+                :aria-label='demoCopy.zoomIn'
+                @click='triggerViewerAction("zoomIn")'
+              >
+                <ZoomIn :size='17' :stroke-width='2.25' aria-hidden='true' />
+              </button>
+              <button
+                type='button'
+                class='viewer-zoom-button viewer-zoom-fit'
+                data-demo-zoom-action='fit'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoom'
+                :title='demoCopy.fitMode'
+                :aria-label='demoCopy.fitMode'
+                @click='fitCurrentDocument'
+              >
+                <Scan :size='17' :stroke-width='2.2' aria-hidden='true' />
+              </button>
+            </div>
+          </div>
         </section>
+
+        <DemoRecentFiles
+          v-if='recentPanelOpen && recentDisplayEntries.length'
+          :entries='recentDisplayEntries'
+          :copy='recentFilesCopy'
+          @open='openRecentFile'
+          @dismiss='dismissRecentFileEntry'
+          @close='recentPanelOpen = false'
+        />
+        <button
+          v-else-if='hasRecentFiles'
+          type='button'
+          class='recent-history-fab'
+          :title='demoCopy.showRecent'
+          :aria-label='demoCopy.showRecent'
+          @click='recentPanelOpen = true'
+        >
+          <History :size='20' :stroke-width='2.15' aria-hidden='true' />
+        </button>
 
         <button
           v-if='mobileControlsOpen'
@@ -2173,37 +2466,48 @@ function updateSampleMenuGeometry() {
         />
 
         <nav class='mobile-action-dock' :aria-label='demoCopy.previewActions'>
-          <div v-if='visibleExternalToolbar.zoom' class='mobile-zoom-strip'>
-            <button
-              type='button'
-              :disabled='viewerActionDisabled || !viewerAvailability.zoomOut'
-              :title='demoCopy.zoomOut'
-              :aria-label='demoCopy.zoomOut'
-              @click='triggerViewerAction("zoomOut")'
-            >
-              <ZoomOut :size='18' :stroke-width='2.4' />
-            </button>
-            <button
-              type='button'
-              class='mobile-zoom-meter'
-              :disabled='viewerActionDisabled || !viewerAvailability.zoomReset'
-              :title='demoCopy.resetZoom'
-              @click='triggerViewerAction("resetZoom")'
-            >
-              {{ viewerZoomState.label }}
-            </button>
-            <button
-              type='button'
-              :disabled='viewerActionDisabled || !viewerAvailability.zoomIn'
-              :title='demoCopy.zoomIn'
-              :aria-label='demoCopy.zoomIn'
-              @click='triggerViewerAction("zoomIn")'
-            >
-              <ZoomIn :size='18' :stroke-width='2.4' />
-            </button>
-          </div>
+          <div
+            v-if='mobileActionsOpen'
+            ref='mobileActionsPanelRef'
+            class='mobile-action-panel'
+            role='dialog'
+            :aria-label='demoCopy.openMoreActions'
+          >
+            <header class='mobile-action-header'>
+              <span>
+                <MoreHorizontal :size='19' :stroke-width='2.5' aria-hidden='true' />
+                <strong>{{ demoCopy.more }}</strong>
+                <small>{{ demoCopy.previewActions }}</small>
+              </span>
+              <button type='button' :aria-label='demoCopy.closeMobileControls' @click='toggleMobileActions'>
+                <X :size='17' :stroke-width='2.5' aria-hidden='true' />
+              </button>
+            </header>
 
-          <div v-if='mobileActionsOpen' class='mobile-action-panel'>
+            <div class='mobile-action-source-grid'>
+              <button type='button' :aria-label='demoCopy.openLinkSettings' @click='openMobileControls("link")'>
+                <Link2 :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.link }}</span>
+              </button>
+              <button type='button' :aria-label='demoCopy.uploadLocalFile' @click='openMobileControls("upload")'>
+                <Upload :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.upload }}</span>
+              </button>
+              <button type='button' :aria-label='demoCopy.openSamples' @click='openMobileControls("samples", "samples")'>
+                <FileSearch :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.samples }}</span>
+              </button>
+              <button
+                v-if='appliedViewerSettings.toolbarSearch && appliedViewerSettings.searchEnabled'
+                type='button'
+                :aria-label='demoCopy.searchCurrentDocument'
+                @click='openViewerSearch'
+              >
+                <Search :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.search }}</span>
+              </button>
+            </div>
+
             <label class='mobile-fit-control'>
               <span>{{ demoCopy.fitMode }}</span>
               <select :value='fitMode' :aria-label='demoCopy.fitMode' @change='selectFitMode'>
@@ -2216,87 +2520,122 @@ function updateSampleMenuGeometry() {
                 </option>
               </select>
             </label>
-            <button
-              v-if='visibleExternalToolbar.download'
-              type='button'
-              :disabled='viewerActionDisabled'
-              @click='triggerViewerAction("download")'
-            >
-              {{ demoCopy.download }}
-            </button>
-            <div
-              v-if='visibleExternalToolbar.print'
-              class='viewer-print-menu'
-              :data-open='printMenuOpen ? "true" : "false"'
-            >
+
+            <div class='mobile-action-tool-grid'>
               <button
+                v-if='visibleExternalToolbar.zoom'
                 type='button'
-                :disabled='viewerActionDisabled'
-                :aria-haspopup='true'
-                :aria-expanded='printMenuOpen'
-                @click='togglePrintMenu'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoomOut'
+                :aria-label='demoCopy.zoomOut'
+                @click='triggerViewerAction("zoomOut")'
               >
-                {{ demoCopy.print }}
+                <ZoomOut :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.zoomOut }}</span>
               </button>
-              <div class='viewer-print-menu-panel' role='menu'>
-                <button type='button' role='menuitem' :disabled='viewerActionDisabled' @click='printDirect'>
-                  {{ demoCopy.printDirect }}
-                </button>
-                <button type='button' role='menuitem' :disabled='viewerActionDisabled' @click='printWithMask'>
-                  {{ demoCopy.printMask }}
-                </button>
-              </div>
+              <button
+                v-if='visibleExternalToolbar.zoom'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoomReset'
+                :title='viewerZoomResetLabel'
+                :aria-label='viewerZoomResetLabel'
+                @click='triggerViewerAction("resetZoom")'
+              >
+                <RotateCcw :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ viewerZoomDisplayLabel }}</span>
+              </button>
+              <button
+                v-if='visibleExternalToolbar.zoom'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoomIn'
+                :aria-label='demoCopy.zoomIn'
+                @click='triggerViewerAction("zoomIn")'
+              >
+                <ZoomIn :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.zoomIn }}</span>
+              </button>
+              <button
+                v-if='visibleExternalToolbar.zoom'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.zoom'
+                :aria-label='demoCopy.fitMode'
+                @click='fitCurrentDocument'
+              >
+                <Scan :size='18' :stroke-width='2.2' aria-hidden='true' />
+                <span>{{ demoCopy.fitMode }}</span>
+              </button>
+              <button
+                v-if='visibleExternalToolbar.download'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.download'
+                @click='triggerViewerAction("download")'
+              >
+                <Download :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.download }}</span>
+              </button>
+              <button
+                v-if='visibleExternalToolbar.print'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.print'
+                @click='printDirect'
+              >
+                <Printer :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.printDirect }}</span>
+              </button>
+              <button
+                v-if='visibleExternalToolbar.print'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.print'
+                @click='printWithMask'
+              >
+                <Stamp :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.printMask }}</span>
+              </button>
+              <button
+                v-if='visibleExternalToolbar.exportHtml'
+                type='button'
+                :disabled='viewerActionDisabled || !viewerAvailability.exportHtml'
+                @click='triggerViewerAction("exportHtml")'
+              >
+                <Code2 :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>HTML</span>
+              </button>
+              <button type='button' :class='{ active: watermarkEnabled }' @click='toggleWatermark'>
+                <Stamp :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.watermark }}</span>
+              </button>
             </div>
-            <button
-              v-if='visibleExternalToolbar.exportHtml'
-              type='button'
-              :disabled='viewerActionDisabled'
-              @click='triggerViewerAction("exportHtml")'
-            >
-              HTML
-            </button>
-            <button type='button' :class='{ active: watermarkEnabled }' @click='toggleWatermark'>
-              {{ demoCopy.watermark }}
-            </button>
-            <button
-              v-if='visibleExternalToolbar.zoom'
-              type='button'
-              :disabled='viewerActionDisabled || !viewerAvailability.zoomReset'
-              @click='triggerViewerAction("resetZoom")'
-            >
-              {{ demoCopy.reset }}
-            </button>
+
+            <footer class='mobile-action-settings-grid'>
+              <button type='button' @click='toggleDemoTheme'>
+                <Sun v-if='resolvedDemoTheme === "dark"' :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <Moon v-else :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.theme }}</span>
+              </button>
+              <button type='button' @click='openSnippetDialog'>
+                <Code2 :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.integration }}</span>
+              </button>
+              <button type='button' @click='toggleSettingsPanel'>
+                <Settings2 :size='18' :stroke-width='2.25' aria-hidden='true' />
+                <span>{{ demoCopy.fullSettings }}</span>
+              </button>
+            </footer>
           </div>
 
-          <div class='mobile-quick-row'>
-            <button type='button' class='mobile-fab' :aria-label='demoCopy.openLinkSettings' @click='openMobileControls("link")'>
-              <Link2 :size='18' :stroke-width='2.4' />
-              <span>{{ demoCopy.link }}</span>
-            </button>
-            <button type='button' class='mobile-fab' :aria-label='demoCopy.openSamples' @click='openMobileControls("samples")'>
-              <FileSearch :size='18' :stroke-width='2.4' />
-              <span>{{ demoCopy.samples }}</span>
-            </button>
-            <button type='button' class='mobile-fab' :aria-label='demoCopy.uploadLocalFile' @click='openMobileControls("upload")'>
-              <Upload :size='18' :stroke-width='2.4' />
-              <span>{{ demoCopy.upload }}</span>
-            </button>
-            <button type='button' class='mobile-fab' :aria-label='demoCopy.searchCurrentDocument' @click='openViewerSearch'>
-              <Search :size='18' :stroke-width='2.4' />
-              <span>{{ demoCopy.search }}</span>
-            </button>
-            <button
-              type='button'
-              class='mobile-fab mobile-fab--primary'
-              :class='{ active: mobileActionsOpen }'
-              :aria-label='demoCopy.openMoreActions'
-              :aria-expanded="mobileActionsOpen ? 'true' : 'false'"
-              @click='toggleMobileActions'
-            >
-              <MoreHorizontal :size='20' :stroke-width='2.6' />
-              <span>{{ demoCopy.more }}</span>
-            </button>
-          </div>
+          <button
+            ref='mobileMoreButtonRef'
+            type='button'
+            class='mobile-more-trigger'
+            :class='{ active: mobileActionsOpen }'
+            :aria-label='mobileActionsOpen ? demoCopy.closeMobileControls : demoCopy.openMoreActions'
+            aria-haspopup='dialog'
+            :aria-expanded="mobileActionsOpen ? 'true' : 'false'"
+            @click='toggleMobileActions'
+          >
+            <X v-if='mobileActionsOpen' :size='20' :stroke-width='2.6' aria-hidden='true' />
+            <MoreHorizontal v-else :size='21' :stroke-width='2.6' aria-hidden='true' />
+            <span>{{ demoCopy.more }}</span>
+          </button>
         </nav>
       </div>
 
@@ -2310,10 +2649,10 @@ function updateSampleMenuGeometry() {
             @keyup.enter='runViewerSearch'
           />
           <span class='viewer-search-summary'>{{ viewerSearchSummary }}</span>
-          <button type='button' :title='demoCopy.previousResult' :aria-label='demoCopy.previousResult' @click='previousViewerSearch'>
+          <button type='button' :disabled='viewerSearchState.total === 0' :title='demoCopy.previousResult' :aria-label='demoCopy.previousResult' @click='previousViewerSearch'>
             <ChevronUp class='viewer-search-icon' aria-hidden='true' />
           </button>
-          <button type='button' :title='demoCopy.nextResult' :aria-label='demoCopy.nextResult' @click='nextViewerSearch'>
+          <button type='button' :disabled='viewerSearchState.total === 0' :title='demoCopy.nextResult' :aria-label='demoCopy.nextResult' @click='nextViewerSearch'>
             <ChevronDown class='viewer-search-icon' aria-hidden='true' />
           </button>
           <button type='button' class='viewer-search-close' :title='demoCopy.closeSearch' @click='closeViewerSearch'>
@@ -2322,12 +2661,16 @@ function updateSampleMenuGeometry() {
         </div>
         <div class='viewport'>
           <file-viewer
+            :key='viewerRevision'
             ref='fileViewerRef'
             :file='file'
             :url='preview'
             :options='viewerOptions'
+            @load-start='handleViewerLoadStart'
             @operation-availability-change='handleViewerAvailabilityChange'
+            @load-complete='handleViewerLoadComplete'
             @search-change='handleViewerSearchChange'
+            @view-state-change='handleViewerViewStateChange'
             @zoom-change='handleViewerZoomChange'
           />
         </div>
@@ -2393,2774 +2736,6 @@ function updateSampleMenuGeometry() {
   </div>
 </template>
 
-<style scoped>
-.demo-shell {
-  height: 100vh;
-  overflow: hidden;
-  --demo-shell-padding: 16px;
-  --demo-layout-gap: 16px;
-  --demo-panel-radius: 28px;
-  --demo-panel-padding: 12px;
-  --demo-panel-gap: 12px;
-  --demo-card-padding: 16px;
-  --demo-card-gap: 12px;
-  --demo-brand-card-radius: 22px;
-  --demo-brand-pill-padding: 0 11px;
-  --demo-control-gap: 4px;
-  --demo-control-card-gap: 9px;
-  --demo-control-padding: 7px 10px;
-  --demo-control-radius: 16px;
-  --demo-control-height: 46px;
-  --demo-current-card-padding: 12px;
-  --demo-current-card-radius: 20px;
-  --demo-field-gap: 7px;
-  --demo-field-padding: 0 14px;
-  --demo-field-radius: 17px;
-  --demo-panel-body-gap: 14px;
-  --demo-panel-body-padding: 2px 4px 4px 2px;
-  --demo-popover-offset: 8px;
-  --demo-popover-gap: 8px;
-  --demo-popover-padding: 10px;
-  --demo-popover-radius: 18px;
-  --demo-scenario-card-gap: 8px;
-  --demo-scenario-card-padding: 8px;
-  --demo-scenario-card-radius: 14px;
-  --demo-small-gap: 6px;
-  --demo-small-padding: 3px;
-  --demo-sample-trigger-min-height: 70px;
-  --demo-sample-trigger-gap: 12px;
-  --demo-sample-trigger-padding: 11px;
-  --demo-sample-trigger-radius: 17px;
-  --demo-viewer-toolbar-gap: 16px;
-  --demo-viewer-toolbar-padding: 14px 18px;
-  --demo-viewer-tools-gap: 8px;
-  --demo-viewer-copy-gap: 9px;
-  --demo-viewer-type-padding: 5px 8px;
-  --demo-viewer-fit-gap: 6px;
-  --demo-viewer-fit-height: 38px;
-  --demo-viewer-fit-padding: 3px 4px 3px 10px;
-  --demo-viewer-select-height: 30px;
-  --demo-viewer-select-padding: 0 28px 0 10px;
-  --demo-viewer-search-top: 76px;
-  --demo-viewer-search-gap: 6px;
-  --demo-viewer-search-padding: 6px;
-  --demo-viewer-search-radius: 18px;
-  --demo-viewer-search-control-radius: 12px;
-  --demo-viewer-search-input-padding: 0 12px;
-  --demo-action-group-gap: 4px;
-  --demo-action-group-padding: 3px;
-  --demo-viewer-tool-height: 32px;
-  --demo-viewer-tool-padding: 0 12px;
-  --demo-action-tool-min-width: 48px;
-  --demo-action-icon-size: 32px;
-  --demo-action-meter-min-width: 52px;
-  --demo-action-meter-padding: 0 8px;
-  background:
-    radial-gradient(circle at 12% 12%, rgba(37, 171, 111, 0.22), transparent 28%),
-    radial-gradient(circle at 86% 0%, rgba(43, 126, 238, 0.16), transparent 24%),
-    linear-gradient(135deg, #f6f9f5 0%, #eef4f0 46%, #f8faf6 100%);
-  color: #142335;
-}
+<style scoped src='../assets/demo-shell-base.css'></style>
 
-.demo-shell[data-demo-density='compact'] {
-  --demo-shell-padding: 10px;
-  --demo-layout-gap: 8px;
-  --demo-panel-radius: 18px;
-  --demo-panel-padding: 8px;
-  --demo-panel-gap: 8px;
-  --demo-card-padding: 8px;
-  --demo-card-gap: 5px;
-  --demo-brand-card-radius: 16px;
-  --demo-brand-pill-padding: 0 8px;
-  --demo-control-card-gap: 5px;
-  --demo-control-padding: 4px 5px;
-  --demo-control-radius: 12px;
-  --demo-control-height: 34px;
-  --demo-current-card-padding: 8px;
-  --demo-current-card-radius: 14px;
-  --demo-field-gap: 4px;
-  --demo-field-padding: 0 8px;
-  --demo-field-radius: 12px;
-  --demo-panel-body-gap: 8px;
-  --demo-panel-body-padding: 2px;
-  --demo-popover-offset: 5px;
-  --demo-popover-gap: 5px;
-  --demo-popover-padding: 5px;
-  --demo-popover-radius: 14px;
-  --demo-scenario-card-gap: 5px;
-  --demo-scenario-card-padding: 5px;
-  --demo-scenario-card-radius: 10px;
-  --demo-small-gap: 3px;
-  --demo-small-padding: 2px 3px;
-  --demo-sample-trigger-min-height: 54px;
-  --demo-sample-trigger-gap: 5px;
-  --demo-sample-trigger-padding: 8px;
-  --demo-sample-trigger-radius: 12px;
-  --demo-viewer-toolbar-gap: 5px;
-  --demo-viewer-toolbar-padding: 5px;
-  --demo-viewer-tools-gap: 5px;
-  --demo-viewer-copy-gap: 5px;
-  --demo-viewer-type-padding: 3px 5px;
-  --demo-viewer-fit-gap: 3px;
-  --demo-viewer-fit-height: 28px;
-  --demo-viewer-fit-padding: 2px 3px;
-  --demo-viewer-select-height: 26px;
-  --demo-viewer-select-padding: 0 24px 0 8px;
-  --demo-viewer-search-top: 48px;
-  --demo-viewer-search-gap: 3px;
-  --demo-viewer-search-padding: 3px;
-  --demo-viewer-search-radius: 14px;
-  --demo-viewer-search-control-radius: 9px;
-  --demo-viewer-search-input-padding: 0 8px;
-  --demo-action-group-gap: 3px;
-  --demo-action-group-padding: 2px 3px;
-  --demo-viewer-tool-height: 28px;
-  --demo-viewer-tool-padding: 0 5px;
-  --demo-action-tool-min-width: 38px;
-  --demo-action-icon-size: 28px;
-  --demo-action-meter-min-width: 46px;
-  --demo-action-meter-padding: 0 5px;
-}
-
-.demo-shell[data-demo-density='compact'] .brand-github-link {
-  top: 10px;
-  right: 10px;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-}
-
-.demo-shell[data-demo-density='compact'] .brand-github-link::before {
-  border-radius: 9px;
-}
-
-.demo-shell[data-demo-density='compact'] .brand-github-mark {
-  width: 17px;
-  height: 17px;
-}
-
-.demo-shell[data-demo-density='compact'] .brand-github-stars {
-  top: -7px;
-  right: -10px;
-  min-width: 32px;
-  height: 16px;
-  padding: 0 4px;
-  font-size: 9px;
-}
-
-.workspace {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-  padding: var(--demo-shell-padding);
-}
-
-.layout-shell {
-  height: 100%;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(276px, 320px) minmax(0, 1fr);
-  gap: var(--demo-layout-gap);
-}
-
-.control-panel,
-.viewer-panel {
-  min-height: 0;
-  border-radius: var(--demo-panel-radius);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 22px 60px rgba(18, 35, 50, 0.1);
-  backdrop-filter: blur(22px);
-}
-
-.control-panel {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  max-height: 100%;
-  overflow: visible;
-  padding: var(--demo-panel-padding);
-  gap: var(--demo-panel-gap);
-}
-
-.brand-card {
-  position: relative;
-  flex-shrink: 0;
-  min-height: 144px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: var(--demo-card-padding);
-  border-radius: var(--demo-brand-card-radius);
-  background:
-    linear-gradient(135deg, rgba(19, 42, 57, 0.94), rgba(17, 91, 65, 0.9)),
-    radial-gradient(circle at top right, rgba(94, 255, 182, 0.38), transparent 42%);
-  color: #ffffff;
-  box-shadow: 0 18px 36px rgba(14, 80, 59, 0.18);
-}
-
-.brand-orbit {
-  position: absolute;
-  width: 138px;
-  height: 138px;
-  right: -52px;
-  top: -42px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-}
-
-.brand-orbit::before {
-  content: '';
-  position: absolute;
-  inset: 28px;
-  border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.brand-github-link {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 3;
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08)),
-    rgba(9, 33, 34, 0.18);
-  color: #ffffff;
-  text-decoration: none;
-  box-shadow:
-    0 12px 28px rgba(6, 22, 24, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(12px);
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.brand-github-link::before {
-  position: absolute;
-  inset: 1px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 58%);
-  content: '';
-  opacity: 0.72;
-  pointer-events: none;
-}
-
-.brand-github-link:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.32);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.12)),
-    rgba(9, 33, 34, 0.24);
-  box-shadow:
-    0 16px 32px rgba(6, 22, 24, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-}
-
-.brand-github-mark {
-  position: relative;
-  z-index: 1;
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
-
-.brand-github-stars {
-  position: absolute;
-  top: -8px;
-  right: -12px;
-  z-index: 2;
-  display: inline-flex;
-  min-width: 36px;
-  height: 18px;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0 5px;
-  border: 1px solid rgba(174, 239, 214, 0.72);
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(241, 255, 249, 0.98), rgba(194, 242, 224, 0.94));
-  color: #0c5b46;
-  font-size: 10px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: nowrap;
-  box-shadow:
-    0 8px 18px rgba(6, 72, 54, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.76);
-  pointer-events: none;
-}
-
-.brand-github-stars span {
-  transform: translateY(-0.2px);
-}
-
-.brand-main {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-mark {
-  display: inline-flex;
-  width: 48px;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 17px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
-}
-
-.brand-mark img {
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-}
-
-.brand-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--demo-control-gap);
-}
-
-.brand-copy span {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.brand-copy h1 {
-  margin: 0;
-  font-size: 27px;
-  line-height: 1;
-  letter-spacing: 0;
-}
-
-.brand-pill {
-  position: relative;
-  align-self: flex-start;
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  padding: var(--demo-brand-pill-padding);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.brand-meta-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--demo-card-gap);
-}
-
-.locale-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: var(--demo-small-padding);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.brand-preferences {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.theme-toggle {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.82);
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-}
-
-.theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  transform: translateY(-1px);
-}
-
-.theme-toggle:focus-visible {
-  outline: 3px solid rgba(145, 255, 213, 0.32);
-  outline-offset: 2px;
-}
-
-.locale-switch button {
-  min-width: 34px;
-  height: 28px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.locale-switch button.active {
-  background: rgba(255, 255, 255, 0.92);
-  color: #0f4f3e;
-  box-shadow: 0 8px 20px rgba(7, 28, 23, 0.18);
-}
-
-.current-card {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--demo-card-gap);
-  padding: var(--demo-current-card-padding);
-  border-radius: var(--demo-current-card-radius);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: inset 0 0 0 1px rgba(20, 35, 53, 0.06);
-}
-
-.current-badge {
-  display: inline-flex;
-  width: 50px;
-  height: 44px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 15px;
-  background: rgba(33, 163, 102, 0.12);
-  color: #16804f;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.current-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.current-copy span {
-  color: #7c8b9a;
-  font-size: 12px;
-}
-
-.current-copy strong {
-  color: #142335;
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mode-switch {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 4px;
-  border-radius: 18px;
-  background: rgba(20, 35, 53, 0.06);
-}
-
-.mode-button,
-.compact-field,
-.primary-button,
-.scenario-trigger,
-.sample-trigger,
-.sample-card,
-.scenario-card {
-  font: inherit;
-}
-
-.mode-button,
-.primary-button,
-.scenario-trigger,
-.sample-trigger,
-.sample-card,
-.scenario-card {
-  border: 0;
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, color 0.18s ease;
-}
-
-.mode-button:hover,
-.primary-button:hover,
-.scenario-trigger:hover,
-.sample-trigger:hover,
-.sample-card:hover,
-.scenario-card:hover {
-  transform: translateY(-1px);
-}
-
-.mode-button {
-  min-height: 40px;
-  border-radius: 14px;
-  background: transparent;
-  color: #718193;
-  font-weight: 700;
-}
-
-.mode-button.active {
-  background: #ffffff;
-  color: #142335;
-  box-shadow: 0 8px 18px rgba(18, 35, 55, 0.08);
-}
-
-.panel-body {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  display: flex;
-  flex-direction: column;
-  gap: var(--demo-panel-body-gap);
-  padding: var(--demo-panel-body-padding);
-}
-
-.panel-sticky-controls {
-  position: sticky;
-  z-index: 12;
-  top: 0;
-  display: grid;
-  gap: var(--demo-panel-body-gap);
-  padding: 0 0 4px;
-  background: linear-gradient(180deg, rgba(247, 250, 248, 0.98) 0%, rgba(247, 250, 248, 0.94) 84%, transparent 100%);
-  backdrop-filter: blur(16px);
-}
-
-.source-command {
-  display: grid;
-  gap: var(--demo-field-gap);
-  padding: 10px;
-  border: 1px solid rgba(33, 163, 102, 0.16);
-  border-radius: 19px;
-  background:
-    linear-gradient(135deg, rgba(33, 163, 102, 0.08), transparent 58%),
-    rgba(255, 255, 255, 0.82);
-  box-shadow: 0 12px 28px rgba(18, 35, 55, 0.07);
-}
-
-.source-command-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.source-command-row .compact-field {
-  min-width: 0;
-  width: 100%;
-}
-
-.source-command-row .primary-button {
-  min-height: var(--demo-control-height);
-  padding: 0 15px;
-  border-radius: var(--demo-field-radius);
-  white-space: nowrap;
-  box-shadow: 0 12px 24px rgba(33, 163, 102, 0.18);
-}
-
-.sample-picker-open .panel-body {
-  overflow: visible;
-}
-
-.scenario-picker {
-  position: relative;
-  z-index: 5;
-}
-
-.scenario-trigger {
-  width: 100%;
-  min-height: 46px;
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--demo-control-card-gap);
-  padding: var(--demo-control-padding);
-  border-radius: var(--demo-control-radius);
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  background: rgba(255, 255, 255, 0.78);
-  color: #142335;
-  text-align: left;
-}
-
-.scenario-picker.open .scenario-trigger,
-.scenario-trigger:hover {
-  border-color: rgba(33, 163, 102, 0.24);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 24px rgba(18, 35, 55, 0.08);
-}
-
-.scenario-trigger-icon {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: rgba(33, 163, 102, 0.12);
-  color: #16804f;
-}
-
-.scenario-trigger-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.scenario-trigger-copy strong {
-  color: #142335;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.1;
-}
-
-.scenario-trigger-copy em {
-  color: #718193;
-  font-size: 11px;
-  font-style: normal;
-}
-
-.scenario-trigger-copy strong,
-.scenario-trigger-copy em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scenario-popover {
-  position: absolute;
-  z-index: 28;
-  top: calc(100% + var(--demo-popover-offset));
-  right: 0;
-  left: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--demo-popover-gap);
-  max-height: min(46vh, 360px);
-  padding: var(--demo-popover-padding);
-  overflow: auto;
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  border-radius: var(--demo-popover-radius);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 22px 50px rgba(18, 35, 55, 0.16),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.62);
-  backdrop-filter: blur(16px);
-}
-
-.scenario-card {
-  min-width: 0;
-  min-height: 70px;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--demo-scenario-card-gap);
-  padding: var(--demo-scenario-card-padding);
-  border-radius: var(--demo-scenario-card-radius);
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  background: rgba(255, 255, 255, 0.74);
-  color: #142335;
-  text-align: left;
-}
-
-.scenario-card:hover,
-.scenario-card.active {
-  border-color: rgba(33, 163, 102, 0.26);
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 10px 22px rgba(18, 35, 55, 0.08);
-}
-
-.scenario-card.active {
-  background: rgba(33, 163, 102, 0.11);
-}
-
-.scenario-card > span:last-child {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.scenario-card strong,
-.scenario-card em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scenario-card strong {
-  color: #142335;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.scenario-card em {
-  color: #718193;
-  font-size: 11px;
-  font-style: normal;
-}
-
-.scenario-icon {
-  width: 32px;
-  height: 40px;
-}
-
-.snippet-launch {
-  width: 100%;
-  min-width: 0;
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: 17px;
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  background: rgba(255, 255, 255, 0.76);
-  color: #142335;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
-  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.snippet-launch:hover {
-  transform: translateY(-1px);
-  border-color: rgba(33, 163, 102, 0.24);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 24px rgba(18, 35, 55, 0.08);
-}
-
-.snippet-launch-icon,
-.snippet-dialog-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(33, 163, 102, 0.12);
-  color: #16804f;
-}
-
-.snippet-launch-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-}
-
-.snippet-launch-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.snippet-launch-copy strong {
-  overflow: hidden;
-  color: #142335;
-  font-size: 13px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.snippet-launch-copy em {
-  overflow: hidden;
-  color: #718193;
-  font-size: 11px;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.snippet-launch-action {
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(33, 163, 102, 0.1);
-  color: #16804f;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.snippet-dialog-backdrop {
-  position: fixed;
-  z-index: 200;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(12, 24, 31, 0.52);
-  backdrop-filter: blur(14px);
-}
-
-.snippet-dialog-panel {
-  width: min(680px, calc(100vw - 48px));
-  max-height: min(76vh, 620px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.76);
-  border-radius: 26px;
-  background: rgba(250, 252, 251, 0.96);
-  color: #142335;
-  box-shadow: 0 34px 90px rgba(7, 20, 28, 0.3);
-}
-
-.snippet-dialog-header {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 36px;
-  align-items: center;
-  gap: 12px;
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid rgba(20, 35, 53, 0.08);
-}
-
-.snippet-dialog-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 15px;
-}
-
-.snippet-dialog-title {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.snippet-dialog-title strong {
-  color: #142335;
-  font-size: 17px;
-  line-height: 1.2;
-}
-
-.snippet-dialog-title em {
-  color: #718193;
-  font-size: 12px;
-  font-style: normal;
-}
-
-.snippet-dialog-close {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  border-radius: 999px;
-  background: rgba(20, 35, 53, 0.04);
-  color: #526174;
-  cursor: pointer;
-}
-
-.snippet-dialog-close:hover {
-  background: rgba(20, 35, 53, 0.08);
-  color: #142335;
-}
-
-.snippet-dialog-code {
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  overflow: auto;
-  padding: 22px 24px;
-  background: #112332;
-  color: #d6f4e5;
-  font-size: 13px;
-  line-height: 1.65;
-  tab-size: 2;
-}
-
-.snippet-dialog-code code {
-  display: block;
-  min-width: max-content;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-}
-
-.snippet-dialog-footer {
-  min-height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 13px 20px;
-  border-top: 1px solid rgba(20, 35, 53, 0.08);
-}
-
-.snippet-dialog-footer > span {
-  color: #718193;
-  font-size: 12px;
-}
-
-.snippet-dialog-copy {
-  min-width: 128px;
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #168757 0%, #2bc87e 100%);
-  color: #ffffff;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  box-shadow: 0 12px 24px rgba(33, 163, 102, 0.2);
-}
-
-.snippet-dialog-copy.copied {
-  background: linear-gradient(135deg, #2668c9 0%, #4a91ef 100%);
-}
-
-.snippet-dialog-copy strong {
-  font: inherit;
-  white-space: nowrap;
-}
-
-.snippet-dialog-enter-active,
-.snippet-dialog-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.snippet-dialog-enter-active .snippet-dialog-panel,
-.snippet-dialog-leave-active .snippet-dialog-panel {
-  transition: transform 0.22s ease, opacity 0.18s ease;
-}
-
-.snippet-dialog-enter-from,
-.snippet-dialog-leave-to {
-  opacity: 0;
-}
-
-.snippet-dialog-enter-from .snippet-dialog-panel,
-.snippet-dialog-leave-to .snippet-dialog-panel {
-  opacity: 0;
-  transform: translateY(12px) scale(0.98);
-}
-
-.field-label {
-  color: #718193;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.compact-field {
-  min-height: var(--demo-control-height);
-  padding: var(--demo-field-padding);
-  border-radius: var(--demo-field-radius);
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  background: rgba(255, 255, 255, 0.86);
-  color: #142335;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.compact-field:focus {
-  border-color: rgba(33, 163, 102, 0.36);
-  box-shadow: 0 0 0 4px rgba(33, 163, 102, 0.1);
-}
-
-.sample-picker {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.sample-picker.open {
-  /* The menu must outrank the sticky URL controls and the quick-sample picker. */
-  z-index: 40;
-}
-
-.sample-trigger {
-  width: 100%;
-  flex-shrink: 0;
-  min-height: var(--demo-sample-trigger-min-height);
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--demo-sample-trigger-gap);
-  padding: var(--demo-sample-trigger-padding);
-  border-radius: var(--demo-sample-trigger-radius);
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  background: rgba(255, 255, 255, 0.88);
-  color: #142335;
-  text-align: left;
-}
-
-.sample-picker.open .sample-trigger,
-.sample-trigger:hover {
-  border-color: rgba(43, 126, 238, 0.24);
-  box-shadow: 0 14px 28px rgba(18, 35, 55, 0.08);
-}
-
-.sample-trigger-copy,
-.sample-card-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.sample-trigger-copy {
-  gap: 4px;
-}
-
-.sample-trigger-copy span {
-  color: #718193;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.sample-trigger-copy strong {
-  color: #142335;
-  font-size: 15px;
-  line-height: 1.1;
-}
-
-.sample-trigger-copy em {
-  color: #718193;
-  font-size: 12px;
-  font-style: normal;
-}
-
-.sample-trigger-copy strong,
-.sample-trigger-copy em,
-.sample-card-copy strong,
-.sample-card-copy span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sample-trigger-action {
-  min-width: 42px;
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(43, 126, 238, 0.1);
-  color: #2668c9;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.sample-menu {
-  position: absolute;
-  z-index: 30;
-  right: 0;
-  left: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 11px;
-  border-radius: 16px;
-  border: 1px solid rgba(20, 35, 53, 0.1);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow:
-    0 22px 56px rgba(18, 35, 55, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(18px);
-}
-
-.sample-menu--bottom {
-  top: calc(100% + 10px);
-}
-
-.sample-menu--top {
-  bottom: calc(100% + 10px);
-}
-
-.sample-group {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 6px;
-  border-radius: 13px;
-  background: rgba(247, 250, 252, 0.76);
-  box-shadow: inset 0 0 0 1px rgba(20, 35, 53, 0.05);
-}
-
-.sample-group--open {
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow:
-    inset 0 0 0 1px rgba(33, 163, 102, 0.16),
-    0 8px 20px rgba(20, 35, 53, 0.06);
-}
-
-.sample-group-header {
-  width: 100%;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto 16px;
-  align-items: center;
-  gap: 7px;
-  padding: 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sample-group-header:hover {
-  background: rgba(33, 163, 102, 0.08);
-}
-
-.sample-group-header .sample-group-title {
-  color: #142335;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.sample-group-header em {
-  min-width: 0;
-  color: #718193;
-  font-size: 11px;
-  font-style: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sample-group-header strong {
-  min-width: 24px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(20, 35, 53, 0.07);
-  color: #526174;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.sample-group-header i {
-  width: 8px;
-  height: 8px;
-  justify-self: center;
-  border-right: 2px solid #718193;
-  border-bottom: 2px solid #718193;
-  transform: rotate(45deg);
-  transition: transform 0.18s ease;
-}
-
-.sample-group--open .sample-group-header i {
-  transform: rotate(-135deg);
-}
-
-.sample-group-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
-}
-
-.sample-card {
-  min-width: 0;
-  min-height: 70px;
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  background: rgba(247, 250, 252, 0.8);
-  color: #142335;
-  text-align: left;
-}
-
-.sample-card.active {
-  border-color: rgba(33, 163, 102, 0.34);
-  background: rgba(33, 163, 102, 0.1);
-  box-shadow: 0 8px 20px rgba(33, 163, 102, 0.12);
-}
-
-.sample-card-copy {
-  gap: 3px;
-}
-
-.sample-card-copy strong {
-  color: #142335;
-  font-size: 13px;
-  line-height: 1.1;
-}
-
-.sample-card-copy span {
-  color: #718193;
-  font-size: 11px;
-}
-
-.sample-file-icon {
-  position: relative;
-  width: 36px;
-  height: 44px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 4px 7px;
-  border-radius: 7px;
-  background: linear-gradient(145deg, #d9e4f2, #f8fbff);
-  color: #2f4157;
-  box-shadow: inset 0 0 0 1px rgba(20, 35, 53, 0.1);
-}
-
-.sample-trigger .sample-file-icon {
-  width: 42px;
-  height: 50px;
-}
-
-.sample-file-icon::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 13px;
-  height: 13px;
-  border-radius: 0 7px 0 6px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: -1px 1px 0 rgba(20, 35, 53, 0.08);
-}
-
-.sample-file-icon span {
-  position: relative;
-  z-index: 1;
-  max-width: 100%;
-  color: currentColor;
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.sample-file-icon[data-family='word'] {
-  background: linear-gradient(145deg, #d9e9ff, #ffffff);
-  color: #245bb7;
-}
-
-.sample-file-icon[data-family='sheet'] {
-  background: linear-gradient(145deg, #daf7e8, #ffffff);
-  color: #16804f;
-}
-
-.sample-file-icon[data-family='slide'] {
-  background: linear-gradient(145deg, #ffe8d2, #ffffff);
-  color: #bf5b14;
-}
-
-.sample-file-icon[data-family='pdf'] {
-  background: linear-gradient(145deg, #ffe1e1, #ffffff);
-  color: #bf2a2a;
-}
-
-.sample-file-icon[data-family='layout'] {
-  background: linear-gradient(145deg, #e8e1ff, #ffffff);
-  color: #6940c6;
-}
-
-.sample-file-icon[data-family='cad'] {
-  background: linear-gradient(145deg, #d8f3f5, #ffffff);
-  color: #0e7490;
-}
-
-.sample-file-icon[data-family='model'] {
-  background: linear-gradient(145deg, #e2f4d7, #ffffff);
-  color: #3f7d20;
-}
-
-.sample-file-icon[data-family='drawing'] {
-  background: linear-gradient(145deg, #ede9fe, #ffffff);
-  color: #6d28d9;
-}
-
-.sample-file-icon[data-family='ebook'] {
-  background: linear-gradient(145deg, #f1e7ff, #ffffff);
-  color: #7c3aed;
-}
-
-.sample-file-icon[data-family='archive'] {
-  background: linear-gradient(145deg, #ffeec7, #ffffff);
-  color: #a15c07;
-}
-
-.sample-file-icon[data-family='email'] {
-  background: linear-gradient(145deg, #dcecff, #ffffff);
-  color: #2563eb;
-}
-
-.sample-file-icon[data-family='eda'] {
-  background: linear-gradient(145deg, #dff7fb, #ffffff);
-  color: #0d7884;
-}
-
-.sample-file-icon[data-family='code'] {
-  background: linear-gradient(145deg, #dde7f1, #ffffff);
-  color: #334155;
-}
-
-.sample-file-icon[data-family='text'] {
-  background: linear-gradient(145deg, #eef1d7, #ffffff);
-  color: #6b7a1f;
-}
-
-.sample-file-icon[data-family='image'] {
-  background: linear-gradient(145deg, #ffe0f1, #ffffff);
-  color: #be2776;
-}
-
-.sample-file-icon[data-family='audio'] {
-  background: linear-gradient(145deg, #d7f8f2, #ffffff);
-  color: #0f766e;
-}
-
-.sample-file-icon[data-family='video'] {
-  background: linear-gradient(145deg, #e0e7ff, #ffffff);
-  color: #4338ca;
-}
-
-.sample-file-icon[data-family='data'] {
-  background: linear-gradient(145deg, #ede9fe, #ffffff);
-  color: #5b21b6;
-}
-
-.primary-button {
-  min-height: 48px;
-  border-radius: 17px;
-  background: linear-gradient(135deg, #168757 0%, #2bc87e 100%);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 16px 28px rgba(33, 163, 102, 0.2);
-}
-
-.upload-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(33, 163, 102, 0.2);
-  background:
-    radial-gradient(circle at top right, rgba(33, 163, 102, 0.14), transparent 42%),
-    rgba(255, 255, 255, 0.86);
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.upload-card input[type='file'] {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.upload-icon {
-  display: inline-flex;
-  width: 38px;
-  height: 38px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: rgba(33, 163, 102, 0.12);
-  color: #16804f;
-  font-size: 24px;
-  font-weight: 500;
-}
-
-.upload-title {
-  color: #16804f;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.upload-card strong {
-  max-width: 100%;
-  color: #142335;
-  font-size: 15px;
-  line-height: 1.45;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.viewer-panel {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.viewer-toolbar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--demo-viewer-toolbar-gap);
-  padding: var(--demo-viewer-toolbar-padding);
-  border-bottom: 1px solid rgba(20, 35, 53, 0.06);
-}
-
-.viewer-copy {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--demo-viewer-copy-gap);
-}
-
-.viewer-status {
-  width: 9px;
-  height: 9px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: #21a366;
-  box-shadow: 0 0 0 5px rgba(33, 163, 102, 0.12);
-}
-
-.viewer-copy strong {
-  min-width: 0;
-  max-width: 44vw;
-  color: #142335;
-  font-size: 15px;
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.viewer-type {
-  flex-shrink: 0;
-  padding: var(--demo-viewer-type-padding);
-  border-radius: 999px;
-  background: rgba(20, 35, 53, 0.06);
-  color: #718193;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.viewer-path {
-  min-width: 0;
-  color: #718193;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.viewer-tools {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--demo-viewer-tools-gap);
-}
-
-.viewer-fit-control {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--demo-viewer-fit-gap);
-  min-height: var(--demo-viewer-fit-height);
-  padding: var(--demo-viewer-fit-padding);
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  color: #526174;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.viewer-fit-control select,
-.mobile-fit-control select {
-  height: var(--demo-viewer-select-height);
-  min-width: 96px;
-  border: 0;
-  border-radius: 999px;
-  padding: var(--demo-viewer-select-padding);
-  background: rgba(20, 35, 53, 0.06);
-  color: #23465e;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.viewer-search-popover {
-  position: absolute;
-  z-index: 40;
-  top: var(--demo-viewer-search-top);
-  right: 24px;
-  display: inline-grid;
-  grid-template-columns: minmax(180px, 260px) auto auto auto auto;
-  align-items: center;
-  gap: var(--demo-viewer-search-gap);
-  max-width: calc(100% - 48px);
-  padding: var(--demo-viewer-search-padding);
-  border: 1px solid rgba(20, 35, 53, 0.09);
-  border-radius: var(--demo-viewer-search-radius);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 42px rgba(18, 35, 50, 0.18);
-  backdrop-filter: blur(18px);
-}
-
-.viewer-search-popover--standalone {
-  top: 18px;
-}
-
-.viewer-search-popover input,
-.viewer-search-popover button,
-.viewer-search-summary {
-  height: 34px;
-  border: 0;
-  border-radius: var(--demo-viewer-search-control-radius);
-  background: transparent;
-  color: #526174;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.viewer-search-popover input {
-  min-width: 0;
-  padding: var(--demo-viewer-search-input-padding);
-  outline: none;
-  background: rgba(20, 35, 53, 0.04);
-}
-
-.viewer-search-popover input:focus {
-  background: rgba(33, 163, 102, 0.1);
-  color: #16804f;
-}
-
-.viewer-search-summary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 42px;
-  color: #718193;
-}
-
-.viewer-search-popover button {
-  width: 34px;
-  min-width: 34px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.viewer-search-popover button:hover {
-  background: rgba(33, 163, 102, 0.1);
-  color: #16804f;
-}
-
-.viewer-search-icon {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2.4;
-}
-
-.viewer-action-group {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--demo-action-group-gap);
-  padding: var(--demo-action-group-padding);
-  border: 1px solid rgba(20, 35, 53, 0.07);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.66);
-}
-
-.viewer-print-menu {
-  position: relative;
-  display: inline-flex;
-}
-
-.viewer-print-menu-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 40;
-  min-width: 118px;
-  padding: 4px;
-  border: 1px solid rgba(20, 35, 53, 0.1);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
-  display: none;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.viewer-print-menu[data-open='true'] .viewer-print-menu-panel {
-  display: flex;
-}
-
-.viewer-print-menu-panel .viewer-tool-button,
-.viewer-print-menu-panel button {
-  width: 100%;
-  min-width: 0;
-  justify-content: flex-start;
-  text-align: left;
-  border-radius: 8px;
-}
-
-.viewer-tool-button {
-  height: var(--demo-viewer-tool-height);
-  flex-shrink: 0;
-  padding: var(--demo-viewer-tool-padding);
-  border: 1px solid rgba(20, 35, 53, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  color: #526174;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.viewer-action-group .viewer-tool-button {
-  min-width: var(--demo-action-tool-min-width);
-  border-color: transparent;
-  background: transparent;
-}
-
-.viewer-action-group .viewer-tool-button--icon {
-  width: var(--demo-action-icon-size);
-  min-width: var(--demo-action-icon-size);
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.viewer-action-group .viewer-tool-button--meter {
-  min-width: var(--demo-action-meter-min-width);
-  padding: var(--demo-action-meter-padding);
-  color: #23465e;
-}
-
-.viewer-tool-button:disabled {
-  color: #a9b4c0;
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.viewer-tool-button.active {
-  border-color: rgba(33, 163, 102, 0.28);
-  background: rgba(33, 163, 102, 0.12);
-  color: #16804f;
-}
-
-.viewport {
-  flex: 1;
-  min-height: 0;
-  padding: 10px;
-}
-
-.viewport :deep(.file-viewer) {
-  height: 100%;
-  border-radius: 22px;
-  overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(20, 35, 53, 0.06);
-}
-
-.standalone {
-  height: 100%;
-}
-
-.hidden .workspace {
-  height: 100%;
-  padding: 0;
-}
-
-.hidden .viewer-panel {
-  height: 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: #ffffff;
-}
-
-.hidden .viewport {
-  padding: 0;
-}
-
-.hidden .viewport :deep(.file-viewer) {
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.mobile-control-backdrop,
-.mobile-action-dock,
-.mobile-sheet-close {
-  display: none;
-}
-
-.demo-shell[data-demo-theme='dark'] {
-  color-scheme: dark;
-  background:
-    linear-gradient(135deg, #0f171d 0%, #14231f 52%, #111923 100%);
-  color: #e7f1f5;
-}
-
-.demo-shell[data-demo-theme='dark'] .control-panel,
-.demo-shell[data-demo-theme='dark'] .viewer-panel {
-  border-color: rgba(177, 202, 195, 0.14);
-  background: rgba(16, 25, 30, 0.82);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.36);
-}
-
-.demo-shell[data-demo-theme='dark'] .panel-sticky-controls {
-  background: linear-gradient(180deg, rgba(16, 25, 30, 0.98) 0%, rgba(16, 25, 30, 0.94) 84%, transparent 100%);
-}
-
-.demo-shell[data-demo-theme='dark'] .source-command {
-  border-color: rgba(45, 212, 154, 0.2);
-  background:
-    linear-gradient(135deg, rgba(45, 212, 154, 0.1), transparent 58%),
-    rgba(22, 32, 39, 0.92);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
-}
-
-.demo-shell[data-demo-theme='dark'] .brand-card {
-  background:
-    linear-gradient(135deg, rgba(22, 52, 55, 0.96), rgba(17, 91, 65, 0.9));
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
-}
-
-.demo-shell[data-demo-theme='dark'] .brand-github-link {
-  border-color: rgba(188, 214, 220, 0.18);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)),
-    rgba(6, 18, 22, 0.36);
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.demo-shell[data-demo-theme='dark'] .brand-github-stars {
-  border-color: rgba(158, 231, 218, 0.42);
-  background: linear-gradient(135deg, rgba(205, 248, 231, 0.96), rgba(95, 208, 165, 0.9));
-  color: #073d32;
-  box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.34);
-}
-
-.demo-shell[data-demo-theme='dark'] .current-card,
-.demo-shell[data-demo-theme='dark'] .scenario-trigger,
-.demo-shell[data-demo-theme='dark'] .sample-trigger,
-.demo-shell[data-demo-theme='dark'] .upload-card,
-.demo-shell[data-demo-theme='dark'] .snippet-launch,
-.demo-shell[data-demo-theme='dark'] .scenario-card {
-  background: rgba(22, 32, 39, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(167, 185, 198, 0.12);
-}
-
-.demo-shell[data-demo-theme='dark'] .current-badge,
-.demo-shell[data-demo-theme='dark'] .upload-icon {
-  background: rgba(45, 212, 154, 0.14);
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .current-copy span,
-.demo-shell[data-demo-theme='dark'] .field-label,
-.demo-shell[data-demo-theme='dark'] .snippet-launch-copy em,
-.demo-shell[data-demo-theme='dark'] .scenario-trigger-copy em,
-.demo-shell[data-demo-theme='dark'] .scenario-card em,
-.demo-shell[data-demo-theme='dark'] .sample-trigger-copy span,
-.demo-shell[data-demo-theme='dark'] .sample-trigger-copy em,
-.demo-shell[data-demo-theme='dark'] .sample-card-copy span,
-.demo-shell[data-demo-theme='dark'] .sample-group-header em,
-.demo-shell[data-demo-theme='dark'] .viewer-path,
-.demo-shell[data-demo-theme='dark'] .viewer-type {
-  color: #9eb0bf;
-}
-
-.demo-shell[data-demo-theme='dark'] .current-copy strong,
-.demo-shell[data-demo-theme='dark'] .snippet-launch-copy strong,
-.demo-shell[data-demo-theme='dark'] .scenario-trigger-copy strong,
-.demo-shell[data-demo-theme='dark'] .scenario-card strong,
-.demo-shell[data-demo-theme='dark'] .sample-trigger-copy strong,
-.demo-shell[data-demo-theme='dark'] .sample-card-copy strong,
-.demo-shell[data-demo-theme='dark'] .sample-group-header .sample-group-title,
-.demo-shell[data-demo-theme='dark'] .upload-card strong,
-.demo-shell[data-demo-theme='dark'] .viewer-copy strong {
-  color: #eff7fb;
-}
-
-.demo-shell[data-demo-theme='dark'] .mode-switch {
-  background: rgba(167, 185, 198, 0.12);
-}
-
-.demo-shell[data-demo-theme='dark'] .mode-button {
-  color: #9eb0bf;
-}
-
-.demo-shell[data-demo-theme='dark'] .mode-button.active {
-  background: rgba(239, 247, 251, 0.12);
-  color: #f4fbff;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
-}
-
-.demo-shell[data-demo-theme='dark'] .compact-field {
-  border-color: rgba(167, 185, 198, 0.14);
-  background: rgba(9, 15, 20, 0.72);
-  color: #eff7fb;
-}
-
-.demo-shell[data-demo-theme='dark'] .compact-field::placeholder {
-  color: #718493;
-}
-
-.demo-shell[data-demo-theme='dark'] .compact-field:focus {
-  border-color: rgba(45, 212, 154, 0.4);
-  box-shadow: 0 0 0 4px rgba(45, 212, 154, 0.12);
-}
-
-.demo-shell[data-demo-theme='dark'] .scenario-picker.open .scenario-trigger,
-.demo-shell[data-demo-theme='dark'] .scenario-trigger:hover {
-  border-color: rgba(45, 212, 154, 0.26);
-  background: rgba(22, 32, 39, 0.96);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
-}
-
-.demo-shell[data-demo-theme='dark'] .scenario-trigger-icon {
-  background: rgba(45, 212, 154, 0.14);
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .scenario-popover {
-  border-color: rgba(167, 185, 198, 0.16);
-  background: rgba(14, 22, 28, 0.96);
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-picker.open .sample-trigger,
-.demo-shell[data-demo-theme='dark'] .sample-trigger:hover {
-  border-color: rgba(96, 165, 250, 0.26);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-trigger-action {
-  background: rgba(96, 165, 250, 0.16);
-  color: #9cc7ff;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-menu {
-  border-color: rgba(167, 185, 198, 0.16);
-  background: rgba(14, 22, 28, 0.96);
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-group {
-  background: rgba(22, 32, 39, 0.72);
-  box-shadow: inset 0 0 0 1px rgba(167, 185, 198, 0.1);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-group--open {
-  background: rgba(24, 38, 42, 0.9);
-  box-shadow:
-    inset 0 0 0 1px rgba(45, 212, 154, 0.24),
-    0 10px 24px rgba(0, 0, 0, 0.22);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-group-header:hover {
-  background: rgba(45, 212, 154, 0.1);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-group-header strong {
-  background: rgba(167, 185, 198, 0.12);
-  color: #b8c7d5;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-group-header i {
-  border-color: #9eb0bf;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-card {
-  border-color: rgba(167, 185, 198, 0.14);
-  background: rgba(13, 21, 27, 0.7);
-  color: #eff7fb;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-card.active {
-  border-color: rgba(45, 212, 154, 0.42);
-  background: rgba(45, 212, 154, 0.14);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
-}
-
-.demo-shell[data-demo-theme='dark'] .scenario-card:hover,
-.demo-shell[data-demo-theme='dark'] .scenario-card.active {
-  border-color: rgba(45, 212, 154, 0.34);
-  background: rgba(45, 212, 154, 0.12);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
-}
-
-.demo-shell[data-demo-theme='dark'] .snippet-launch-icon,
-.demo-shell[data-demo-theme='dark'] .snippet-launch-action {
-  background: rgba(45, 212, 154, 0.14);
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .snippet-launch:hover {
-  border-color: rgba(45, 212, 154, 0.26);
-  background: rgba(22, 32, 39, 0.96);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] {
-  background: rgba(3, 10, 14, 0.68);
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-panel {
-  border-color: rgba(177, 202, 195, 0.16);
-  background: rgba(16, 25, 30, 0.98);
-  color: #eff7fb;
-  box-shadow: 0 36px 96px rgba(0, 0, 0, 0.54);
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-header,
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-footer {
-  border-color: rgba(167, 185, 198, 0.12);
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-icon {
-  background: rgba(45, 212, 154, 0.14);
-  color: #61e5b4;
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-title strong {
-  color: #eff7fb;
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-title em,
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-footer > span {
-  color: #9eb0bf;
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-close {
-  border-color: rgba(167, 185, 198, 0.14);
-  background: rgba(239, 247, 251, 0.08);
-  color: #c7d5df;
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-close:hover {
-  background: rgba(239, 247, 251, 0.14);
-  color: #ffffff;
-}
-
-.snippet-dialog-backdrop[data-demo-theme='dark'] .snippet-dialog-code {
-  background: #08141d;
-  color: #d7f8ea;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon {
-  background: linear-gradient(145deg, #253542, #16222b);
-  color: #c8d8e4;
-  box-shadow: inset 0 0 0 1px rgba(167, 185, 198, 0.18);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon::before {
-  background: rgba(236, 244, 248, 0.16);
-  box-shadow: -1px 1px 0 rgba(0, 0, 0, 0.22);
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='word'] {
-  background: linear-gradient(145deg, #183759, #102235);
-  color: #93c5fd;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='sheet'] {
-  background: linear-gradient(145deg, #153d2d, #10261d);
-  color: #86efac;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='slide'] {
-  background: linear-gradient(145deg, #4b2d17, #2b1d13);
-  color: #fdba74;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='pdf'] {
-  background: linear-gradient(145deg, #4b1f25, #2a1418);
-  color: #fca5a5;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='layout'],
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='drawing'],
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='ebook'] {
-  background: linear-gradient(145deg, #312653, #1f1a34);
-  color: #c4b5fd;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='cad'],
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='eda'],
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='audio'] {
-  background: linear-gradient(145deg, #17444d, #10292e);
-  color: #67e8f9;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='model'],
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='text'] {
-  background: linear-gradient(145deg, #31421f, #1c2916);
-  color: #bef264;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='archive'] {
-  background: linear-gradient(145deg, #4a3416, #2a2114);
-  color: #facc15;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='email'] {
-  background: linear-gradient(145deg, #183a62, #112337);
-  color: #93c5fd;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='code'],
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='video'] {
-  background: linear-gradient(145deg, #273044, #171f2d);
-  color: #cbd5e1;
-}
-
-.demo-shell[data-demo-theme='dark'] .sample-file-icon[data-family='image'] {
-  background: linear-gradient(145deg, #4a2340, #2b1827);
-  color: #f9a8d4;
-}
-
-.demo-shell[data-demo-theme='dark'] .primary-button {
-  background: linear-gradient(135deg, #15935f 0%, #2dd493 100%);
-  box-shadow: 0 16px 32px rgba(21, 147, 95, 0.26);
-}
-
-.demo-shell[data-demo-theme='dark'] .upload-card {
-  border-color: rgba(45, 212, 154, 0.24);
-  background:
-    linear-gradient(135deg, rgba(45, 212, 154, 0.1), transparent 58%),
-    rgba(22, 32, 39, 0.9);
-}
-
-.demo-shell[data-demo-theme='dark'] .upload-title {
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-toolbar {
-  border-bottom-color: rgba(167, 185, 198, 0.12);
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-status {
-  background: #2dd493;
-  box-shadow: 0 0 0 5px rgba(45, 212, 154, 0.14);
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-type {
-  background: rgba(167, 185, 198, 0.12);
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-action-group {
-  border-color: rgba(167, 185, 198, 0.13);
-  background: rgba(9, 15, 20, 0.54);
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-fit-control {
-  border-color: rgba(167, 185, 198, 0.13);
-  background: rgba(9, 15, 20, 0.54);
-  color: #b8c7d5;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-fit-control select,
-.demo-shell[data-demo-theme='dark'] .mobile-fit-control select {
-  background: rgba(167, 185, 198, 0.1);
-  color: #d7e7ee;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-search-popover {
-  border-color: rgba(167, 185, 198, 0.13);
-  background: rgba(12, 20, 27, 0.94);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-search-popover input,
-.demo-shell[data-demo-theme='dark'] .viewer-search-popover button,
-.demo-shell[data-demo-theme='dark'] .viewer-search-summary {
-  color: #b8c7d5;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-search-popover input {
-  background: rgba(167, 185, 198, 0.09);
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-search-popover input:focus,
-.demo-shell[data-demo-theme='dark'] .viewer-search-popover button:hover {
-  background: rgba(45, 212, 154, 0.14);
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-tool-button {
-  border-color: rgba(167, 185, 198, 0.13);
-  background: rgba(22, 32, 39, 0.78);
-  color: #b8c7d5;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-action-group .viewer-tool-button--meter {
-  color: #c9d7e5;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-tool-button:disabled {
-  color: #607482;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewer-tool-button.active {
-  border-color: rgba(45, 212, 154, 0.36);
-  background: rgba(45, 212, 154, 0.14);
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .mobile-control-backdrop {
-  background: rgba(4, 9, 12, 0.46);
-}
-
-.demo-shell[data-demo-theme='dark'] .mobile-quick-row,
-.demo-shell[data-demo-theme='dark'] .mobile-zoom-strip,
-.demo-shell[data-demo-theme='dark'] .mobile-action-panel {
-  border-color: rgba(188, 214, 220, 0.16);
-  background: rgba(12, 20, 27, 0.78);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36);
-}
-
-.demo-shell[data-demo-theme='dark'] .mobile-fab,
-.demo-shell[data-demo-theme='dark'] .mobile-zoom-strip button,
-.demo-shell[data-demo-theme='dark'] .mobile-action-panel button,
-.demo-shell[data-demo-theme='dark'] .mobile-sheet-close {
-  color: #d7e7ee;
-}
-
-.demo-shell[data-demo-theme='dark'] .mobile-sheet-close {
-  border-color: rgba(188, 214, 220, 0.14);
-  background: rgba(12, 20, 27, 0.72);
-}
-
-.demo-shell[data-demo-theme='dark'] .mobile-fab:hover,
-.demo-shell[data-demo-theme='dark'] .mobile-fab.active,
-.demo-shell[data-demo-theme='dark'] .mobile-action-panel button.active {
-  background: rgba(45, 212, 154, 0.16);
-  color: #61e5b4;
-}
-
-.demo-shell[data-demo-theme='dark'] .viewport :deep(.file-viewer) {
-  box-shadow: inset 0 0 0 1px rgba(167, 185, 198, 0.12);
-}
-
-.demo-shell[data-demo-theme='dark'].hidden .viewer-panel {
-  background: #0f171d;
-}
-
-@media (max-width: 1100px) {
-  .layout-shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  .control-panel {
-    max-height: 42vh;
-    display: grid;
-    grid-template-columns: minmax(230px, 0.9fr) minmax(240px, 1fr);
-    align-items: stretch;
-  }
-
-  .current-card {
-    display: none;
-  }
-
-  .panel-body {
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .sample-picker-open .panel-body {
-    overflow: visible;
-  }
-}
-
-@media (max-width: 720px) {
-  .demo-shell {
-    height: 100dvh;
-    background: #eef5f1;
-  }
-
-  .workspace {
-    height: 100dvh;
-    padding: 0;
-  }
-
-  .layout-shell {
-    position: relative;
-    height: 100%;
-    display: block;
-  }
-
-  .viewer-panel {
-    height: 100%;
-    border: 0;
-    border-radius: 0;
-    background: #ffffff;
-    box-shadow: none;
-  }
-
-  .viewer-toolbar {
-    position: absolute;
-    z-index: 35;
-    top: max(8px, env(safe-area-inset-top));
-    right: 10px;
-    left: 10px;
-    min-height: 44px;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border: 1px solid rgba(20, 35, 53, 0.08);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.76);
-    box-shadow: 0 16px 38px rgba(18, 35, 55, 0.12);
-    backdrop-filter: blur(18px);
-  }
-
-  .viewer-path {
-    display: none;
-  }
-
-  .viewer-tools {
-    display: none;
-  }
-
-  .viewer-copy {
-    flex: 1;
-  }
-
-  .viewer-copy strong {
-    max-width: calc(100vw - 122px);
-    font-size: 13px;
-  }
-
-  .viewer-type {
-    padding: 4px 7px;
-    font-size: 10px;
-  }
-
-  .viewer-search-popover {
-    z-index: 80;
-    top: calc(max(8px, env(safe-area-inset-top)) + 54px);
-    right: 10px;
-    left: 10px;
-    grid-template-columns: minmax(120px, 1fr) auto auto auto auto;
-    width: auto;
-    max-width: none;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.9);
-  }
-
-  .control-panel {
-    position: fixed;
-    z-index: 65;
-    right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    left: 10px;
-    max-height: min(78dvh, 620px);
-    display: flex;
-    gap: 10px;
-    padding: 10px;
-    border-radius: 24px;
-    overflow: hidden;
-    transform: translateY(calc(100% + 24px));
-    opacity: 0;
-    pointer-events: none;
-    transition: transform 0.24s ease, opacity 0.2s ease;
-  }
-
-  .sample-picker-open .control-panel {
-    max-height: min(86dvh, 680px);
-  }
-
-  .mobile-controls-open .control-panel {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .brand-card {
-    display: none;
-  }
-
-  .current-card {
-    display: flex;
-    flex-shrink: 0;
-    padding: 10px 48px 10px 10px;
-    border-radius: 18px;
-  }
-
-  .current-badge {
-    width: 44px;
-    height: 40px;
-    border-radius: 13px;
-  }
-
-  .mobile-sheet-close {
-    position: absolute;
-    top: 18px;
-    right: 18px;
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(20, 35, 53, 0.08);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.72);
-    color: #526174;
-    box-shadow: 0 10px 24px rgba(18, 35, 55, 0.1);
-    backdrop-filter: blur(14px);
-  }
-
-  .panel-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    gap: 10px;
-    padding-right: 2px;
-  }
-
-  .sample-picker-open .panel-body {
-    overflow: hidden;
-  }
-
-  .sample-picker-open .panel-sticky-controls,
-  .sample-picker-open .scenario-picker,
-  .sample-picker-open .snippet-launch {
-    display: none;
-  }
-
-  .sample-picker-open .sample-picker {
-    flex: 1;
-    min-height: 0;
-  }
-
-  .compact-field,
-  .primary-button {
-    min-height: 42px;
-  }
-
-  .sample-trigger {
-    min-height: 64px;
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 9px;
-  }
-
-  .sample-trigger .sample-file-icon {
-    width: 38px;
-    height: 46px;
-  }
-
-  .sample-menu {
-    position: static;
-    max-height: min(48dvh, 430px) !important;
-    margin-top: 8px;
-    border-radius: 18px;
-  }
-
-  .sample-picker-open .sample-menu {
-    flex: 1;
-    min-height: 0;
-    max-height: none !important;
-  }
-
-  .sample-menu--bottom,
-  .sample-menu--top {
-    top: auto;
-    bottom: auto;
-  }
-
-  .sample-group-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .sample-card {
-    min-height: 62px;
-  }
-
-  .scenario-trigger {
-    min-height: 42px;
-    border-radius: 15px;
-    padding: 6px 9px;
-  }
-
-  .scenario-trigger-icon {
-    width: 30px;
-    height: 30px;
-  }
-
-  .scenario-popover {
-    position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: min(32dvh, 250px);
-    margin-top: 8px;
-    border-radius: 18px;
-  }
-
-  .scenario-card {
-    min-height: 62px;
-    border-radius: 13px;
-  }
-
-  .snippet-launch {
-    min-height: 56px;
-    border-radius: 15px;
-  }
-
-  .snippet-dialog-backdrop {
-    align-items: flex-end;
-    padding: 10px;
-  }
-
-  .snippet-dialog-panel {
-    width: 100%;
-    max-height: min(78dvh, 620px);
-    border-radius: 24px;
-  }
-
-  .snippet-dialog-header {
-    grid-template-columns: 40px minmax(0, 1fr) 34px;
-    gap: 10px;
-    padding: 14px;
-  }
-
-  .snippet-dialog-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 14px;
-  }
-
-  .snippet-dialog-close {
-    width: 34px;
-    height: 34px;
-  }
-
-  .snippet-dialog-code {
-    padding: 18px;
-    font-size: 12px;
-  }
-
-  .snippet-dialog-footer {
-    min-height: 66px;
-    padding: 11px 14px;
-  }
-
-  .snippet-dialog-footer > span {
-    display: none;
-  }
-
-  .snippet-dialog-copy {
-    width: 100%;
-  }
-
-  .upload-card {
-    min-height: 168px;
-    justify-content: center;
-  }
-
-  .viewport {
-    height: 100%;
-    padding: 0;
-  }
-
-  .viewport :deep(.file-viewer) {
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .mobile-control-backdrop {
-    position: fixed;
-    z-index: 58;
-    inset: 0;
-    display: block;
-    border: 0;
-    background: rgba(15, 31, 38, 0.24);
-    backdrop-filter: blur(4px);
-  }
-
-  .mobile-action-dock {
-    position: fixed;
-    z-index: 55;
-    right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    left: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    pointer-events: none;
-  }
-
-  .mobile-quick-row,
-  .mobile-zoom-strip,
-  .mobile-action-panel {
-    pointer-events: auto;
-    border: 1px solid rgba(20, 35, 53, 0.08);
-    background: rgba(255, 255, 255, 0.72);
-    box-shadow: 0 18px 48px rgba(18, 35, 55, 0.16);
-    backdrop-filter: blur(18px);
-  }
-
-  .mobile-quick-row {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px;
-    padding: 6px;
-    border-radius: 22px;
-  }
-
-  .mobile-fab,
-  .mobile-zoom-strip button,
-  .mobile-action-panel button {
-    min-width: 0;
-    border: 0;
-    background: transparent;
-    color: #34465a;
-    font: inherit;
-    font-weight: 900;
-    cursor: pointer;
-  }
-
-  .mobile-fab {
-    height: 50px;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    border-radius: 17px;
-    font-size: 10px;
-  }
-
-  .mobile-fab:hover,
-  .mobile-fab.active,
-  .mobile-fab--primary {
-    background: rgba(33, 163, 102, 0.12);
-    color: #16804f;
-  }
-
-  .mobile-zoom-strip {
-    align-self: flex-end;
-    display: inline-grid;
-    grid-template-columns: 42px minmax(54px, auto) 42px;
-    gap: 2px;
-    padding: 5px;
-    border-radius: 999px;
-  }
-
-  .mobile-zoom-strip button {
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-  }
-
-  .mobile-zoom-meter {
-    padding: 0 8px;
-    font-size: 12px;
-  }
-
-  .mobile-action-panel {
-    align-self: stretch;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-    gap: 6px;
-    padding: 8px;
-    border-radius: 20px;
-    overflow: visible;
-  }
-
-  .mobile-action-panel .viewer-print-menu {
-    position: relative;
-    z-index: 2;
-    min-width: 0;
-    width: 100%;
-  }
-
-  .mobile-action-panel .viewer-print-menu > button {
-    width: 100%;
-  }
-
-  .mobile-action-panel .viewer-print-menu-panel {
-    top: auto;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    z-index: 70;
-    min-width: min(148px, calc(100vw - 32px));
-    max-width: calc(100vw - 24px);
-    padding: 6px;
-    border-radius: 14px;
-    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
-  }
-
-  .mobile-action-panel .viewer-print-menu-panel button {
-    height: 38px;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .mobile-action-panel button {
-    height: 40px;
-    border-radius: 14px;
-    font-size: 12px;
-  }
-
-  .mobile-fit-control {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    padding: 0 8px;
-    border-radius: 14px;
-    background: rgba(20, 35, 53, 0.05);
-    color: #526174;
-    font-size: 12px;
-    font-weight: 900;
-  }
-
-  .mobile-fit-control select {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .mobile-action-panel button:hover,
-  .mobile-action-panel button.active {
-    background: rgba(33, 163, 102, 0.12);
-    color: #16804f;
-  }
-
-  .mobile-action-panel button:disabled,
-  .mobile-zoom-strip button:disabled {
-    color: #9aa8b6;
-    cursor: not-allowed;
-    opacity: 0.66;
-  }
-}
-
-@media (max-width: 720px) {
-
-  .demo-shell[data-demo-theme='dark'] {
-    background: #0f171d;
-  }
-
-  .demo-shell[data-demo-theme='dark'] .viewer-panel {
-    background: #0f171d;
-  }
-
-  .demo-shell[data-demo-theme='dark'] .viewer-toolbar,
-  .demo-shell[data-demo-theme='dark'] .viewer-search-popover {
-    border-color: rgba(188, 214, 220, 0.14);
-    background: rgba(12, 20, 27, 0.78);
-    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
-  }
-
-  .demo-shell[data-demo-theme='dark'] .mobile-control-backdrop {
-    background: rgba(4, 9, 12, 0.48);
-  }
-
-  .demo-shell[data-demo-theme='dark'] .mobile-quick-row,
-  .demo-shell[data-demo-theme='dark'] .mobile-zoom-strip,
-  .demo-shell[data-demo-theme='dark'] .mobile-action-panel {
-    border-color: rgba(188, 214, 220, 0.16);
-    background: rgba(12, 20, 27, 0.78);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36);
-  }
-
-  .demo-shell[data-demo-theme='dark'] .mobile-fab,
-  .demo-shell[data-demo-theme='dark'] .mobile-zoom-strip button,
-  .demo-shell[data-demo-theme='dark'] .mobile-action-panel button,
-  .demo-shell[data-demo-theme='dark'] .mobile-sheet-close {
-    color: #d7e7ee;
-  }
-
-  .demo-shell[data-demo-theme='dark'] .mobile-sheet-close {
-    border-color: rgba(188, 214, 220, 0.14);
-    background: rgba(12, 20, 27, 0.72);
-  }
-
-  .demo-shell[data-demo-theme='dark'] .mobile-fab:hover,
-  .demo-shell[data-demo-theme='dark'] .mobile-fab.active,
-  .demo-shell[data-demo-theme='dark'] .mobile-fab--primary,
-  .demo-shell[data-demo-theme='dark'] .mobile-action-panel button:hover,
-  .demo-shell[data-demo-theme='dark'] .mobile-action-panel button.active {
-    background: rgba(45, 212, 154, 0.16);
-    color: #61e5b4;
-  }
-}
-</style>
+<style scoped src='../assets/demo-shell-immersive.css'></style>

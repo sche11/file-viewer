@@ -6,15 +6,18 @@ import { fileURLToPath } from 'node:url'
 const demoDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repoDir = resolve(demoDir, '../..')
 const sourceDir = resolve(repoDir, 'packages/components/web/viewer')
-const targetDirs = [
-  resolve(demoDir, 'public/file-viewer'),
-  resolve(demoDir, 'public/vendor/file-viewer')
-]
+const targetDir = resolve(demoDir, 'public/file-viewer')
 const helperSourceDir = resolve(repoDir, 'packages/components/web/dist')
-const helperTargetDir = resolve(demoDir, 'public/vendor/file-viewer-web')
+const helperTargetDir = targetDir
 const helperFiles = ['flyfish-file-viewer-web.iife.js']
 const fullHelperSourceDir = resolve(repoDir, 'packages/components/web-full/dist')
-const fullHelperTargetDir = resolve(demoDir, 'public/vendor/file-viewer-web-full')
+const fullHelperTargetDir = targetDir
+const fullHelperFiles = ['flyfish-file-viewer-web-full.iife.js']
+const legacyAssetRoots = [
+  resolve(demoDir, 'public/vendor/file-viewer'),
+  resolve(demoDir, 'public/vendor/file-viewer-web'),
+  resolve(demoDir, 'public/vendor/file-viewer-web-full')
+]
 const exampleSourceDir = resolve(repoDir, 'apps/viewer-demo/public/example')
 const exampleTargetDir = resolve(demoDir, 'public/example')
 
@@ -36,31 +39,32 @@ const removeMacMetadata = async dir => {
   }))
 }
 
-for (const targetDir of targetDirs) {
-  await rm(targetDir, { force: true, recursive: true })
-  await mkdir(targetDir, { recursive: true })
-  await cp(sourceDir, targetDir, { recursive: true })
-  await removeMacMetadata(targetDir)
-  console.log(`[file-viewer-demo] viewer assets copied to ${targetDir}`)
-}
+await Promise.all(legacyAssetRoots.map(path => rm(path, { force: true, recursive: true })))
+await rm(targetDir, { force: true, recursive: true })
+await mkdir(targetDir, { recursive: true })
+await cp(sourceDir, targetDir, { recursive: true })
+await removeMacMetadata(targetDir)
+console.log(`[file-viewer-demo] viewer assets copied to ${targetDir}`)
 
+// Older component demos copied the same viewer tree to /vendor, /wasm,
+// /vendor/file-viewer and inside web-full. Remove those stale roots so the
+// static site contains one authoritative runtime payload at /file-viewer/.
 for (const assetRoot of ['vendor', 'wasm']) {
   const sourceAssetRoot = resolve(sourceDir, assetRoot)
   if (!existsSync(sourceAssetRoot)) {
     continue
   }
-
-  const targetAssetRoot = resolve(demoDir, 'public', assetRoot)
-  await mkdir(targetAssetRoot, { recursive: true })
-
   const entries = await readdir(sourceAssetRoot, { withFileTypes: true })
-  await Promise.all(entries.map(entry => rm(resolve(targetAssetRoot, entry.name), { force: true, recursive: true })))
-  await cp(sourceAssetRoot, targetAssetRoot, { recursive: true })
-  await removeMacMetadata(targetAssetRoot)
-  console.log(`[file-viewer-demo] viewer root ${assetRoot} assets copied to ${targetAssetRoot}`)
+  const legacyRoot = resolve(demoDir, 'public', assetRoot)
+  await Promise.all(entries.map(entry =>
+    rm(resolve(legacyRoot, entry.name), { force: true, recursive: true })
+  ))
+  // Vite preserves empty directories from public/. Remove the legacy root as
+  // well so a clean component demo cannot recreate misleading /vendor or
+  // /wasm paths next to the canonical /file-viewer tree.
+  await rm(legacyRoot, { force: true, recursive: true })
 }
 
-await rm(helperTargetDir, { force: true, recursive: true })
 await mkdir(helperTargetDir, { recursive: true })
 for (const helperFile of helperFiles) {
   const sourceFile = resolve(helperSourceDir, helperFile)
@@ -74,13 +78,21 @@ console.log(`[file-viewer-demo] web helper assets copied to ${helperTargetDir}`)
 if (!existsSync(resolve(fullHelperSourceDir, 'flyfish-file-viewer-web-full.iife.js'))) {
   throw new Error(`缺少 ${fullHelperSourceDir}，请先运行 pnpm --filter @file-viewer/web-full build`)
 }
-await rm(fullHelperTargetDir, { force: true, recursive: true })
 await mkdir(fullHelperTargetDir, { recursive: true })
-await cp(fullHelperSourceDir, fullHelperTargetDir, { recursive: true })
+for (const helperFile of fullHelperFiles) {
+  await cp(resolve(fullHelperSourceDir, helperFile), resolve(fullHelperTargetDir, helperFile))
+}
+await rm(resolve(fullHelperTargetDir, 'renderers'), { force: true, recursive: true })
+await cp(
+  resolve(fullHelperSourceDir, 'renderers'),
+  resolve(fullHelperTargetDir, 'renderers'),
+  { recursive: true }
+)
 await removeMacMetadata(fullHelperTargetDir)
-console.log(`[file-viewer-demo] web full helper assets copied to ${fullHelperTargetDir}`)
+console.log(`[file-viewer-demo] web full helper and renderer bundles copied to ${fullHelperTargetDir}`)
 
 await mkdir(exampleTargetDir, { recursive: true })
 await cp(resolve(exampleSourceDir, 'word.docx'), resolve(exampleTargetDir, 'word.docx'))
 await cp(resolve(exampleSourceDir, 'excel.xlsx'), resolve(exampleTargetDir, 'excel.xlsx'))
-console.log(`[file-viewer-demo] docx/xlsx examples copied to ${exampleTargetDir}`)
+await cp(resolve(exampleSourceDir, 'office-demo.ppt'), resolve(exampleTargetDir, 'office-demo.ppt'))
+console.log(`[file-viewer-demo] docx/xlsx/ppt examples copied to ${exampleTargetDir}`)

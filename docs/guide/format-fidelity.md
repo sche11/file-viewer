@@ -14,8 +14,9 @@
 
 - PDF, OFD, images, audio, video, Markdown, source code, text, JSON/YAML/TOML/XML/SQL, archives, email, EPUB, Mermaid, Excalidraw, draw.io, and common Office/OpenDocument files.
 - CAD preview is powered by `@flyfish-dev/cad-viewer` through `@file-viewer/renderer-cad`; DWG, DXF, DWF, and DWFx assets stay self-hostable.
+- STEP / STP, IGES / IGS, and BREP preview uses a self-hosted OCCT worker, runtime, and WASM module to build renderable meshes locally, with orbit controls, fit-to-view, and unified zoom.
 - Word preview uses `@file-viewer/renderer-word` and the self-maintained `@file-viewer/docx` path for readable stream-style DOCX rendering.
-- Presentation preview uses `@file-viewer/renderer-presentation` and the standalone `@file-viewer/pptx` engine, with self-hostable worker configuration for offline and strict-CSP deployments.
+- Presentation preview uses `@file-viewer/renderer-presentation` with two isolated native engines: PowerPoint 97–2003 `.ppt` lazy-loads the independently versioned native-WASM `@file-viewer/ppt@0.3.1` runtime, while PPTX/OpenXML lazy-loads `@file-viewer/pptx` and its Worker. Full and CDN/IIFE distributions ship both routes' matching assets; `@file-viewer/ppt` keeps its included license and visible public watermark.
 
 ## Structure-first Lines
 
@@ -25,7 +26,7 @@ Some engineering formats are intentionally conservative:
 | --- | --- |
 | OLB / DRA | Safe structure preview for common OrCAD / Allegro containers and readable metadata |
 | OAS / OASIS | Readable fixtures render; complex binary OASIS stays structure-index focused until the dedicated layout kernel matures |
-| STEP / IGES / IFC / 3DM / BREP | Signature detection and conversion guidance, with visual support delegated to dedicated WASM engines |
+| IFC / 3DM | Signature detection and integration guidance; dedicated `web-ifc` / That Open and `rhino3dm` renderers are still required for visual preview |
 | PlantUML | Offline source/SVG-style preview by default; configure an intranet PlantUML service for full server-rendered SVG |
 
 ## Verification

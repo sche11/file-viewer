@@ -3,8 +3,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   createFileViewerViewStateChange,
   createFileViewerViewStateChangeEmitter,
+  createFileViewerZoomChangeEmitter,
   createFileViewerTranslator,
+  registerFileViewerZoomProvider,
   registerFileViewerViewStateProvider,
+  resolveFileViewerColorScheme,
+  resolveFileViewerLocale,
+  resolveFileViewerModelAssetUrls,
+  resolveFileViewerRuntimeAssetBaseUrl,
+  unregisterFileViewerZoomProvider,
   unregisterFileViewerViewStateProvider,
   type FileRenderContext,
   type FileViewerFitRequest,
@@ -14,12 +21,16 @@ import {
   type FileViewerViewState,
   type FileViewerViewStateChangeAction,
   type FileViewerViewStateChangeSource,
+  type FileViewerZoomState,
 } from '@file-viewer/core';
 import {
   formatGeometryKernelNotice,
+  importOcctGeometryFile,
   inspectGeometryKernelFile,
   isGeometryKernelFormat,
+  type GeometryOcctImportParams,
 } from '@file-viewer/geometry-engine';
+import { buildOcctThreeObject } from './occtModel.js';
 
 type ModelStatus = 'loading' | 'ready' | 'error';
 
@@ -46,11 +57,38 @@ const modelStyle = `
 [data-viewer-theme='dark'] .model-meta{color:#94a3b8}
 [data-viewer-theme='dark'] .model-meta strong{color:#5eead4}
 [data-viewer-theme='dark'] .model-state{background:rgba(15,23,42,.88);color:#cbd5e1}
+.model-viewer[data-model-theme='dark']{background:#101820;color:#e5eef8}
+.model-viewer[data-model-theme='dark'] .model-toolbar{border-color:rgba(148,163,184,.18);background:#111827}
+.model-viewer[data-model-theme='dark'] .model-actions button{background:#1f2937;color:#cbd5e1}
+.model-viewer[data-model-theme='dark'] .model-actions button.active,.model-viewer[data-model-theme='dark'] .model-actions button:hover{background:rgba(45,212,191,.14);color:#5eead4}
+.model-viewer[data-model-theme='dark'] .model-meta{color:#94a3b8}
+.model-viewer[data-model-theme='dark'] .model-meta strong{color:#5eead4}
+.model-viewer[data-model-theme='dark'] .model-state{background:rgba(15,23,42,.88);color:#cbd5e1}
 @media (prefers-color-scheme:dark){[data-viewer-theme='system'] .model-viewer{background:#101820;color:#e5eef8}[data-viewer-theme='system'] .model-toolbar{border-color:rgba(148,163,184,.18);background:#111827}[data-viewer-theme='system'] .model-actions button{background:#1f2937;color:#cbd5e1}[data-viewer-theme='system'] .model-actions button.active,[data-viewer-theme='system'] .model-actions button:hover{background:rgba(45,212,191,.14);color:#5eead4}[data-viewer-theme='system'] .model-meta{color:#94a3b8}[data-viewer-theme='system'] .model-meta strong{color:#5eead4}[data-viewer-theme='system'] .model-state{background:rgba(15,23,42,.88);color:#cbd5e1}}
 @media (max-width:720px){.model-toolbar{min-height:64px;align-items:flex-start;flex-direction:column;gap:8px;padding:8px 10px}.model-meta{width:100%;justify-content:flex-start}}
 `;
 
 class ModelPreviewNotice extends Error {}
+
+const MODEL_MIN_ZOOM = 0.1;
+const MODEL_MAX_ZOOM = 20;
+const MODEL_ZOOM_STEP = 1.2;
+const MODEL_THEME_PALETTES = {
+  light: {
+    background: 0xf8fafc,
+    gridCenter: 0xb9c6d4,
+    gridLine: 0xdde5ed,
+    hemisphereSky: 0xffffff,
+    hemisphereGround: 0xd7dee8,
+  },
+  dark: {
+    background: 0x0d141c,
+    gridCenter: 0x526579,
+    gridLine: 0x263544,
+    hemisphereSky: 0xdbeafe,
+    hemisphereGround: 0x172231,
+  },
+} as const;
 
 const createStyle = () => {
   const style = document.createElement('style');
@@ -87,6 +125,30 @@ const normalizeError = (reason: unknown) => {
   }
 };
 
+const isWorkerBootstrapFailure = (reason: unknown) => {
+  const errorName = reason && typeof reason === 'object' && 'name' in reason
+    ? String((reason as { name?: unknown }).name || '')
+    : '';
+  if (errorName === 'SecurityError' || errorName === 'NetworkError') {
+    return true;
+  }
+  return /worker failed to load|worker-src|content security policy|importscripts|script error|loading (?:the )?wasm|fetching of the wasm failed/i
+    .test(normalizeError(reason));
+};
+
+const canUseWorkerUrlFromDocument = (workerUrl: string, documentRef: Document) => {
+  const location = documentRef.defaultView?.location;
+  if (!location) {
+    return true;
+  }
+  try {
+    const resolved = new URL(workerUrl, documentRef.baseURI);
+    return resolved.protocol === 'blob:' || resolved.origin === location.origin;
+  } catch {
+    return true;
+  }
+};
+
 const getResourcePath = (sourceUrl?: string) => {
   if (!sourceUrl) {
     return '';
@@ -101,23 +163,57 @@ const getResourcePath = (sourceUrl?: string) => {
   }
 };
 
-const disposeMaterial = (material: THREE.Material | THREE.Material[]) => {
-  const materials = Array.isArray(material) ? material : [material];
-  materials.forEach(item => item.dispose());
-};
-
 const disposeObject = (object: THREE.Object3D) => {
+  const disposedGeometries = new Set<THREE.BufferGeometry>();
+  const disposedMaterials = new Set<THREE.Material>();
+  const disposedTextures = new Set<THREE.Texture>();
+  const disposedSkeletons = new Set<THREE.Skeleton>();
+  const disposeTexture = (value: unknown) => {
+    if (value instanceof THREE.Texture && !disposedTextures.has(value)) {
+      disposedTextures.add(value);
+      value.dispose();
+    }
+  };
+  const disposeMaterial = (material: THREE.Material) => {
+    if (disposedMaterials.has(material)) {
+      return;
+    }
+    disposedMaterials.add(material);
+    Object.values(material).forEach(value => {
+      disposeTexture(value);
+      if (Array.isArray(value)) {
+        value.forEach(disposeTexture);
+      }
+    });
+    if (material instanceof THREE.ShaderMaterial) {
+      Object.values(material.uniforms).forEach(uniform => {
+        disposeTexture(uniform?.value);
+        if (Array.isArray(uniform?.value)) {
+          uniform.value.forEach(disposeTexture);
+        }
+      });
+    }
+    material.dispose();
+  };
   object.traverse(child => {
     const mesh = child as THREE.Mesh;
     const points = child as THREE.Points;
-    if (mesh.geometry) {
+    if (mesh.geometry && !disposedGeometries.has(mesh.geometry)) {
+      disposedGeometries.add(mesh.geometry);
       mesh.geometry.dispose();
     }
     if (mesh.material) {
-      disposeMaterial(mesh.material);
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach(disposeMaterial);
     }
     if (points.material) {
-      disposeMaterial(points.material);
+      const materials = Array.isArray(points.material) ? points.material : [points.material];
+      materials.forEach(disposeMaterial);
+    }
+    const skinnedMesh = child as THREE.SkinnedMesh;
+    if (skinnedMesh.isSkinnedMesh && !disposedSkeletons.has(skinnedMesh.skeleton)) {
+      disposedSkeletons.add(skinnedMesh.skeleton);
+      skinnedMesh.skeleton.dispose();
     }
   });
 };
@@ -145,12 +241,20 @@ export default async function renderModel(
   let modelRoot: THREE.Object3D | null = null;
   let gridHelper: THREE.GridHelper | null = null;
   let axesHelper: THREE.AxesHelper | null = null;
+  let hemisphereLight: THREE.HemisphereLight | null = null;
+  let themeObserver: MutationObserver | null = null;
+  let stopSystemThemeListener: (() => void) | null = null;
+  let activeDarkMode: boolean | null = null;
   let resizeObserver: ResizeObserver | null = null;
   let animationFrame = 0;
   let activeVersion = 0;
+  let modelMeshCount = 0;
+  let zoomBaselineDistance = 0;
+  let controlsStartScale = 1;
   let mixer: THREE.AnimationMixer | null = null;
-  const clock = new THREE.Clock();
+  const timer = new THREE.Timer();
   const viewStateEmitter = createFileViewerViewStateChangeEmitter();
+  const zoomEmitter = createFileViewerZoomChangeEmitter();
 
   const root = createElement('div', 'model-viewer');
   const toolbar = createElement('div', 'model-toolbar');
@@ -167,6 +271,10 @@ export default async function renderModel(
   const canvas = document.createElement('canvas');
   const state = createElement('div', 'model-state', t('model.state.loading'));
   const buttons = [fitButton, rotateButton, wireframeButton, gridButton, axesButton];
+
+  root.dataset.modelFormat = normalizedType;
+  root.dataset.modelStatus = status;
+  root.dataset.modelMeshCount = '0';
 
   buttons.forEach(button => {
     button.type = 'button';
@@ -195,6 +303,8 @@ export default async function renderModel(
     gridButton.classList.toggle('active', showGrid);
     axesButton.classList.toggle('active', showAxes);
     summaryText.textContent = objectSummary;
+    root.dataset.modelStatus = status;
+    root.dataset.modelMeshCount = String(modelMeshCount);
     state.hidden = status === 'ready';
     state.classList.toggle('error', status === 'error');
     if (status === 'loading') {
@@ -232,18 +342,73 @@ export default async function renderModel(
     return new THREE.Vector3(x, y, z);
   };
 
-  const getModelViewState = (): FileViewerViewState => ({
-    renderer: 'model',
-    extra: {
-      status,
-      cameraPosition: vectorToArray(camera?.position),
-      cameraTarget: vectorToArray(controls?.target),
-      autoRotate,
-      wireframe,
-      showGrid,
-      showAxes,
-    },
-  });
+  const getModelScale = () => {
+    if (!camera || !controls || zoomBaselineDistance <= 0) {
+      return 1;
+    }
+    const distance = camera.position.distanceTo(controls.target);
+    return distance > 0
+      ? THREE.MathUtils.clamp(zoomBaselineDistance / distance, MODEL_MIN_ZOOM, MODEL_MAX_ZOOM)
+      : 1;
+  };
+
+  const getModelZoomState = (): FileViewerZoomState => {
+    const scale = getModelScale();
+    const ready = status === 'ready' && Boolean(modelRoot && camera && controls && zoomBaselineDistance > 0);
+    return {
+      scale,
+      label: `${Math.round(scale * 100)}%`,
+      canZoomIn: ready && scale < MODEL_MAX_ZOOM - 0.001,
+      canZoomOut: ready && scale > MODEL_MIN_ZOOM + 0.001,
+      canReset: ready && Math.abs(scale - 1) > 0.005,
+      minScale: MODEL_MIN_ZOOM,
+      maxScale: MODEL_MAX_ZOOM,
+    };
+  };
+
+  const setModelZoom = (
+    requestedScale: number,
+    source: FileViewerViewStateChangeSource = 'api',
+    action: FileViewerViewStateChangeAction = 'zoom-change',
+    notify = true
+  ) => {
+    if (!camera || !controls || zoomBaselineDistance <= 0) {
+      return getModelZoomState();
+    }
+    const scale = THREE.MathUtils.clamp(requestedScale, MODEL_MIN_ZOOM, MODEL_MAX_ZOOM);
+    const direction = camera.position.clone().sub(controls.target);
+    if (direction.lengthSq() < 1e-8) {
+      direction.set(1, 0.62, 1);
+    }
+    direction.normalize();
+    camera.position.copy(controls.target).addScaledVector(direction, zoomBaselineDistance / scale);
+    camera.updateProjectionMatrix();
+    controls.update();
+    zoomEmitter.emit();
+    if (notify) {
+      emitViewStateChange(action, source);
+    }
+    return getModelZoomState();
+  };
+
+  const getModelViewState = (): FileViewerViewState => {
+    const zoom = getModelZoomState();
+    return {
+      renderer: 'model',
+      scale: zoom.scale,
+      zoom,
+      extra: {
+        status,
+        cameraPosition: vectorToArray(camera?.position),
+        cameraTarget: vectorToArray(controls?.target),
+        zoomBaselineDistance,
+        autoRotate,
+        wireframe,
+        showGrid,
+        showAxes,
+      },
+    };
+  };
 
   const emitViewStateChange = (
     action: FileViewerViewStateChangeAction,
@@ -261,6 +426,11 @@ export default async function renderModel(
     const source = applyOptions.source || 'api';
     const action = applyOptions.action || 'restore';
     const notify = applyOptions.notify !== false;
+    const baseline = Number(state.extra?.zoomBaselineDistance);
+    if (Number.isFinite(baseline) && baseline > 0) {
+      zoomBaselineDistance = baseline;
+    }
+    const hasCameraSnapshot = Array.isArray(state.extra?.cameraPosition);
     if (camera) {
       camera.position.copy(readVector(state.extra?.cameraPosition, camera.position));
       camera.updateProjectionMatrix();
@@ -268,6 +438,12 @@ export default async function renderModel(
     if (controls) {
       controls.target.copy(readVector(state.extra?.cameraTarget, controls.target));
       controls.update();
+    }
+    const requestedScale = Number(state.scale ?? state.zoom?.scale);
+    if (!hasCameraSnapshot && Number.isFinite(requestedScale) && requestedScale > 0) {
+      setModelZoom(requestedScale, source, action, false);
+    } else {
+      zoomEmitter.emit();
     }
     if (typeof state.extra?.autoRotate === 'boolean') {
       autoRotate = state.extra.autoRotate;
@@ -303,7 +479,94 @@ export default async function renderModel(
     camera.updateProjectionMatrix();
   };
 
+  const findThemeHost = () => {
+    let current: Element | null = root;
+    while (current) {
+      if (current.hasAttribute('data-viewer-theme')) {
+        return current as HTMLElement;
+      }
+      const parentElement: HTMLElement | null = current.parentElement as HTMLElement | null;
+      if (parentElement) {
+        current = parentElement;
+        continue;
+      }
+      const nodeRoot = current.getRootNode();
+      current = 'host' in nodeRoot ? (nodeRoot as ShadowRoot).host : null;
+    }
+    return null;
+  };
+
+  const systemThemeQuery = target.ownerDocument.defaultView?.matchMedia?.('(prefers-color-scheme: dark)');
+  const readDarkMode = () => {
+    const themeValue = findThemeHost()?.dataset.viewerTheme || context?.options?.theme;
+    const declaredTheme = themeValue === 'light' || themeValue === 'dark' || themeValue === 'system'
+      ? themeValue
+      : undefined;
+    return resolveFileViewerColorScheme(declaredTheme, systemThemeQuery?.matches ?? false) === 'dark';
+  };
+
+  const replaceGridHelper = (darkMode: boolean) => {
+    if (!scene) {
+      return;
+    }
+    const palette = darkMode ? MODEL_THEME_PALETTES.dark : MODEL_THEME_PALETTES.light;
+    const previous = gridHelper;
+    const next = new THREE.GridHelper(10, 10, palette.gridCenter, palette.gridLine);
+    next.visible = showGrid;
+    if (previous) {
+      next.scale.copy(previous.scale);
+      scene.remove(previous);
+      disposeObject(previous);
+    }
+    gridHelper = next;
+    scene.add(next);
+  };
+
+  const applyModelTheme = (force = false) => {
+    const darkMode = readDarkMode();
+    root.dataset.modelTheme = darkMode ? 'dark' : 'light';
+    if (!force && activeDarkMode === darkMode) {
+      return;
+    }
+    activeDarkMode = darkMode;
+    const palette = darkMode ? MODEL_THEME_PALETTES.dark : MODEL_THEME_PALETTES.light;
+    renderer?.setClearColor(palette.background, 1);
+    if (scene) {
+      scene.background = new THREE.Color(palette.background);
+    }
+    if (hemisphereLight) {
+      hemisphereLight.color.setHex(palette.hemisphereSky);
+      hemisphereLight.groundColor.setHex(palette.hemisphereGround);
+    }
+    canvas.style.colorScheme = darkMode ? 'dark' : 'light';
+    replaceGridHelper(darkMode);
+  };
+
+  const observeModelTheme = () => {
+    const themeHost = findThemeHost();
+    const MutationObserverCtor = target.ownerDocument.defaultView?.MutationObserver;
+    if (themeHost && MutationObserverCtor) {
+      themeObserver = new MutationObserverCtor(() => applyModelTheme());
+      themeObserver.observe(themeHost, {
+        attributes: true,
+        attributeFilter: ['data-viewer-theme'],
+      });
+    }
+    if (!systemThemeQuery) {
+      return;
+    }
+    const onSystemThemeChange = () => applyModelTheme();
+    if (typeof systemThemeQuery.addEventListener === 'function') {
+      systemThemeQuery.addEventListener('change', onSystemThemeChange);
+      stopSystemThemeListener = () => systemThemeQuery.removeEventListener('change', onSystemThemeChange);
+    } else {
+      systemThemeQuery.addListener(onSystemThemeChange);
+      stopSystemThemeListener = () => systemThemeQuery.removeListener(onSystemThemeChange);
+    }
+  };
+
   const ensureScene = () => {
+    const initializeTheme = !scene || !gridHelper;
     if (!renderer) {
       renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -313,15 +576,13 @@ export default async function renderModel(
       });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.setClearColor(0xf8fafc, 1);
     }
 
     if (!scene) {
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xf8fafc);
 
-      const hemiLight = new THREE.HemisphereLight(0xffffff, 0xd7dee8, 2.4);
-      scene.add(hemiLight);
+      hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xd7dee8, 2.4);
+      scene.add(hemisphereLight);
 
       const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
       keyLight.position.set(8, 10, 8);
@@ -330,9 +591,6 @@ export default async function renderModel(
       const fillLight = new THREE.DirectionalLight(0xffffff, 0.9);
       fillLight.position.set(-7, 5, -4);
       scene.add(fillLight);
-
-      gridHelper = new THREE.GridHelper(10, 10, 0xcbd5e1, 0xe2e8f0);
-      scene.add(gridHelper);
 
       axesHelper = new THREE.AxesHelper(3);
       scene.add(axesHelper);
@@ -351,17 +609,23 @@ export default async function renderModel(
       controls.autoRotateSpeed = 1.2;
     }
 
+    applyModelTheme(initializeTheme);
     updateHelperVisibility();
     resize();
   };
 
   const clearModel = () => {
     if (modelRoot && scene) {
+      mixer?.stopAllAction();
+      mixer?.uncacheRoot(modelRoot);
       scene.remove(modelRoot);
       disposeObject(modelRoot);
     }
     modelRoot = null;
+    modelMeshCount = 0;
+    zoomBaselineDistance = 0;
     mixer = null;
+    zoomEmitter.emit();
   };
 
   const createSurfaceMaterial = () => new THREE.MeshStandardMaterial({
@@ -412,6 +676,7 @@ export default async function renderModel(
 
   const summarizeModel = (object: THREE.Object3D) => {
     const { meshes, points } = countMeshes(object);
+    modelMeshCount = meshes;
     const parts = [];
     if (meshes) {
       parts.push(t('model.summary.meshes', { count: meshes }));
@@ -442,25 +707,57 @@ export default async function renderModel(
     };
   };
 
-  const fitToView = (source: FileViewerViewStateChangeSource = 'viewer') => {
+  const fitToView = (
+    source: FileViewerViewStateChangeSource = 'viewer',
+    request?: Pick<FileViewerFitRequest, 'mode' | 'padding'>
+  ) => {
     if (!modelRoot || !camera || !controls) {
-      return;
+      return getModelZoomState();
     }
 
     const box = new THREE.Box3().setFromObject(modelRoot);
-    const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    const radius = Math.max(size.x, size.y, size.z, 1);
-    const distance = radius / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.65;
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const radius = Math.max(sphere.radius, 0.5);
+    const rect = stage.getBoundingClientRect();
+    const width = Math.max(1, rect.width || canvas.clientWidth);
+    const height = Math.max(1, rect.height || canvas.clientHeight);
+    const aspect = Math.max(0.01, width / height);
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+    const verticalDistance = radius / Math.max(Math.sin(verticalFov / 2), 0.01);
+    const horizontalDistance = radius / Math.max(Math.sin(horizontalFov / 2), 0.01);
+    const mode = request?.mode || 'contain';
+    let distance = mode === 'cover'
+      ? Math.min(verticalDistance, horizontalDistance)
+      : mode === 'width'
+        ? horizontalDistance
+        : mode === 'height'
+          ? verticalDistance
+          : Math.max(verticalDistance, horizontalDistance);
+    const padding = Math.max(0, request?.padding ?? 28);
+    const paddingRatio = THREE.MathUtils.clamp(1 - (padding * 2) / Math.min(width, height), 0.2, 1);
+    distance = Math.max(distance / paddingRatio, 0.01);
+
+    const direction = camera.position.clone().sub(controls.target);
+    if (direction.lengthSq() < 1e-8) {
+      direction.set(1, 0.62, 1);
+    }
+    direction.normalize();
+    zoomBaselineDistance = distance;
 
     camera.near = Math.max(distance / 1000, 0.01);
     camera.far = Math.max(distance * 1000, 1000);
-    camera.position.copy(center).add(new THREE.Vector3(distance, distance * 0.62, distance));
+    camera.position.copy(center).addScaledVector(direction, distance);
     camera.updateProjectionMatrix();
 
     controls.target.copy(center);
+    controls.minDistance = distance / MODEL_MAX_ZOOM;
+    controls.maxDistance = distance / MODEL_MIN_ZOOM;
     controls.update();
+    zoomEmitter.emit();
     emitViewStateChange('fit', source);
+    return getModelZoomState();
   };
 
   const applyModelFit = (request: FileViewerFitRequest): FileViewerFitResult => {
@@ -474,12 +771,13 @@ export default async function renderModel(
         provider: 'view-state',
       };
     }
-    fitToView(request.source);
+    const zoom = fitToView(request.source, request);
     const state = getModelViewState();
     return {
       applied: true,
       mode: request.mode,
       resize: request.resize,
+      scale: zoom.scale,
       source: request.source,
       provider: 'view-state',
       state,
@@ -590,9 +888,54 @@ export default async function renderModel(
     return new KMZLoader().parse(buffer).scene;
   };
 
+  const parseOcct = async (modelType: string) => {
+    const modelOptions = context?.options?.model;
+    const documentBaseUrl = resolveFileViewerRuntimeAssetBaseUrl(target.ownerDocument);
+    const assets = resolveFileViewerModelAssetUrls(modelOptions, documentBaseUrl);
+    const params = Object.fromEntries([
+      ['linearUnit', modelOptions?.linearUnit],
+      ['linearDeflectionType', modelOptions?.linearDeflectionType],
+      ['linearDeflection', modelOptions?.linearDeflection],
+      ['angularDeflection', modelOptions?.angularDeflection],
+    ].filter(([, value]) => value !== undefined)) as GeometryOcctImportParams;
+    const workerPreferred = modelOptions?.useWorker !== false &&
+      canUseWorkerUrlFromDocument(assets.workerUrl, target.ownerDocument);
+    const importOptions = {
+      ...assets,
+      useWorker: workerPreferred,
+      timeoutMs: modelOptions?.workerTimeoutMs,
+      params,
+      signal: context?.signal,
+    };
+    root.dataset.modelImport = workerPreferred ? 'worker' : 'main-thread';
+    let result;
+    try {
+      result = await importOcctGeometryFile(buffer, modelType, importOptions);
+    } catch (workerError) {
+      if (!workerPreferred || context?.signal?.aborted || !isWorkerBootstrapFailure(workerError)) {
+        throw workerError;
+      }
+      root.dataset.modelImport = 'main-thread-fallback';
+      try {
+        result = await importOcctGeometryFile(buffer, modelType, {
+          ...importOptions,
+          useWorker: false,
+        });
+      } catch (fallbackError) {
+        throw new Error(
+          `${normalizeError(workerError)} Main-thread fallback failed: ${normalizeError(fallbackError)}`
+        );
+      }
+    }
+    return buildOcctThreeObject(result, wireframe).object;
+  };
+
   const explainEngineeringModel = (modelType: string): never => {
     const inspection = inspectGeometryKernelFile(buffer, modelType);
-    const notice = formatGeometryKernelNotice(inspection.format || modelType);
+    const notice = formatGeometryKernelNotice(
+      inspection.format || modelType,
+      resolveFileViewerLocale(context?.options)
+    );
     const signature = inspection.signature ? t('model.notice.signature', { signature: inspection.signature }) : '';
     const warnings = inspection.warnings.length ? ` ${inspection.warnings.join(' ')}` : '';
     throw new ModelPreviewNotice(`${signature}${notice}${warnings}`);
@@ -657,9 +1000,10 @@ export default async function renderModel(
       case 'stp':
       case 'iges':
       case 'igs':
+      case 'brep':
+        return parseOcct(modelType);
       case 'ifc':
       case '3dm':
-      case 'brep':
         return explainEngineeringModel(modelType);
       case 'pcd':
         return parsePcd();
@@ -683,6 +1027,7 @@ export default async function renderModel(
     const version = ++activeVersion;
     status = 'loading';
     errorMessage = '';
+    modelMeshCount = 0;
     objectSummary = t('model.state.loadingSummary');
     updateUi();
     ensureScene();
@@ -696,27 +1041,35 @@ export default async function renderModel(
       await addModelToScene(object);
       status = 'ready';
       updateUi();
+      zoomEmitter.emit();
+      emitViewStateChange('init', 'viewer');
     } catch (reason) {
       if (version !== activeVersion) {
+        return;
+      }
+      if (context?.signal?.aborted) {
         return;
       }
       if (!(reason instanceof ModelPreviewNotice)) {
         console.error(reason);
       }
       status = 'error';
+      modelMeshCount = 0;
       errorMessage = normalizeError(reason) || t('model.error.parseFailed', { type: normalizedType.toUpperCase() });
       updateUi();
+      zoomEmitter.emit();
     }
   };
 
-  const renderFrame = () => {
+  const renderFrame = (timestamp?: number) => {
     if (!renderer || !scene || !camera || !controls) {
       return;
     }
 
+    timer.update(timestamp);
+    const delta = timer.getDelta();
     controls.autoRotate = autoRotate;
-    controls.update();
-    const delta = clock.getDelta();
+    controls.update(delta);
     mixer?.update(delta);
     renderer.render(scene, camera);
     animationFrame = window.requestAnimationFrame(renderFrame);
@@ -729,7 +1082,17 @@ export default async function renderModel(
     updateUi();
   };
 
+  const onControlsStart = () => {
+    controlsStartScale = getModelScale();
+  };
+
   const onControlsEnd = () => {
+    const scale = getModelScale();
+    if (Math.abs(scale - controlsStartScale) > 0.002) {
+      zoomEmitter.emit();
+      emitViewStateChange('zoom-change', 'user');
+      return;
+    }
     emitViewStateChange('camera-change', 'user');
   };
 
@@ -757,8 +1120,19 @@ export default async function renderModel(
 
   updateUi();
   ensureScene();
+  observeModelTheme();
   const controlsWithEvents = controls as OrbitControls | null;
+  controlsWithEvents?.addEventListener('start', onControlsStart);
   controlsWithEvents?.addEventListener('end', onControlsEnd);
+  registerFileViewerZoomProvider(root, {
+    zoomIn: () => setModelZoom(getModelScale() * MODEL_ZOOM_STEP, 'user', 'zoom-in'),
+    zoomOut: () => setModelZoom(getModelScale() / MODEL_ZOOM_STEP, 'user', 'zoom-out'),
+    resetZoom: () => setModelZoom(1, 'user', 'zoom-reset'),
+    setZoom: scale => setModelZoom(scale, 'api', 'zoom-change'),
+    fit: applyModelFit,
+    getState: getModelZoomState,
+    subscribe: zoomEmitter.subscribe,
+  });
   registerFileViewerViewStateProvider(root, {
     getState: getModelViewState,
     applyState: applyModelViewState,
@@ -767,9 +1141,9 @@ export default async function renderModel(
   });
   resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(canvas);
-  clock.start();
+  timer.connect(target.ownerDocument);
   renderFrame();
-  void loadModel();
+  await loadModel();
 
   return {
     $el: root,
@@ -778,18 +1152,29 @@ export default async function renderModel(
       window.cancelAnimationFrame(animationFrame);
       resizeObserver?.disconnect();
       resizeObserver = null;
+      themeObserver?.disconnect();
+      themeObserver = null;
+      stopSystemThemeListener?.();
+      stopSystemThemeListener = null;
       clearModel();
+      controlsWithEvents?.removeEventListener('start', onControlsStart);
       controlsWithEvents?.removeEventListener('end', onControlsEnd);
+      unregisterFileViewerZoomProvider(root);
       unregisterFileViewerViewStateProvider(root);
       controls?.dispose();
       controls = null;
+      if (scene) {
+        disposeObject(scene);
+      }
       renderer?.dispose();
+      renderer?.renderLists.dispose();
       renderer = null;
-      clock.stop();
+      timer.dispose();
       scene = null;
       camera = null;
       gridHelper = null;
       axesHelper = null;
+      hemisphereLight = null;
       target.replaceChildren();
     },
   };

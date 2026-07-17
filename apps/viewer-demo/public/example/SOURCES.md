@@ -1,6 +1,6 @@
 # Public Sample Sources
 
-本目录中的 PDF、DOCX、PPTX、CAD、OpenDocument、3D 模型、绘图、音视频、EPUB 和 MSG 示例文件使用项目方提供的真实资料、可追溯的公开样本或项目内最小夹具；RTF、FODS、地理数据、MIDI、SQLite、WASM、UMD、EML、MBOX、XMind、Mermaid、PlantUML、PSD、Git patch、Git bundle、OLB、DRA、GDS、OAS/OASIS 和压缩包示例文件由项目内生成，用于固定回归对应结构。后续替换这些文件时，请优先选择许可清楚、可直接访问 raw 文件的公开仓库、国际组织公开文档或项目方明确授权的资料，并同步更新本文件与 `README.md`。
+本目录中的 PDF、DOCX、PPT、PPTX、CAD、OpenDocument、3D 模型、绘图、音视频、EPUB 和 MSG 示例文件使用项目方提供的真实资料、可追溯的公开样本或项目内最小夹具；RTF、FODS、地理数据、MIDI、SQLite、WASM、UMD、EML、MBOX、XMind、Mermaid、PlantUML、PSD、Git patch、Git bundle、OLB、DRA、GDS、OAS/OASIS 和压缩包示例文件由项目内生成，用于固定回归对应结构。后续替换这些文件时，请优先选择许可清楚、可直接访问 raw 文件的公开仓库、国际组织公开文档或项目方明确授权的资料，并同步更新本文件与 `README.md`。
 
 | Local file | Source | License | Purpose |
 | --- | --- | --- | --- |
@@ -9,6 +9,7 @@
 | `en/calibre-demo.docx` | `https://calibre-ebook.com/downloads/demos/demo.docx` | calibre public demo document by Kovid Goyal / calibre project | Rich English DOCX preview with typography, headings, lists, tables and conversion-oriented Word features |
 | `template.dot` | Copied from project `test.doc` fixture and saved with the Word 97-2003 template extension | Apache-2.0 | DOT extension routing smoke test for legacy Word template preview |
 | `ppt.pptx` | `https://science.nasa.gov/wp-content/uploads/2023/11/day2-1630-pac-lunarstrategy-noble-nov2023.pptx` | NASA public media usage guidelines; acknowledge NASA and do not imply endorsement | Professional NASA lunar science strategy deck for rich backgrounds, imagery, section pages, dense text, comparison layouts and multi-page PPTX rendering |
+| `office-demo.ppt` | `@file-viewer/ppt` upstream public browser fixture at `office-render-demo/public/samples/office-demo.ppt` | Project-owner authorized Demo distribution and renderer regression use | Real PowerPoint 97–2003 binary deck for native WASM parsing, multi-slide Canvas output, unified zoom, print and PPT/PPTX route isolation |
 | `en/sample-presentation.pptx` | Same NASA public deck as `ppt.pptx` | NASA public media usage guidelines; acknowledge NASA and do not imply endorsement | English PPTX smoke test with the same professional 20-slide deck used by the default presentation entry |
 | `en/financial-sample.xlsx` | `https://learn.microsoft.com/en-us/power-bi/create-reports/sample-financial-download` direct download `https://go.microsoft.com/fwlink/?LinkID=521962` | Microsoft public sample workbook | English XLSX workbook with multiple business fields for spreadsheet tabs, styles, column sizing and print smoke tests |
 | `pdf.pdf` | Project-owner provided `PDF沉浸式翻译技术说明.pdf` | Demo distribution authorized by project owner | 13-page PDF toolbar, scale, page/tree sidebar, print, export and dark-shell isolation smoke tests |
@@ -20,7 +21,8 @@
 | `samples/apache/blocks_and_tables.dwf` | `https://issues.apache.org/jira/browse/TIKA-1823` attachment `blocks_and_tables.dwf` | Apache Software Foundation Jira attachment | Native DWF 6 container smoke test for blocks, tables, W2D graphics and MIME/header handling |
 | `samples/autodesk/house.dwfx` | `https://github.com/Developer-Autodesk/viewer-javascript-tutorial/blob/master/Sample%20files/House.dwfx` | MIT | Official Autodesk Viewer tutorial DWFx sample for native DWFx/XPS rendering, multi-page structure and CAD viewport smoke tests |
 | `samples/autodesk/robot-arm.dwfx` | `https://github.com/Developer-Autodesk/viewer-javascript-tutorial/blob/master/Sample%20files/RobotArm1.dwfx` | MIT | Official Autodesk Viewer tutorial DWFx sample for W2D/W3D native rendering and assembly drawing smoke tests |
-| `model.gltf` / `model.obj` / `model.stl` / `model.ply` / `model.step` | Project-generated minimal fixtures | Apache-2.0 | Three.js model rendering and engineering-format fallback smoke tests |
+| `model.gltf` / `model.obj` / `model.stl` / `model.ply` | Project-generated minimal fixtures | Apache-2.0 | Lightweight Three.js model rendering smoke tests |
+| `model.step` | `occt-import-js` upstream `test/testfiles/simple-basic-cube/cube.stp` (upstream records the original as `https://grabcad.com/library/simple-basic-cube`) | occt-import-js upstream fixture; redistributed with upstream attribution | Browser-native OpenCascade/WASM STEP tessellation, hierarchy, material, fit and unified zoom regression |
 | `mindmap.xmind` | Project-generated with `@ljheee/xmind-parser` | Apache-2.0 | XMind 2020+ package fixture for sheet tabs, tree layout, labels, notes, links, search, zoom, print and HTML export smoke tests |
 | `architecture.mermaid` | Project-authored Mermaid fixture | Apache-2.0 | Mermaid architecture and flowchart route for official renderer, theme and Panzoom smoke tests |
 | `sequence.plantuml` | Project-authored PlantUML fixture | Apache-2.0 | PlantUML sequence route for encoder, configurable SVG endpoint, theme shell and Panzoom smoke tests |
@@ -35,7 +37,7 @@
 | `map.geojson` / `route.kml` / `track.gpx` | Project-generated lightweight geospatial fixtures | Apache-2.0 | GeoJSON, KML and GPX normalization plus offline SVG map smoke tests |
 | `report.typ` | Project-generated Typst multi-page fixture | Apache-2.0 | Direct Typst browser WASM rendering and smoke tests |
 | `archive.zip` / `archive.tar.gz` | Project-packaged PDF, public DOCX, Markdown, TypeScript and JSON sample set | See bundled file sources | Archive directory, lazy extraction, cache and nested preview smoke tests |
-| `en/archive.zip` / `en/archive.tar.gz` | Project-packaged English DOCX, PDF, PPTX, XLSX, Markdown, text, log, CSV, JSON, TypeScript, JavaScript, GeoJSON and glTF sample set | See bundled file sources | English archive directory, lazy extraction, cache and nested preview smoke tests |
+| `en/archive.zip` / `en/archive.tar.gz` | Project-packaged English DOCX, PDF, PPTX, XLSX, Markdown, text, log, CSV, JSON, TypeScript, JavaScript, GeoJSON and glTF sample set; the language-neutral binary PPT remains a shared fixture outside the archives | See bundled file sources | English archive directory, lazy extraction, cache and nested preview smoke tests |
 | `sample.eml` | Project-generated MIME email fixture | Apache-2.0 | EML headers, text/html body, attachment download and attachment preview smoke tests |
 | `sample.msg` | `https://github.com/HiraokaHyperTools/msgreader/blob/master/test/A%20memo.msg` | MIT | Outlook MSG parsing smoke test through @kenjiuno/msgreader |
 | `sample.mbox` | Project-generated MBOX email archive fixture | Apache-2.0 | MBOX message detection and first-message preview smoke tests |
@@ -59,12 +61,13 @@
 - `en/calibre-demo.docx` 来自 calibre 官方 DOCX demo，用于英文浏览器默认 Demo，覆盖英文排版、标题、列表、表格和富文本结构。
 - `template.dot` 复用 `test.doc` 的二进制内容，仅用于验证 Word 97-2003 模板扩展名能正确进入老 Word 渲染链路。
 - `ppt.pptx` 与 `en/sample-presentation.pptx` 均来自 NASA Science 公开的 `Implementation Plan for a NASA Integrated Lunar Science Strategy in the Artemis Era` 演示稿，覆盖星云封面、深色引用页、分栏信息页、图文混排、正式页眉页脚和 20 页真实演示稿结构；使用时按 NASA 媒体使用说明注明来源，不暗示 NASA 对项目背书。
+- `office-demo.ppt` 来自 `@file-viewer/ppt` 上游公开浏览器的固定回归样例，按项目方授权用于 Demo 分发和预览验收；它是中英文 Demo 共用的语言中立 PPT fixture，仅用于验证 `@file-viewer/ppt@0.3.1` Worker/OffscreenCanvas/WASM 链路与 PPTX Worker 链路彼此隔离。
 - `en/financial-sample.xlsx` 来自 Microsoft Power BI Financial Sample Workbook，用于英文 Excel 多业务字段、sheet 标签、列宽和打印回归。
 - `pdf.pdf` 是项目方提供的 13 页真实技术说明 PDF，覆盖缩放、页侧边栏、树形导航、打印、导出和暗色外壳隔离回归。
 - `en/prince-sample.pdf` 来自 Prince 官方 Sample Documents，用于英文 PDF 默认样例，覆盖打印 CSS、分栏、目录、表格和多页布局。
 - `en/markdown.md`、`en/notes.markdown`、`en/text.txt`、`en/app.log`、`en/table.csv`、`en/data.json`、`en/data.jsonc`、`en/data.json5`、`en/code.ts` 和 `en/code.js` 是项目内英文轻量夹具，用于保证英文 demo 在文本、代码、配置、日志和数据类格式下不只换标签，也能打开英文内容。
 - `en/map.geojson` 是项目内英文 GeoJSON 夹具，覆盖点、线路和属性表；`en/model.gltf` 是嵌入 buffer 的 glTF 2.0 夹具，避免英文 3D demo 依赖额外 `.bin` sidecar 或公网资源。
-- `model.gltf`、`model.obj`、`model.stl`、`model.ply` 和 `model.step` 是最小 3D fixture，用于验证 Three.js 预览和工程格式转换提示。
+- `model.gltf`、`model.obj`、`model.stl` 和 `model.ply` 是项目内最小 3D fixture；`model.step` 来自 `occt-import-js` 上游基础立方体回归样例，用于强制验证离线 OCCT Worker/WASM 真正生成网格，而不是落入转换提示。
 - `mindmap.xmind` 由项目内使用 `@ljheee/xmind-parser` 生成，覆盖 XMind 2020+ 多 sheet、节点、标签、备注、链接、标记、目录、缩放、搜索、打印和 HTML 导出链路。
 - `architecture.mermaid` 和 `sequence.plantuml` 是项目内绘制的最小但完整的架构图/时序图样例，用于验证 Mermaid 官方 renderer、PlantUML SVG 服务、主题容器、拖拽平移和统一缩放。
 - `design.psd` 由项目内使用 `ag-psd` 生成，覆盖多图层、图层显隐、重绘、透明背景和缩放链路。

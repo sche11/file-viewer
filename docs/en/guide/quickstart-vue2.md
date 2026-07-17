@@ -6,6 +6,8 @@
   Vue 2 projects can use native component packages without switching to an iframe-only integration.
 </p>
 
+> Vue 2 is upstream end-of-life. File Viewer will keep its Vue 2.6/2.7 compatibility packages, but new applications should prefer Vue 3. Security-sensitive legacy applications should also assess the host framework's [GHSA-5j4c-8p2g-v4jx](https://github.com/advisories/GHSA-5j4c-8p2g-v4jx), because no patched Vue 2 release is available.
+
 ## Vue 2.7
 
 ```bash
@@ -169,7 +171,7 @@ module.exports = {
 }
 ```
 
-Keep the `@file-viewer/docx` alias: webpack 4 otherwise prefers the UMD `browser` entry, whose CommonJS exports are lost after Babel transpilation and surface as `renderAsync is not a function` when a DOCX is uploaded. The demo also includes two webpack 4 compatibility patches: `build/rename-pdfjs-webpack-require.cjs` renames the bundled PDF.js legacy `.mjs` webpack helper so it does not shadow the host webpack 4 `__webpack_require__`, and `build/babel-transform-import-meta-url.cjs` lets webpack 4 parse the PPTX worker module. The `serve` env files set `NODE_ENV=production` to avoid Vue CLI 3.1 injecting its HMR client into this legacy preview path.
+Keep the `@file-viewer/docx` alias: webpack 4 otherwise prefers the UMD `browser` entry, whose CommonJS exports are lost after Babel transpilation and surface as `renderAsync is not a function` when a DOCX is uploaded. The demo also includes two webpack 4 compatibility patches: `build/rename-pdfjs-webpack-require.cjs` renames the bundled PDF.js legacy `.mjs` webpack helper so it does not shadow the host webpack 4 `__webpack_require__`, and `build/babel-transform-import-meta-url.cjs` lets webpack 4 parse the PPTX worker module. Its copy script publishes the complete nine-file `@file-viewer/ppt@0.3.1` runtime under `public/file-viewer/vendor/ppt/` together with the PPTX worker. The `serve` env files set `NODE_ENV=production` to avoid Vue CLI 3.1 injecting its HMR client into this legacy preview path.
 
 Then pass the preset and self-hosted asset URLs explicitly:
 
@@ -194,6 +196,10 @@ export const viewerOptions = {
     workerJsZipUrl: `${assetBaseUrl}vendor/docx/jszip.min.js`
   },
   presentation: {
+    pptModuleUrl: `${assetBaseUrl}vendor/ppt/index.mjs`,
+    pptWorkerUrl: `${assetBaseUrl}vendor/ppt/worker.mjs`,
+    pptWasmUrl: `${assetBaseUrl}vendor/ppt/ppt-native.wasm`,
+    pptFontUrl: `${assetBaseUrl}vendor/ppt/ppt-font-cjk.otf`,
     workerUrl: `${assetBaseUrl}vendor/pptx/pptx.worker.js`
   },
   spreadsheet: {
@@ -201,6 +207,8 @@ export const viewerOptions = {
   }
 }
 ```
+
+Those four `ppt*Url` values are only needed because this Vue CLI 3 compatibility example explicitly self-hosts assets from `public/file-viewer/`. The copy command and options file are already wired together; normal Vite/full-package installs publish and resolve the same packaged runtime automatically.
 
 Vue CLI 3 / webpack 4 can keep working for modern browsers. If a project still requires IE11-level output or an old `uglifyjs-webpack-plugin` pass over the full office dependency graph, prefer upgrading the minifier/build chain or isolating the viewer through `@file-viewer/vue2.6-full` or the Web Component IIFE package.
 

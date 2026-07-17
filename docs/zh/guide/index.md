@@ -31,7 +31,7 @@
   </div>
   <div class="doc-card">
     <h3>覆盖真实附件场景</h3>
-    <p>内置 206 个扩展名映射和 24 条预览链路，覆盖 Office、PDF、OFD、Typst、XMind 脑图、压缩包、邮件、OLB/DRA/GDS/OASIS、CAD、地理数据、3D 模型、Excalidraw、draw.io、Mermaid、PlantUML、EPUB、UMD、Markdown、代码/文本、Git patch/bundle、图片、音视频、字体、PSD 图层资产和结构化数据。</p>
+    <p>内置 208 个扩展名映射和 25 条预览链路，覆盖 Office、PDF、OFD、Typst、XMind 脑图、压缩包、邮件、OLB/DRA/GDS/OASIS、CAD、地理数据、3D 模型、Excalidraw、draw.io、Mermaid、PlantUML、EPUB、UMD、Markdown、代码/文本、Git patch/bundle、图片、音视频、字体、PSD 图层资产和结构化数据。</p>
   </div>
   <div class="doc-card">
     <h3>模块化架构更专业</h3>
@@ -56,7 +56,7 @@
   </div>
   <div class="doc-card">
     <h3>确认格式边界</h3>
-    <p>支持格式页列出当前注册的 206 个扩展名、24 条渲染链路和真实业务里的适用边界。</p>
+    <p>支持格式页列出当前注册的 208 个扩展名、25 条渲染链路和真实业务里的适用边界。</p>
   </div>
   <div class="doc-card">
     <h3>选择接入方式</h3>
@@ -83,7 +83,7 @@ Full 包已内置 `preset-all`，业务代码不需要再次安装或传入 pres
 ## 当前重点能力
 
 - Word 视图会跟随主题显示浅色纸张或深色文档面，`.docx` 会按当前可用宽度自适应缩放，并默认使用真实浏览器 DOM 连续流式渲染以保护目录、制表符、长表格和复杂样式；确实需要页式效果时可按需开启视觉分页。
-- PPTX 视图已切换到独立开源的 `@file-viewer/pptx` 原生引擎，增强组合图形坐标映射、旋转/翻转、主题背景、图片裁剪和 EMF 矢量图预览，更适合回看真实汇报模板。
+- 二进制 PPT 使用独立的 `@file-viewer/ppt` 原生 WASM 引擎；PPTX 使用 `@file-viewer/pptx` Worker 引擎，增强组合图形坐标映射、旋转/翻转、主题背景、图片裁剪和 EMF 矢量图预览。
 - PDF 视图支持宽度自适应、缩放工具栏、页码状态和可显隐导航窗格；Word / PDF 打印使用专属完整页适配器，打印可附带水印并支持掩膜遮盖，其他格式按能力动态显隐打印按钮。
 - OFD 使用 `DLTech21/ofd.js` 的浏览器端解析和渲染能力，并保持按需异步加载。
 - 压缩包使用 `libarchive.js` Worker 读取目录，点击内部文件后按需解压、缓存并继续复用统一预览器。
@@ -117,7 +117,7 @@ Full 包已内置 `preset-all`，业务代码不需要再次安装或传入 pres
 | 想在 Svelte 中接入 | [Svelte 集成](/zh/guide/ecosystem#svelte) |
 | 想在 jQuery 老后台中接入 | [jQuery 集成](/zh/guide/ecosystem#jquery) |
 | 想基于 core 自研组件 | [Core 自定义接入](/zh/guide/ecosystem#core) |
-| 想单独使用 PPTX 渲染引擎 | [PPTX 引擎接入](/zh/guide/ecosystem#pptx) |
+| 想单独使用 PPT / PPTX 渲染引擎 | [PPT 与 PPTX 引擎接入](/zh/guide/ecosystem#ppt-与-pptx-引擎接入) |
 | 想了解统一 options 和事件 | [组件用法](/zh/guide/usage) |
 | 想了解参数和事件 | [组件用法](/zh/guide/usage) |
 | 想解决宿主 CSS 样式侵入 | [样式隔离与主题定制](/zh/guide/style-isolation) |

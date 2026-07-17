@@ -6,4 +6,3 @@
 2026-06-24T09:01:13.241Z INFO  viewer request_id=demo-002 event=load-complete pages=48 duration_ms=1237
 2026-06-24T09:02:18.932Z INFO  archive request_id=demo-003 route=/example/en/archive.zip entries=7 cache=indexeddb
 2026-06-24T09:02:19.104Z INFO  archive request_id=demo-003 event=entry-open path=markdown.md renderer=markdown
-

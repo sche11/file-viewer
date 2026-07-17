@@ -1,6 +1,6 @@
 # @file-viewer/renderer-presentation
 
-Standalone presentation renderer package for Flyfish File Viewer. It is powered by `@file-viewer/pptx` and provides progressive PPTX/PPTM/POTX/POTM/PPSX/PPSM slide rendering, zoom, print, and HTML export.
+Standalone presentation renderer package for Flyfish File Viewer. Binary PowerPoint 97–2003 `.ppt` uses the separate `@file-viewer/ppt@0.3.1` Worker/OffscreenCanvas/WASM path; PPTX/PPTM/POTX/POTM/PPSX/PPSM keep the progressive `@file-viewer/pptx` path. Both integrate with the shared zoom, print, and HTML export controls.
 
 ## Usage
 
@@ -25,9 +25,12 @@ const options = {
 
 ## Notes
 
-- This package focuses on OOXML presentation formats: `pptx`, `pptm`, `potx`, `potm`, `ppsx`, and `ppsm`.
+- Binary `.ppt` and OOXML presentations use separate parsers; classic PPT bytes are never sent to the ZIP/PPTX parser.
 - `odp` remains handled by the core OpenDocument compatibility renderer, keeping different format families separated.
-- The rendering path reuses `@file-viewer/pptx` Worker based slide output and asset parsing, so it is a good fit for on-demand loading.
+- File Viewer lazy-loads the independently versioned public `.ppt` engine. Demo, full asset packages, and CDN/IIFE distributions ship its matching ESM, Worker, WASM, CJK font, and frame-cache files under `vendor/ppt/`, so the default path needs no extra configuration.
+- Version 0.3.1 defaults to a module Worker and OffscreenCanvas in capable browsers, with a bounded IndexedDB frame cache for revisited slides. It falls back to the asynchronous direct path when needed.
+- `options.presentation.pptModuleUrl`, `pptWorkerUrl`, `pptWasmUrl`, and `pptFontUrl` are advanced overrides for custom static asset routes. `pptWorker` and `pptCache` control Worker and bounded-cache behavior.
+- `@file-viewer/ppt` keeps its included license and is not covered by this renderer's Apache-2.0 license. The public runtime keeps its visible watermark; removing the PPT watermark requires commercial authorization. The engine also requires Web Crypto SHA-256, normally available on HTTPS or localhost.
 
 ## Migration
 

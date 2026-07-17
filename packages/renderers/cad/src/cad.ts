@@ -15,7 +15,10 @@ import {
   type ViewState,
   type ViewChangeEvent,
 } from '@flyfish-dev/cad-viewer';
-import { resolveFileViewerCadAssetUrls } from '@file-viewer/core/assets';
+import {
+  resolveFileViewerCadAssetUrls,
+  resolveFileViewerRuntimeAssetBaseUrl,
+} from '@file-viewer/core/assets';
 import {
   createFileViewerViewStateChange,
   createFileViewerViewStateChangeEmitter,
@@ -128,8 +131,16 @@ const cadStyle = `
 .cad-inspector dd{color:#20304a;font-weight:900}
 .cad-warning{margin:12px 0 0;border-radius:8px;padding:10px;background:rgba(245,158,11,.13);color:#92400e;font-size:12px;line-height:1.55}
 [data-viewer-theme='dark'] .cad-shell{background:#111827;color:#e5edf6}
-[data-viewer-theme='dark'] .cad-toolbar,[data-viewer-theme='dark'] .cad-layers,[data-viewer-theme='dark'] .cad-inspector{background:#fff;color:#142335}
-@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .cad-shell{background:#111827;color:#e5edf6}[data-viewer-theme='system'] .cad-toolbar,[data-viewer-theme='system'] .cad-layers,[data-viewer-theme='system'] .cad-inspector{background:#fff;color:#142335}}
+[data-viewer-theme='dark'] .cad-body{background:#0d1117}
+[data-viewer-theme='dark'] .cad-toolbar,[data-viewer-theme='dark'] .cad-layers,[data-viewer-theme='dark'] .cad-inspector{border-color:rgba(139,148,158,.2);background:#111827;color:#e5edf6}
+[data-viewer-theme='dark'] .cad-layers-head{border-color:rgba(139,148,158,.2);background:rgba(17,24,39,.96);color:#f8fafc}
+[data-viewer-theme='dark'] .cad-tools button,[data-viewer-theme='dark'] .cad-meta span,[data-viewer-theme='dark'] .cad-inspector dl div{background:#1f2937;color:#cbd5e1}
+[data-viewer-theme='dark'] .cad-layers button,[data-viewer-theme='dark'] .cad-inspector strong,[data-viewer-theme='dark'] .cad-inspector dd{color:#e5edf6}
+[data-viewer-theme='dark'] .cad-layers button:hover{background:#1f2937}
+[data-viewer-theme='dark'] .cad-zoom,[data-viewer-theme='dark'] .cad-meta span,[data-viewer-theme='dark'] .cad-inspector dt,[data-viewer-theme='dark'] .cad-layers-head span{color:#94a3b8}
+[data-viewer-theme='dark'] .cad-canvas-wrap{background:linear-gradient(90deg,rgba(148,163,184,.08) 1px,transparent 1px),linear-gradient(180deg,rgba(148,163,184,.08) 1px,transparent 1px),#090d14;background-size:28px 28px}
+[data-viewer-theme='dark'] .cad-state{background:rgba(15,23,42,.92);color:#cbd5e1;box-shadow:0 18px 44px rgba(0,0,0,.34)}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .cad-shell{background:#111827;color:#e5edf6}[data-viewer-theme='system'] .cad-body{background:#0d1117}[data-viewer-theme='system'] .cad-toolbar,[data-viewer-theme='system'] .cad-layers,[data-viewer-theme='system'] .cad-inspector{border-color:rgba(139,148,158,.2);background:#111827;color:#e5edf6}[data-viewer-theme='system'] .cad-layers-head{border-color:rgba(139,148,158,.2);background:rgba(17,24,39,.96);color:#f8fafc}[data-viewer-theme='system'] .cad-tools button,[data-viewer-theme='system'] .cad-meta span,[data-viewer-theme='system'] .cad-inspector dl div{background:#1f2937;color:#cbd5e1}[data-viewer-theme='system'] .cad-layers button,[data-viewer-theme='system'] .cad-inspector strong,[data-viewer-theme='system'] .cad-inspector dd{color:#e5edf6}[data-viewer-theme='system'] .cad-layers button:hover{background:#1f2937}[data-viewer-theme='system'] .cad-zoom,[data-viewer-theme='system'] .cad-meta span,[data-viewer-theme='system'] .cad-inspector dt,[data-viewer-theme='system'] .cad-layers-head span{color:#94a3b8}[data-viewer-theme='system'] .cad-canvas-wrap{background:linear-gradient(90deg,rgba(148,163,184,.08) 1px,transparent 1px),linear-gradient(180deg,rgba(148,163,184,.08) 1px,transparent 1px),#090d14;background-size:28px 28px}[data-viewer-theme='system'] .cad-state{background:rgba(15,23,42,.92);color:#cbd5e1;box-shadow:0 18px 44px rgba(0,0,0,.34)}}
 @media (max-width:860px){.cad-body,.cad-body.without-layers{grid-template-columns:minmax(0,1fr)}.cad-layers,.cad-inspector{display:none}}
 `;
 
@@ -249,7 +260,9 @@ const formatNumber = (value: number | undefined, locale = 'zh-CN') => {
 };
 
 const getCadDocumentBaseUrl = (target: HTMLElement) => {
-  return target.ownerDocument?.baseURI || 'file:///';
+  return target.ownerDocument
+    ? resolveFileViewerRuntimeAssetBaseUrl(target.ownerDocument)
+    : 'file:///';
 };
 
 const CAD_DWG_WORKER_FILENAME = 'file-viewer-input.dwg';

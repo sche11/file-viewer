@@ -41,6 +41,8 @@ The default asset paths are:
 - `wasm/cad/`
 - `wasm/cad/dwg-worker.js`
 - `wasm/cad/dwfv-render.wasm`
+- `wasm/cad/libredwg-web.js`
+- `wasm/cad/libredwg-web.wasm`
 
 For private deployments, override them with `options.cad.wasmPath`, `options.cad.workerUrl`, and `options.cad.dwfWasmUrl`.
 

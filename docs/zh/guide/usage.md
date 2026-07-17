@@ -216,7 +216,7 @@ const options = {
 | `fit` | 显式内容适配策略。未传时保持各 renderer 历史首屏行为；传字符串时支持 `'auto'`、`'contain'`、`'cover'`、`'width'`、`'height'`、`'actual'`、`'scale-down'`，传对象时可配置 `{ mode, resize, padding, minScale, maxScale }`。`resize` 默认 `'until-interaction'`：首屏和容器变化自动适配，用户手动缩放、平移或调用 `applyViewState()` 后停止覆盖；`'always'` 会持续跟随容器，`'initial'` 只做首屏。自定义工具栏可调用 `fitToView('width')` 主动重新适配 |
 | `watermark` | `true`、文字配置或图片配置；支持 `text`、`image`、`opacity`、`rotate`、`gapX/gapY`、`width/height`、字体和颜色 |
 | `search` | `true`、`false` 或对象；控制搜索能力。对象支持 `caseSensitive`、`wholeWord`、`maxMatches`、`debounce`、`className` 和 `activeClassName`。Word、Markdown、代码等文本类格式使用通用 DOM 高亮，PDF 等特殊格式可以走渲染器原生搜索提供器，避免污染文本层或 canvas |
-| `text` | 超大文本、代码和 Markdown 的稳定性配置。超过 `virtualizeAboveBytes`（默认 512 KiB）后使用稀疏索引和有界虚拟行；`maxRenderedLineBytes` 控制超长单行的分段大小，`virtualOverscanLines` 控制挂载缓冲，全文搜索仍覆盖完整源文件 |
+| `text` | `toolbar: false` 可隐藏 renderer 内部的文件类型、索引状态和行数元信息栏，不影响 Viewer 全局操作工具栏。普通文本/代码用 `lineNumbers: true` 开启不干扰复制、搜索和无障碍朗读的行号栏。文本和代码超过 `virtualizeAboveBytes`（默认 512 KiB）后使用有界虚拟行；Markdown 默认保持排版阅读视图，只有显式设置 `markdownVirtualizeAboveBytes` 时才会在超限后切换为有界源码视图。`maxRenderedLineBytes` 和 `virtualOverscanLines` 控制挂载量，全文搜索仍覆盖完整源文件 |
 | `ai` | AI 友好结构配置；预览器不绑定云端模型，只提供 `getDocumentTextChunks()` 所需的文本切片、行号、页码、锚点和 label 上下文，业务侧可用于向量化、溯源、来源定位、召回高亮和审计 |
 | `archive.workerUrl` | 自定义 libarchive.js Worker 地址。一般不需要配置；预览器会优先尝试当前部署 base 下的 `vendor/libarchive/worker-bundle.js`，失败后自动回退到 ZIP/TAR/GZIP 兼容模式 |
 | `archive.wasmUrl` | 静态 Worker 需要从非同目录加载 libarchive WASM 时使用。只有需要指向自托管目录或自定义 wasm 位置时才配置 |
@@ -235,9 +235,12 @@ const options = {
 | `spreadsheet.worker` | 是否启用表格静态 Worker。默认 `auto`：文件体积达到 `spreadsheet.workerAutoThreshold` 时自动尝试 Worker，小文件继续主线程兼容路径；显式设为 `true` / `false` 时按业务配置执行 |
 | `spreadsheet.workerAutoThreshold` | `worker: 'auto'` 时的大文件阈值，单位字节，默认 1MB。需要更激进优化可调低；WebView、CSP 或静态资源不稳定环境可调高或设 `worker: false` |
 | `spreadsheet.workerUrl` | 自定义 Excel/XLSX Worker 地址，默认尝试当前部署 base 下的 `vendor/xlsx/sheet.worker.js` |
+| `spreadsheet.textEncoding` | CSV / TSV 文本编码，默认 `auto`：优先 UTF-8 BOM 和严格 UTF-8，否则使用浏览器 GB18030 解码（同时覆盖 GBK）；也可显式指定 `utf-8`、`gbk` 或 `gb18030` |
 | `spreadsheet.resizableColumns` | 是否允许用户在 Excel / CSV / ODS 等表格预览中拖拽表头边界调整列宽，默认 `false` 以保持历史兼容；Demo 默认开启，便于查看被截断的长文本 |
 | `presentation.workerUrl` | 自定义 `@file-viewer/pptx` Worker 地址。默认由 `@file-viewer/renderer-presentation` 按需创建模块 Worker；内网静态目录、严格 CSP 或自托管 CDN 改写资源路径时可显式传入绝对 URL |
 | `presentation.workerType` | PPTX Worker 类型，通常保持默认 `module`；只有旧 WebView、特殊 CSP 或构建系统要求 classic Worker 时再覆盖 |
+| `presentation.pptModuleUrl` / `presentation.pptWorkerUrl` / `presentation.pptWasmUrl` / `presentation.pptFontUrl` | PowerPoint 97–2003 `.ppt` 0.3.1 的 ESM、Worker、WASM 和 CJK 字体高级路径覆盖；Demo、Vite/full、copy-assets 与 CDN/IIFE 的标准布局无需配置 |
+| `presentation.pptWorker` / `presentation.pptCache` | 控制二进制 PPT 的 Worker 模式和有界 IndexedDB 帧缓存；默认均自动启用可用能力 |
 | `pdf.streaming` | PDF URL 渐进读取策略，默认 `same-origin`；设为 `true` 时跨域也尝试 URL 直连读取，设为 `false` 时完全回到 Blob 下载后预览 |
 | `pdf.toolbar` | 是否显示 PDF 渲染器自己的页码、缩放和旋转工具栏。独立预览建议显示；左右文档比对等紧凑场景可设为 `false`，让 PDF 与其他格式的正文区域对齐 |
 | `pdf.navigation` / `pdf.defaultNavigationVisible` | 是否启用左侧导航窗格以及初始是否展开。导航窗格支持页面列表和目录树切换 |
@@ -255,6 +258,9 @@ const options = {
 | `cad.workerTimeoutMs` | DWG Worker 解析超时，默认 120000ms。传 `0` 表示不限制 |
 | `cad.dwfPreferWebgl` / `cad.dwfPreferWasm` | DWF/DWFx/XPS native renderer 的 WebGL 和 WASM backend 偏好，默认都启用 |
 | `cad.dwfLineWeightMode` | DWF/XPS 线宽策略，支持 `adaptive`、`physical`、`hairline` |
+| `model.workerUrl` / `model.runtimeUrl` / `model.wasmUrl` | STEP/STP、IGES/IGS、BREP 的本地 OCCT 资源地址，默认依次使用 `wasm/model/occt-worker.js`、`wasm/model/occt-import-js.js`、`wasm/model/occt-import-js.wasm`；子路径、独立资产域名或严格 CSP 部署时可传最终绝对 URL |
+| `model.useWorker` / `model.workerTimeoutMs` | OCCT 默认在一次性 Worker 中解析，超时默认 120000ms。只有 Worker 确实不可用时才建议设 `useWorker: false`，否则大模型解析会占用主线程 |
+| `model.linearUnit` / `model.linearDeflectionType` / `model.linearDeflection` / `model.angularDeflection` | 控制 OCCT 导入单位和三角化精度；没有明确业务要求时保留内核默认值，避免过细网格放大解析时间和内存占用 |
 
 ## preset 与 renderer 装配矩阵
 
@@ -274,10 +280,10 @@ const options = {
 | `@file-viewer/renderer-pdf` | `pdfRenderer` | PDF、AI 中 PDF-backed 文件 |
 | `@file-viewer/renderer-word` | `wordRenderer` | DOCX/DOC/DOT/RTF/ODT/OpenDocument |
 | `@file-viewer/renderer-spreadsheet` | `spreadsheetRenderer` | XLSX/XLS/ODS/CSV 等表格 |
-| `@file-viewer/renderer-presentation` | `presentationRenderer` | PPT/PPTX/PPS/POT 等演示文稿，内部按需使用 `@file-viewer/pptx` |
+| `@file-viewer/renderer-presentation` | `presentationRenderer` | 二进制 PPT 按需使用 `@file-viewer/ppt`；PPTX/PPTM/POTX/POTM/PPSX/PPSM 按需使用 `@file-viewer/pptx` |
 | `@file-viewer/renderer-ofd` | `ofdRenderer` | OFD |
 | `@file-viewer/renderer-cad` | `cadRenderer` | DWG/DXF/DWF/DWFx/XPS 等 CAD |
-| `@file-viewer/renderer-3d` | `modelRenderer` | GLB/GLTF/OBJ/STL/PLY/FBX/DAE/USD/STEP/IFC 等模型和几何签名 |
+| `@file-viewer/renderer-3d` | `modelRenderer` | GLB/GLTF/OBJ/STL/PLY/FBX/DAE/USD 等模型；STEP/STP、IGES/IGS、BREP 本地 OCCT 预览；IFC/3DM 几何签名与接入提示 |
 | `@file-viewer/renderer-drawing` | `drawingRenderer` | draw.io、Excalidraw、Mermaid、PlantUML |
 | `@file-viewer/renderer-mindmap` | `mindmapRenderer` | XMind |
 | `@file-viewer/renderer-geo` | `geoRenderer` | GeoJSON、KML、GPX、SHP |
@@ -578,7 +584,7 @@ async function useLocal(blob: Blob) {
 
 `.olb` 与 `.dra` 使用 `@file-viewer/renderer-eda` + `cfb` 做 OrCAD / Allegro 常见复合文档结构预览。标准 `.gds` 会读取 GDSII 记录流，提取库名、structure、boundary、path、文本和引用，并生成可滚动 SVG 版图预览；项目内可读 `.oas` / `.oasis` 文本夹具会输出 SVG 版图，真实 SEMI 二进制 OASIS 当前做安全结构索引、可读字符串和诊断信息。EDA 链路适合附件初筛和内容确认，不替代专业 EDA 软件里的封装编辑、版图编辑、DRC/LVS、规则校核和电气验证；完整 OASIS / Cadence 几何预览后续更适合拆成独立 WASM 按需包持续维护。
 
-3D 模型使用 `@file-viewer/renderer-3d` + Three.js loaders，支持 `glb/gltf/obj/stl/ply/fbx/dae/3ds/3mf/amf/usd/usda/usdc/usdz/kmz/pcd/wrl/vrml/xyz/vtk/vtp`。如果模型有外部贴图、材质或 `.bin`，远程 `url` 预览会按原始文件目录继续加载；本地上传时更推荐使用单文件 `.glb`。`step/stp/iges/igs/ifc/3dm/brep` 会通过 `@file-viewer/geometry-engine` 做轻量签名识别，并给出需要 CAD/BIM/WASM 几何内核的原因和转换建议；当前调研路线是 STEP / IGES / BREP 使用 OpenCascade WASM，IFC 使用 `web-ifc` / `web-ifc-three`，3DM 使用 `rhino3dm`，后续继续在独立几何包中分层接入，避免拖慢普通预览首屏。
+3D 模型使用 `@file-viewer/renderer-3d` + Three.js loaders，支持 `glb/gltf/obj/stl/ply/fbx/dae/3ds/3mf/amf/usd/usda/usdc/usdz/kmz/pcd/wrl/vrml/xyz/vtk/vtp`。如果模型有外部贴图、材质或 `.bin`，远程 `url` 预览会按原始文件目录继续加载；本地上传时更推荐使用单文件 `.glb`。`step/stp`、`iges/igs` 和 `brep` 已通过 `@file-viewer/geometry-engine` 接入浏览器本地 OpenCascade Worker/WASM，解析后直接构建 Three.js 装配层级和网格，并复用全局统一缩放。默认离线资产位于 `wasm/model/`；子路径或独立资产域名可通过 `options.model.workerUrl`、`options.model.runtimeUrl`、`options.model.wasmUrl` 覆盖。`ifc` 与 `3dm` 当前仍做签名识别和接入提示，后续分别沿 `web-ifc` / That Open 与 `rhino3dm` 路线实现。
 
 ### 地理数据怎么接
 

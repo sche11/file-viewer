@@ -46,7 +46,7 @@ const allRendererHandlers = coreBrowserRendererHandlers as readonly {
   handler: BrowserRendererHandler;
 }[];
 
-const extractedRendererIds = ['archive', 'audio', 'cad', 'code', 'data-asset', 'drawing', 'eda', 'email', 'epub', 'geo', 'image', 'markdown', 'mindmap', 'model', 'ofd', 'office-presentation', 'office-word-binary', 'office-word-openxml', 'open-document', 'pdf', 'spreadsheet-openxml', 'typst', 'umd', 'video'] as const;
+const extractedRendererIds = ['archive', 'audio', 'cad', 'code', 'data-asset', 'drawing', 'eda', 'email', 'epub', 'geo', 'image', 'markdown', 'mindmap', 'model', 'ofd', 'office-presentation', 'office-presentation-binary', 'office-word-binary', 'office-word-openxml', 'open-document', 'pdf', 'spreadsheet-openxml', 'typst', 'umd', 'video'] as const;
 
 export const fileViewerAllRendererPlugin: FileViewerRendererPlugin<BrowserRendererHandler> = {
   id: 'file-viewer-all-renderers',
