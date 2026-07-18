@@ -88,7 +88,7 @@ Flyfish Viewer is browser-side file preview infrastructure for business applicat
 </div>
 <div class="doc-demo-layout">
 <figure class="doc-demo-visual">
-<img src="/_media/file-viewer-demo-v2.2.2-en.gif" alt="Flyfish Viewer v2.2.2 English demo with an immersive document canvas, file capsule, sample library, and format toolbar" width="1200" height="750" loading="lazy" />
+<img src="/_media/file-viewer-demo-v2.2.2-formats-en.gif" alt="Flyfish Viewer v2.2.2 English demo with rich DOCX, PPTX, DWG, and interactive 3D STEP previews" width="1200" height="750" loading="lazy" />
 <figcaption>The current English demo: the file capsule flows into the top action bar, while the filename and Samples action open the icon-led sample library.</figcaption>
 </figure>
 <div class="doc-demo-actions">

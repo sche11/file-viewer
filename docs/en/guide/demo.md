@@ -11,7 +11,7 @@
 </p>
 
 <div class="doc-shot">
-  <img src="/_media/file-viewer-demo-v2.2.2-en.gif" alt="Flyfish Viewer v2.2.2 English demo showing DOCX, PPTX, DWG, interactive 3D STEP, and the file-capsule fusion" width="1200" height="750" loading="lazy" />
+  <img src="/_media/file-viewer-demo-v2.2.2-formats-en.gif" alt="Flyfish Viewer v2.2.2 English demo showing DOCX, PPTX, DWG, interactive 3D STEP, and the file-capsule fusion" width="1200" height="750" loading="lazy" />
   <p class="doc-caption">The sequence holds on a richly formatted DOCX, a NASA PPTX cover, an Autodesk DWG floor plan, and a rotating STEP solid, with the real sample-library and capsule-fusion transitions between them.</p>
 </div>
 

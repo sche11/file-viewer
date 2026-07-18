@@ -11,7 +11,7 @@
 </p>
 
 <div class="doc-shot">
-  <img src="/_media/file-viewer-demo-v2.2.2-en.gif" alt="Flyfish Viewer v2.2.2 English demo showing the immersive document canvas, capsule fusion, and multi-format preview" width="1200" height="750" loading="lazy" />
+  <img src="/_media/file-viewer-demo-v2.2.2-formats-en.gif" alt="Flyfish Viewer v2.2.2 English demo showing DOCX, PPTX, DWG, interactive 3D STEP, and the file-capsule fusion" width="1200" height="750" loading="lazy" />
   <p class="doc-caption">The current workspace starts with a real DOCX, reveals the file capsule when the top controls are engaged, then opens the sample library and switches renderer pipelines.</p>
 </div>
 
