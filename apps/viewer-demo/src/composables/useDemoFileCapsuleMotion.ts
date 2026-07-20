@@ -1,19 +1,12 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-export type DemoFileCapsuleState =
-  | 'expanded'
-  | 'compacting'
-  | 'bridging'
-  | 'merging'
-  | 'merged'
-  | 'expanding'
+export type DemoFileCapsuleState = 'expanded' | 'compacting' | 'merging' | 'merged' | 'expanding'
 
 export const DEMO_FILE_CAPSULE_MOTION = Object.freeze({
   idleDelay: 1_000,
-  compactDuration: 160,
-  bridgeDuration: 220,
-  mergeDuration: 420,
-  expandDuration: 420
+  compactDuration: 140,
+  mergeDuration: 360,
+  expandDuration: 360
 })
 
 type CapsuleBounds = Pick<DOMRect, 'top' | 'right' | 'bottom' | 'left' | 'width' | 'height'>
@@ -27,7 +20,6 @@ export interface UseDemoFileCapsuleMotionOptions {
 }
 
 const roundedPixel = (value: number): string => `${Math.round(value)}px`
-const roundedDegree = (value: number): string => `${Math.round(value * 10) / 10}deg`
 
 /**
  * Owns the desktop capsule state machine independently from Vue lifecycle so
@@ -42,7 +34,6 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
   let idleTimer: number | null = null
   let phaseTimer: number | null = null
   let pointerWithinCapsuleZone = false
-  let expandedBounds: CapsuleBounds | null = null
 
   const clearIdleTimer = () => {
     if (idleTimer !== null) {
@@ -73,36 +64,12 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
 
   const canAnimate = () => options.enabled() && options.canMerge()
 
-  const targetMotionStyle = (
-    target: CapsuleBounds,
-    source: CapsuleBounds | null = expandedBounds
-  ): Record<string, string> => {
-    const style = {
-      '--demo-file-capsule-target-top': roundedPixel(target.top),
-      '--demo-file-capsule-target-left': roundedPixel(target.left),
-      '--demo-file-capsule-target-width': roundedPixel(target.width),
-      '--demo-file-capsule-target-height': roundedPixel(target.height)
-    }
-    if (!source) return style
-
-    const sourceX = source.left + source.width / 2
-    const sourceY = source.top
-    const targetX = target.left + target.width / 2
-    const targetY = target.bottom
-    const deltaX = sourceX - targetX
-    const deltaY = sourceY - targetY
-    const distance = Math.hypot(deltaX, deltaY)
-
-    return {
-      ...style,
-      '--demo-file-capsule-fusion-left': roundedPixel(targetX),
-      '--demo-file-capsule-fusion-top': roundedPixel(targetY),
-      '--demo-file-capsule-fusion-length': roundedPixel(distance),
-      '--demo-file-capsule-fusion-angle': roundedDegree(
-        (Math.atan2(deltaY, deltaX) * 180) / Math.PI
-      )
-    }
-  }
+  const targetMotionStyle = (target: CapsuleBounds): Record<string, string> => ({
+    '--demo-file-capsule-target-top': roundedPixel(target.top),
+    '--demo-file-capsule-target-left': roundedPixel(target.left),
+    '--demo-file-capsule-target-width': roundedPixel(target.width),
+    '--demo-file-capsule-target-height': roundedPixel(target.height)
+  })
 
   const expand = (immediate = false) => {
     clearTimers()
@@ -134,14 +101,6 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
       expand(true)
       return
     }
-    const currentBounds = options.resolveFileBounds()
-    if (currentBounds) {
-      const currentCenterX = currentBounds.left + currentBounds.width / 2
-      const targetCenterX = target.left + target.width / 2
-      const isSeparate =
-        Math.hypot(currentCenterX - targetCenterX, currentBounds.top - target.top) > 8
-      if (isSeparate) expandedBounds = currentBounds
-    }
     motionStyle.value = targetMotionStyle(target)
     state.value = 'merged'
   }
@@ -166,25 +125,20 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
       expand(true)
       return
     }
-    expandedBounds = source
-    motionStyle.value = targetMotionStyle(target, source)
+    motionStyle.value = targetMotionStyle(target)
     state.value = 'compacting'
     queuePhase(DEMO_FILE_CAPSULE_MOTION.compactDuration, () => {
       if (abortIfBlocked()) return
-      state.value = 'bridging'
-      queuePhase(DEMO_FILE_CAPSULE_MOTION.bridgeDuration, () => {
+      const nextTarget = options.resolveMergeTarget()
+      if (!nextTarget) {
+        expand()
+        return
+      }
+      motionStyle.value = targetMotionStyle(nextTarget)
+      state.value = 'merging'
+      queuePhase(DEMO_FILE_CAPSULE_MOTION.mergeDuration, () => {
         if (abortIfBlocked()) return
-        const nextTarget = options.resolveMergeTarget()
-        if (!nextTarget) {
-          expand()
-          return
-        }
-        motionStyle.value = targetMotionStyle(nextTarget, expandedBounds)
-        state.value = 'merging'
-        queuePhase(DEMO_FILE_CAPSULE_MOTION.mergeDuration, () => {
-          if (abortIfBlocked()) return
-          state.value = 'merged'
-        })
+        state.value = 'merged'
       })
     })
   }

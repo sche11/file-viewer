@@ -26,8 +26,6 @@
   --demo-file-capsule-expanded-top: 120px;
   --demo-file-capsule-expanded-width: 310px;
   --demo-file-capsule-merged-width: 238px;
-  --demo-file-capsule-fusion: rgba(118, 101, 229, 0.66);
-  --demo-file-capsule-fusion-soft: rgba(153, 139, 244, 0.2);
   --demo-scrollbar-thumb: rgba(63, 82, 74, 0.28);
   --demo-scrollbar-thumb-hover: rgba(45, 105, 78, 0.46);
   position: relative;
@@ -170,8 +168,8 @@
     border-color 170ms ease,
     box-shadow 170ms ease,
     transform 170ms ease,
-    width 240ms cubic-bezier(0.22, 0.8, 0.36, 1),
-    min-width 240ms cubic-bezier(0.22, 0.8, 0.36, 1),
+    width 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 360ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 180ms ease;
 }
 
@@ -530,72 +528,23 @@
 }
 
 /* Keep the initial merged layout deterministic. Transitions only belong to
- * an active fusion phase; otherwise the first mounted frame briefly leaves
+ * an active morph phase; otherwise the first mounted frame briefly leaves
  * the file capsule over the document and can intercept smoke/user input. */
 .demo-shell[data-file-capsule-state='compacting'] .viewer-toolbar,
-.demo-shell[data-file-capsule-state='bridging'] .viewer-toolbar,
 .demo-shell[data-file-capsule-state='merging'] .viewer-toolbar,
 .demo-shell[data-file-capsule-state='expanding'] .viewer-toolbar {
   transition:
-    top 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    left 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    width 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 360ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 180ms ease,
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .viewer-file-identity {
   width: 100%;
   min-width: 0;
   pointer-events: auto;
-}
-
-.file-capsule-fusion {
-  position: fixed;
-  z-index: 73;
-  top: calc(var(--demo-file-capsule-fusion-top, 0px) - 12px);
-  left: var(--demo-file-capsule-fusion-left, 50%);
-  width: var(--demo-file-capsule-fusion-length, 0px);
-  height: 24px;
-  opacity: 0;
-  pointer-events: none;
-  transform: rotate(var(--demo-file-capsule-fusion-angle, 0deg));
-  transform-origin: left center;
-  will-change: opacity;
-}
-
-.file-capsule-fusion::before,
-.file-capsule-fusion::after {
-  position: absolute;
-  right: 0;
-  left: 0;
-  border-radius: 999px;
-  content: '';
-  opacity: 0;
-  transform: scaleX(0);
-  transform-origin: left center;
-}
-
-.file-capsule-fusion::before {
-  top: 8px;
-  height: 8px;
-  background: linear-gradient(
-    90deg,
-    var(--demo-file-capsule-fusion-soft),
-    var(--demo-file-capsule-fusion) 52%,
-    rgba(255, 255, 255, 0.72)
-  );
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.2),
-    0 4px 13px rgba(99, 76, 207, 0.14);
-  filter: blur(1.5px);
-}
-
-.file-capsule-fusion::after {
-  top: 3px;
-  height: 18px;
-  background: var(--demo-file-capsule-fusion-soft);
-  filter: blur(7px);
 }
 
 .viewer-copy {
@@ -623,7 +572,7 @@
     min-height 240ms cubic-bezier(0.22, 0.8, 0.36, 1),
     opacity 180ms ease,
     padding 240ms cubic-bezier(0.22, 0.8, 0.36, 1),
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .viewer-copy:hover,
@@ -697,23 +646,17 @@
   width: 252px;
 }
 
-.demo-shell[data-file-capsule-state='bridging'] .viewer-toolbar {
-  width: 238px;
-}
-
-.demo-shell[data-file-capsule-state='compacting'] .viewer-copy,
-.demo-shell[data-file-capsule-state='bridging'] .viewer-copy {
+.demo-shell[data-file-capsule-state='compacting'] .viewer-copy {
   min-height: 50px;
   grid-template-columns: 30px minmax(0, 1fr) 0 16px;
   gap: 7px;
   padding: 5px 10px 5px 7px;
   box-shadow:
-    0 16px 38px rgba(103, 78, 214, 0.13),
+    0 16px 38px rgba(34, 64, 54, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .demo-shell[data-file-capsule-state='compacting'] .viewer-type,
-.demo-shell[data-file-capsule-state='bridging'] .viewer-type,
 .demo-shell[data-file-capsule-state='merging'] .viewer-type {
   width: 0;
   max-width: 0;
@@ -722,13 +665,11 @@
   transform: scale(0.78);
 }
 
-.demo-shell[data-file-capsule-state='compacting'] .viewer-current-file-icon,
-.demo-shell[data-file-capsule-state='bridging'] .viewer-current-file-icon {
+.demo-shell[data-file-capsule-state='compacting'] .viewer-current-file-icon {
   transform: scale(0.88);
 }
 
-.demo-shell[data-file-capsule-state='compacting'] .viewer-file-copy strong,
-.demo-shell[data-file-capsule-state='bridging'] .viewer-file-copy strong {
+.demo-shell[data-file-capsule-state='compacting'] .viewer-file-copy strong {
   font-size: 12px;
 }
 
@@ -742,33 +683,9 @@
 }
 
 .demo-shell[data-file-capsule-state='compacting'] .rail-nav-button--upload,
-.demo-shell[data-file-capsule-state='bridging'] .rail-nav-button--upload,
 .demo-shell[data-file-capsule-state='compacting'] .viewer-file-identity,
-.demo-shell[data-file-capsule-state='bridging'] .viewer-file-identity,
 .demo-shell[data-file-capsule-state='merging'] .viewer-file-identity {
   pointer-events: none;
-}
-
-.demo-shell[data-file-capsule-state='bridging'] .viewer-copy {
-  border-color: rgba(139, 121, 237, 0.28);
-  box-shadow:
-    0 16px 38px rgba(103, 78, 214, 0.14),
-    0 0 0 3px rgba(139, 121, 237, 0.055),
-    inset 0 1px 0 rgba(255, 255, 255, 0.94);
-}
-
-.demo-shell[data-file-capsule-state='bridging'] .file-capsule-fusion,
-.demo-shell[data-file-capsule-state='merging'] .file-capsule-fusion,
-.demo-shell[data-file-capsule-state='expanding'] .file-capsule-fusion {
-  opacity: 1;
-}
-
-.demo-shell[data-file-capsule-state='bridging'] .file-capsule-fusion::before {
-  animation: file-capsule-bridge-form 220ms cubic-bezier(0.2, 0.84, 0.28, 1) both;
-}
-
-.demo-shell[data-file-capsule-state='bridging'] .file-capsule-fusion::after {
-  animation: file-capsule-bridge-glow 220ms ease-out both;
 }
 
 .demo-shell[data-file-capsule-state='merging'] .viewer-toolbar,
@@ -777,14 +694,6 @@
   left: var(--demo-file-capsule-target-left);
   width: var(--demo-file-capsule-target-width);
   transform: none;
-}
-
-.demo-shell[data-file-capsule-state='merging'] .file-capsule-fusion::before {
-  animation: file-capsule-bridge-merge 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.demo-shell[data-file-capsule-state='merging'] .file-capsule-fusion::after {
-  animation: file-capsule-bridge-glow-merge 420ms ease-out both;
 }
 
 .demo-shell[data-file-capsule-state='merging'] .viewer-copy,
@@ -824,97 +733,6 @@
   left: 50%;
   width: min(var(--demo-file-capsule-expanded-width), calc(100vw - 36px));
   transform: translateX(-50%);
-}
-
-.demo-shell[data-file-capsule-state='expanding'] .file-capsule-fusion::before {
-  animation: file-capsule-bridge-separate 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.demo-shell[data-file-capsule-state='expanding'] .file-capsule-fusion::after {
-  animation: file-capsule-bridge-glow-separate 420ms ease-out both;
-}
-
-@keyframes file-capsule-bridge-form {
-  0% {
-    opacity: 0;
-    transform: scaleX(0.08) scaleY(0.5);
-  }
-
-  72% {
-    opacity: 0.86;
-    transform: scaleX(1.02) scaleY(1.08);
-  }
-
-  100% {
-    opacity: 0.78;
-    transform: scaleX(1) scaleY(1);
-  }
-}
-
-@keyframes file-capsule-bridge-glow {
-  from {
-    opacity: 0;
-    transform: scaleX(0.12) scaleY(0.45);
-  }
-
-  to {
-    opacity: 0.72;
-    transform: scaleX(1) scaleY(1);
-  }
-}
-
-@keyframes file-capsule-bridge-merge {
-  from {
-    opacity: 0.78;
-    transform: scaleX(1) scaleY(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: scaleX(0.03) scaleY(0.72);
-  }
-}
-
-@keyframes file-capsule-bridge-glow-merge {
-  from {
-    opacity: 0.62;
-    transform: scaleX(1) scaleY(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: scaleX(0.04) scaleY(0.5);
-  }
-}
-
-@keyframes file-capsule-bridge-separate {
-  0% {
-    opacity: 0;
-    transform: scaleX(0.03) scaleY(0.7);
-  }
-
-  64% {
-    opacity: 0.62;
-    transform: scaleX(0.9) scaleY(0.92);
-  }
-
-  100% {
-    opacity: 0;
-    transform: scaleX(1) scaleY(0.58);
-  }
-}
-
-@keyframes file-capsule-bridge-glow-separate {
-  0%,
-  100% {
-    opacity: 0;
-    transform: scaleX(0.05) scaleY(0.5);
-  }
-
-  58% {
-    opacity: 0.48;
-    transform: scaleX(0.82) scaleY(0.88);
-  }
 }
 
 .viewer-global-actions {
@@ -1847,8 +1665,6 @@
   --demo-accent-strong: #6cdda3;
   --demo-accent-soft: rgba(72, 201, 137, 0.14);
   --demo-focus: rgba(72, 201, 137, 0.34);
-  --demo-file-capsule-fusion: rgba(167, 151, 244, 0.7);
-  --demo-file-capsule-fusion-soft: rgba(139, 123, 226, 0.24);
   --demo-scrollbar-thumb: rgba(196, 216, 207, 0.3);
   --demo-scrollbar-thumb-hover: rgba(133, 211, 175, 0.52);
   --demo-chrome-shadow: 0 18px 48px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -2159,10 +1975,6 @@
     width: min(288px, calc(100vw - 112px));
     transform: translateX(-50%);
     transition: none;
-  }
-
-  .file-capsule-fusion {
-    display: none;
   }
 
   .viewer-copy {
@@ -2693,7 +2505,6 @@
   .viewer-current-file-icon,
   .viewer-type,
   .viewer-file-chevron,
-  .file-capsule-fusion,
   .viewer-github-link,
   .immersive-right-toolbar button,
   .viewer-status-dock button,

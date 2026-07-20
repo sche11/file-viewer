@@ -2023,11 +2023,6 @@ function handleWindowResize() {
             </button>
           </nav>
 
-          <span
-            class='file-capsule-fusion'
-            :style='fileCapsuleMotionStyle'
-            aria-hidden='true'
-          />
           <div
             class='viewer-toolbar'
             :style='fileCapsuleMotionStyle'
