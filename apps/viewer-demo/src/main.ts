@@ -11,4 +11,16 @@ async function bootstrap() {
     .mount('#app')
 }
 
-void bootstrap()
+function reportBootstrapFailure(error: unknown) {
+  console.error('[file-viewer] Failed to start the demo.', error)
+
+  const bootScreen = document.querySelector<HTMLElement>('.app-boot-screen')
+  const bootStatus = document.querySelector<HTMLElement>('.app-boot-status')
+  bootScreen?.classList.add('app-boot-screen--error')
+  bootScreen?.setAttribute('aria-label', 'Flyfish File Viewer failed to load')
+  if (bootStatus) {
+    bootStatus.textContent = 'The preview could not start. Reload the page to try again.'
+  }
+}
+
+void bootstrap().catch(reportBootstrapFailure)
