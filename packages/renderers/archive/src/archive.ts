@@ -44,6 +44,10 @@ import {
   comicBookStyle,
   createComicBookController,
 } from './comicBook.js';
+import {
+  createShapefileBundleArchive,
+  getShapefileBundleEntries,
+} from './shapefileBundle.js';
 
 type WorkerConstructor = new (scriptURL: string | URL, options?: WorkerOptions) => Worker;
 type FileConstructor = new (fileBits: BlobPart[], fileName: string, options?: FilePropertyBag) => File;
@@ -1055,10 +1059,14 @@ export default async function renderArchive(
     comicBook.onEntrySelected(entry);
     renderEntryList();
     syncState();
-    if (entry.size > maxEntryPreviewSize) {
+    const shapefileEntries = getShapefileBundleEntries(entries, entry);
+    const previewSize = shapefileEntries.length
+      ? shapefileEntries.reduce((sum, component) => sum + component.size, 0)
+      : entry.size;
+    if (previewSize > maxEntryPreviewSize) {
       setError(t('archive.error.entryTooLarge', {
         name: entry.name,
-        size: formatArchiveBytes(entry.size),
+        size: formatArchiveBytes(previewSize),
         limit: formatArchiveBytes(maxEntryPreviewSize),
       }));
       return;
@@ -1068,7 +1076,9 @@ export default async function renderArchive(
     setError('');
 
     try {
-      const entryBuffer = await extractEntryBuffer(entry);
+      const entryBuffer = shapefileEntries.length
+        ? await createShapefileBundleArchive(shapefileEntries, extractEntryBuffer)
+        : await extractEntryBuffer(entry);
       if (requestId !== previewSequence) {
         return;
       }

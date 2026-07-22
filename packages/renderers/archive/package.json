@@ -58,7 +58,8 @@
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "type-check": "tsc -b tsconfig.json",
-    "verify:github-101": "pnpm build && node scripts/verify-github-101.mjs"
+    "verify:github-101": "pnpm build && node scripts/verify-github-101.mjs",
+    "verify:github-148": "pnpm build && node scripts/verify-github-148.mjs"
   },
   "dependencies": {
     "@file-viewer/core": "workspace:2.2.3",
