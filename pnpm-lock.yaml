@@ -939,8 +939,8 @@ importers:
         specifier: workspace:2.2.3
         version: link:../../core
       '@flyfish-dev/cad-viewer':
-        specifier: ^0.7.0
-        version: 0.7.0(three@0.184.0)
+        specifier: ^0.8.0
+        version: 0.8.0(three@0.184.0)
     devDependencies:
       typescript:
         specifier: ^6.0.3
@@ -2075,8 +2075,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@flyfish-dev/cad-viewer@0.7.0':
-    resolution: {integrity: sha512-7O9SBWzflo1zz7DpxiYiZrKxc331LY3gCYU2PjIVmAfTPKKCZCVsAEdb/VurnqbXJKMcHTxkpbkEaJgxWmjLLg==}
+  '@flyfish-dev/cad-viewer@0.8.0':
+    resolution: {integrity: sha512-oBhcDZ93UlkPPCCtaki3Nskfv6amE+4MnD/sTosE+e9Wv8vX/c2Z7V9aiInIDeI49YFfj6nqS1pj6zNgchkOxw==}
     engines: {node: '>=20.19.0'}
 
   '@fontsource-variable/noto-sans-sc@5.2.10':
@@ -2179,8 +2179,8 @@ packages:
   '@mermaid-js/parser@1.2.0':
     resolution: {integrity: sha512-oYPyv8A4As1yH5Bx+04iQEQxXuIQDe0GKCNSRgao6z8AM9jixXIfP0vsppRLvGf+nKIOb9/LdpWA4YuJiVvESA==}
 
-  '@mlightcad/libredwg-web@0.7.7':
-    resolution: {integrity: sha512-JnEug2IVXafUecM9/WCQgH8mJRliaEq0Uxu3Mxt0Zk82n1MrSd25iA0Boo7e7t9qVwRPxQLGFxWoyPIrAeTy4w==}
+  '@mlightcad/libredwg-web@0.7.9':
+    resolution: {integrity: sha512-tqjx0eCiR0CNI3TyO3LVYzl4ptuzSFm7asGn/C1YiJaEk7Vneto+lRrVUco85qw+PZDihaFLwWqdYIEse1swbA==}
     engines: {node: '>=20'}
 
   '@mlightcad/shx-parser@1.4.5':
@@ -5305,9 +5305,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@flyfish-dev/cad-viewer@0.7.0(three@0.184.0)':
+  '@flyfish-dev/cad-viewer@0.8.0(three@0.184.0)':
     dependencies:
-      '@mlightcad/libredwg-web': 0.7.7
+      '@mlightcad/libredwg-web': 0.7.9
       '@mlightcad/shx-parser': 1.4.5
       dwf-viewer: 0.6.4(three@0.184.0)
       dxf-parser: 1.1.2
@@ -5421,7 +5421,7 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
-  '@mlightcad/libredwg-web@0.7.7': {}
+  '@mlightcad/libredwg-web@0.7.9': {}
 
   '@mlightcad/shx-parser@1.4.5': {}
 
