@@ -73,6 +73,8 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
   })
 
   const expand = (immediate = false) => {
+    // Any interaction expands immediately from the current phase. Reduced
+    // motion skips interpolation but preserves the same final state.
     clearTimers()
     if (state.value === 'expanded') {
       motionStyle.value = {}
@@ -193,6 +195,8 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
     )
 
   const handleDocumentPointerMove = (event: PointerEvent) => {
+    // A single document listener treats both separated capsules as one hover
+    // zone, preventing flicker while the pointer crosses the gap between them.
     const withinCapsuleZone =
       pointWithin(event, options.resolveTriggerBounds()) ||
       pointWithin(event, options.resolveFileBounds())

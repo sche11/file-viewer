@@ -8,6 +8,13 @@ import type {
   DemoViewerSettings
 } from '@/composables/useDemoViewerSettings'
 
+/**
+ * Pure settings editor.
+ *
+ * This component edits a draft through v-model and emits intent only. Applying,
+ * renderer refreshes and view-state restoration belong to
+ * useDemoViewerSettings, keeping the visual panel free of renderer lifecycle.
+ */
 const props = defineProps<{
   copy: Record<string, string>
   previewType: string
@@ -28,12 +35,16 @@ const activeTab = defineModel<DemoSettingsTab>('activeTab', { required: true })
 const formatSection = defineModel<DemoFormatSettingsSection>('formatSection', { required: true })
 
 const activeFormatSection = computed(() => {
+  // “Current format” follows the active file; explicit sections let users
+  // inspect every configurable renderer even when another format is open.
   return formatSection.value === 'current' ? props.currentFormatSection : formatSection.value
 })
 const activeTabId = computed(() => `viewer-settings-tab-${activeTab.value}`)
 const settingsTabOrder: DemoSettingsTab[] = ['display', 'toolbar', 'formats']
 
 const handleTabKeydown = (event: KeyboardEvent) => {
+  // Implement the ARIA tabs keyboard pattern independently from pointer
+  // navigation, including wrap-around and Home/End.
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
     return
   }

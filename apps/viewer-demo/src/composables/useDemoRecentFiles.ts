@@ -85,6 +85,8 @@ const MAX_ICON_TARGET_LENGTH = 8192
 const MAX_HISTORY_LIMIT = 50
 const MAX_FUTURE_TIMESTAMP_SKEW_MS = 5 * 60 * 1000
 
+// Stored history is untrusted input. Normalize shape and bound every string,
+// number and collection before it reaches the UI.
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 )
@@ -219,6 +221,8 @@ const normalizeRecentFiles = (
   maxItems: number,
   now: number
 ): DemoRecentFile[] => {
+  // Sort first, then deduplicate, so the newest representation of a file wins
+  // even when older app versions stored repeated entries.
   const normalized = values
     .map((value, index) => ({
       file: normalizeRecentFile(value, now, false),
@@ -256,6 +260,13 @@ const resolveDefaultStorage = (): Storage | null => {
 export function useDemoRecentFiles(
   options: UseDemoRecentFilesOptions = {}
 ): UseDemoRecentFilesApi {
+  /**
+   * Recent history has three failure-tolerant layers:
+   *
+   * 1. sanitize and version data read from storage;
+   * 2. expose an immutable reactive list to the shell;
+   * 3. keep local File/blob access outside persistence.
+   */
   const maxItems = normalizeLimit(options.maxItems)
   const storageKey = options.storageKey || DEMO_RECENT_FILES_STORAGE_KEY
   const storage = options.storage === undefined ? resolveDefaultStorage() : options.storage

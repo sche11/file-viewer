@@ -4,6 +4,12 @@ import type { DemoRecentFile } from '@/composables/useDemoRecentFiles'
 import type { DemoFileIconMeta } from '@/composables/useDemoFileTypes'
 import DemoFileTypeIcon from '@/components/demo/DemoFileTypeIcon.vue'
 
+/**
+ * Presentational recent-history card.
+ *
+ * Persistence, deduplication and local File lifetime stay in the composable/page
+ * controller; this component only renders accessible open/dismiss actions.
+ */
 export type DemoRecentFileDisplayEntry = DemoRecentFile & DemoFileIconMeta & {
   timeLabel: string
   timeIso: string
@@ -34,6 +40,8 @@ const labelWithName = (label: string, name: string): string => (
 )
 
 const fileTypeLabel = (entry: DemoRecentFileDisplayEntry): string => {
+  // MIME types are too wide for the compact badge. Prefer the visible filename
+  // extension, then a short non-MIME type or icon label.
   const cleanTarget = entry.iconTarget.split(/[?#]/, 1)[0] || ''
   const fileName = cleanTarget.split('/').at(-1) || entry.name
   const extension = fileName.includes('.') ? fileName.split('.').at(-1) || '' : ''

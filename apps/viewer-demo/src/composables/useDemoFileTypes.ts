@@ -1,6 +1,13 @@
 import { DEFAULT_SUPPORTED_EXTENSIONS } from '@file-viewer/core'
 import type { DemoBrandIconName } from '@/data/demoFileBrandIcons'
 
+/**
+ * Demo-only file identity and icon presentation.
+ *
+ * Renderer support remains authoritative in core. This module maps those
+ * extensions to compact visual families/brands and supplies a professional
+ * generic fallback for newly supported formats.
+ */
 export type DemoFileIconFamily =
   | 'word'
   | 'sheet'
@@ -43,6 +50,8 @@ export const COMPOUND_ARCHIVE_EXTENSIONS = [
   'tar.zst'
 ] as const
 
+// Explicit metadata is reserved for formats that need a recognizable product
+// family or branded icon. Core extensions absent here still receive a fallback.
 const explicitFileIconMeta = {
   doc: { icon: 'W', family: 'word' },
   docx: { icon: 'W', family: 'word' },
@@ -350,6 +359,8 @@ const coreFileIconMeta = DEFAULT_SUPPORTED_EXTENSIONS.reduce<Record<string, Demo
   {}
 )
 
+// Merge core coverage first and explicit presentation last, ensuring known
+// formats never regress to the generic icon when core adds new extensions.
 export const fileIconMeta: Readonly<Record<string, DemoFileIconMeta>> = Object.freeze({
   ...coreFileIconMeta,
   ...explicitFileIconMetaWithBrands
@@ -358,6 +369,7 @@ export const fileIconMeta: Readonly<Record<string, DemoFileIconMeta>> = Object.f
 const withoutQueryOrHash = (target: string) => target.split(/[?#]/, 1)[0] || target
 
 export const safeDecodeURIComponent = (value: string) => {
+  // Malformed customer URLs must still display and remain selectable.
   try {
     return decodeURIComponent(value)
   } catch {
@@ -375,6 +387,7 @@ export const fileNameOf = (target: string) => {
 }
 
 export const extensionOf = (target: string) => {
+  // Compound archives must be checked before the ordinary last-suffix rule.
   const fileName = fileNameOf(target).toLowerCase()
   for (const compoundExtension of COMPOUND_ARCHIVE_EXTENSIONS) {
     if (fileName.endsWith(`.${compoundExtension}`)) {
@@ -398,4 +411,6 @@ const demoFileTypesApi: DemoFileTypesApi = Object.freeze({
   getFileIconMeta
 })
 
+// Stateless helpers are shared as one frozen object; this composable does not
+// create per-component reactive state.
 export const useDemoFileTypes = (): DemoFileTypesApi => demoFileTypesApi

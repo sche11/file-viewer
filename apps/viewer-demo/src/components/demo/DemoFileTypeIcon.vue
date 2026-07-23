@@ -24,6 +24,11 @@ import { getFileIconMeta } from '@/composables/useDemoFileTypes'
 import { DEMO_BRAND_DARK_COLORS, DEMO_BRAND_ICONS } from '@/data/demoFileBrandIcons'
 import { DEMO_FILE_ICON_PALETTES } from '@/data/demoFileIconPalettes'
 
+/**
+ * Shared professional file icon used by the filename capsule, samples and
+ * recent history. Known formats use curated brand artwork; every other format
+ * receives the same document silhouette with a family-specific palette.
+ */
 const props = withDefaults(
   defineProps<{
     target?: string
@@ -63,12 +68,16 @@ const FAMILY_ICONS: Readonly<Record<DemoFileIconFamily, Component>> = Object.fre
 
 const resolvedMeta = computed(() => props.meta ?? getFileIconMeta(props.target))
 const brandAsset = computed(() => {
+  // Brand assets are local/offline SVG data. Missing assets intentionally fall
+  // back to Lucide rather than producing a broken image.
   const brand = resolvedMeta.value.brand
   return brand ? DEMO_BRAND_ICONS[brand] : undefined
 })
 const fallbackIcon = computed(() => FAMILY_ICONS[resolvedMeta.value.family])
 const normalizedSize = computed(() => Math.min(72, Math.max(24, Number(props.size) || 40)))
 const iconStyle = computed<CSSProperties>(() => {
+  // Light/dark colors are supplied as CSS variables so theme changes do not
+  // rebuild the component or apply destructive filters to icon artwork.
   const size = normalizedSize.value
   const palette = DEMO_FILE_ICON_PALETTES[resolvedMeta.value.family]
   const brandName = resolvedMeta.value.brand

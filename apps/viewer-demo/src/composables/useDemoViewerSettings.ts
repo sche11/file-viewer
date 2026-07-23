@@ -36,6 +36,8 @@ export type DemoFormatSettingsSection =
 export const resolveDemoFormatSettingsSection = (
   target: string
 ): Exclude<DemoFormatSettingsSection, 'current'> => {
+  // Icon families cover most formats; explicit extensions disambiguate geo
+  // files that intentionally share a broader visual family.
   const extension = extensionOf(target)
   const family = getFileIconMeta(target).family
   if (family === 'word') return 'word'
@@ -199,6 +201,8 @@ export type UseDemoViewerSettingsOptions = {
 export const createDefaultViewerSettings = (
   overrides: Partial<DemoViewerSettings> = {}
 ): DemoViewerSettings => ({
+  // Defaults should make the demo useful immediately while remaining safe for
+  // local/offline files and conservative on memory-heavy formats.
   theme: 'system',
   styleIsolation: 'auto',
   density: 'comfortable',
@@ -370,6 +374,14 @@ const pickWatermarkSettings = (settings: DemoViewerSettings): DemoViewerWatermar
 })
 
 export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
+  /**
+   * Settings use a draft/apply transaction:
+   *
+   * - opening copies current applied values into a disposable draft;
+   * - cancelling never mutates the active viewer;
+   * - applying updates live shell concerns immediately;
+   * - renderer-owned changes remount once and restore the previous view state.
+   */
   const initialSettings = createDefaultViewerSettings({
     ...options.initialSettings,
     theme: toValue(options.initialTheme),
@@ -426,6 +438,8 @@ export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
     patch: Partial<DemoViewerSettings>,
     syncDraft = !settingsPanelOpen.value
   ) {
+    // Used by quick toolbar toggles outside the settings dialog. Keep the draft
+    // synchronized only when the user is not actively editing it.
     appliedViewerSettings.value = {
       ...cloneSettings(appliedViewerSettings.value),
       ...patch
@@ -443,6 +457,8 @@ export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
   }
 
   function requestRendererRefresh(viewState: FileViewerViewState | null = null) {
+    // Changing the key remounts exactly one <file-viewer>. The captured state is
+    // consumed by handleViewerLoadComplete after the new provider is ready.
     pendingViewState.value = viewState
     viewerRevision.value += 1
   }
@@ -459,6 +475,8 @@ export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
   }
 
   async function applySettings(): Promise<DemoViewerSettingsApplyResult | null> {
+    // Prevent double submission because applying may await fit operations,
+    // renderer teardown and consumer callbacks.
     if (settingsApplying.value) {
       return null
     }
@@ -508,6 +526,8 @@ export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
 
       const rendererRefreshed = needsRendererRefresh && hasActivePreview
       if (rendererRefreshed) {
+        // Remount only when a live preview exists. Draft configuration can be
+        // changed safely before the first document is opened.
         requestRendererRefresh(previousViewState)
       }
 
@@ -519,6 +539,8 @@ export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
       await options.afterApply?.(result)
       return result
     } catch (error) {
+      // Roll back applied state, preserve the draft for correction, and expose
+      // the original error to the panel/consumer.
       appliedViewerSettings.value = cloneSettings(previous)
       settingsApplyError.value = error
       await options.onApplyError?.({ error, previous, next })
@@ -529,6 +551,8 @@ export function useDemoViewerSettings(options: UseDemoViewerSettingsOptions) {
   }
 
   async function handleViewerLoadComplete() {
+    // View restoration is one-shot. Clearing pending state before apply avoids
+    // repeated restoration if a renderer emits load-complete more than once.
     const requestedState = pendingViewState.value
     if (!requestedState) {
       return null

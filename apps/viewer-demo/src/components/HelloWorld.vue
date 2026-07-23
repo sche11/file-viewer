@@ -26,12 +26,6 @@ import {
   ZoomIn,
   ZoomOut
 } from '@lucide/vue'
-import {
-  DEFAULT_FILE_VIEWER_PPT_RUNTIME_VERSION,
-  resolveFileViewerColorScheme,
-  toggleFileViewerColorScheme
-} from '@file-viewer/core'
-import { allRenderers } from '@file-viewer/preset-all'
 import { createDemoFileHandoff } from '@/components/utils'
 import DemoFileTypeIcon from '@/components/demo/DemoFileTypeIcon.vue'
 import DemoRecentFiles from '@/components/demo/DemoRecentFiles.vue'
@@ -40,34 +34,48 @@ import { useDemoCopy } from '@/composables/useDemoCopy'
 import { useDemoFileCapsuleMotion } from '@/composables/useDemoFileCapsuleMotion'
 import { useDemoFileTypes } from '@/composables/useDemoFileTypes'
 import { useDemoFloatingPanels } from '@/composables/useDemoFloatingPanels'
+import { useDemoPreferences } from '@/composables/useDemoPreferences'
 import { useDemoRecentFiles } from '@/composables/useDemoRecentFiles'
 import {
-  createDemoModelOptions,
+  DEFAULT_DEMO_URL_BY_LOCALE,
+  isSameSampleUrl,
+  normalizeDemoUrl,
+  useDemoSamples
+} from '@/composables/useDemoSamples'
+import {
   resolveDemoFormatSettingsSection,
   useDemoViewerSettings
 } from '@/composables/useDemoViewerSettings'
+import { useDemoViewerOperations } from '@/composables/useDemoViewerOperations'
+import { useDemoViewerOptions } from '@/composables/useDemoViewerOptions'
 import type { DemoFormatSettingsSection } from '@/composables/useDemoViewerSettings'
 import type { DemoLocale } from '@/composables/useDemoCopy'
 import type { DemoSourcePanelAnchor } from '@/composables/useDemoFloatingPanels'
 import type { DemoRecentFile } from '@/composables/useDemoRecentFiles'
+import type { DemoPresetFile } from '@/data/demoSamples'
 import type {
   FileViewerFileRef as FileRef,
   FileViewerFitMode,
-  FileViewerOperationAvailability,
   FileViewerOptions,
-  FileViewerPublicApi as FileViewerExpose,
-  FileViewerSearchState,
-  FileViewerThemeMode,
-  FileViewerUiDensity,
-  FileViewerViewState,
-  FileViewerViewStateChange,
-  FileViewerZoomState
+  FileViewerPublicApi as FileViewerExpose
 } from '@file-viewer/core'
 import brandLogo from '@/assets/logo.png'
 import githubMark from '@/assets/github-mark.svg'
 
+/**
+ * Product-demo page controller.
+ *
+ * Domain-heavy work lives in composables and data modules. This file is kept
+ * as the composition root because it alone knows how desktop panels, mobile
+ * sheets and the renderer surface coordinate. When adding a feature, prefer:
+ *
+ * - `data/` for static catalogs and presentation metadata;
+ * - `composables/` for state machines, persistence and viewer API adapters;
+ * - `components/demo/` for independently styled visual regions;
+ * - this file only for cross-region orchestration and page-level accessibility.
+ */
 const demoFileHandoff = createDemoFileHandoff()
-const { extensionOf, fileNameOf, safeDecodeURIComponent, getFileIconMeta } = useDemoFileTypes()
+const { extensionOf, fileNameOf, getFileIconMeta } = useDemoFileTypes()
 const {
   recentFiles,
   hasRecentFiles,
@@ -77,6 +85,8 @@ const {
   dismissRecentFile
 } = useDemoRecentFiles()
 
+// ── Entry mode and browser-shell preferences ───────────────────────────────
+//
 // An explicit URL is an integration entry, not a navigation action inside the
 // product demo. Keep that contract synchronous so the full demo chrome never
 // flashes before the standalone viewer mounts.
@@ -89,81 +99,28 @@ const wasMobileViewport = ref(isMobileDemoViewport())
 const recentLocalReselectName = ref('')
 const recentLocalFiles = new Map<string, File>()
 
-const DEMO_LOCALE_STORAGE_KEY = 'file-viewer-demo-locale'
-const DEMO_THEME_STORAGE_KEY = 'file-viewer-demo-theme'
-const DEFAULT_DEMO_URL_BY_LOCALE: Record<DemoLocale, string> = {
-  'zh-CN': '/example/word.docx',
-  'en-US': '/example/en/calibre-demo.docx'
-}
 const githubRepositoryUrl = 'https://github.com/flyfish-dev/file-viewer'
-const demoPptRuntimeAssetUrl = (path: string) => (
-  `${path}?file-viewer-ppt=${encodeURIComponent(DEFAULT_FILE_VIEWER_PPT_RUNTIME_VERSION)}`
-)
-
-const readDemoStorage = (key: string): string | null => {
-  try {
-    return window.localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-const writeDemoStorage = (key: string, value: string) => {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    // Restricted/private browser contexts may disable storage. The live UI
-    // remains authoritative for the current session.
-  }
-}
-
-const normalizeDemoLocale = (value?: string | null): DemoLocale => {
-  return String(value || '').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US'
-}
-
-const normalizeDemoDensity = (value?: string | null): FileViewerUiDensity => {
-  return value === 'compact' ? 'compact' : 'comfortable'
-}
-
-const normalizeDemoTheme = (value?: string | null): FileViewerThemeMode => {
-  return value === 'light' || value === 'dark' ? value : 'system'
-}
-
-const resolveInitialDemoLocale = (): DemoLocale => {
-  const queryParams = new URLSearchParams(window.location.search)
-  const explicitLocale = queryParams.get('locale') || queryParams.get('lang')
-  if (explicitLocale) {
-    return normalizeDemoLocale(explicitLocale)
-  }
-  const storedLocale = readDemoStorage(DEMO_LOCALE_STORAGE_KEY)
-  if (storedLocale) {
-    return normalizeDemoLocale(storedLocale)
-  }
-  return normalizeDemoLocale(navigator.languages?.[0] || navigator.language)
-}
-
-const resolveInitialDemoDensity = (): FileViewerUiDensity => {
-  const queryParams = new URLSearchParams(window.location.search)
-  return normalizeDemoDensity(queryParams.get('density') || queryParams.get('uiDensity'))
-}
-
-const resolveInitialDemoTheme = (): FileViewerThemeMode => {
-  const queryParams = new URLSearchParams(window.location.search)
-  const explicitTheme = queryParams.get('theme') || queryParams.get('viewerTheme')
-  if (explicitTheme) {
-    return normalizeDemoTheme(explicitTheme)
-  }
-  return normalizeDemoTheme(readDemoStorage(DEMO_THEME_STORAGE_KEY))
-}
-
-const demoLocale = ref<DemoLocale>(resolveInitialDemoLocale())
+// Preferences are browser-shell concerns. Keeping persistence and media-query
+// subscriptions outside this component lets the page focus on UI orchestration.
+const {
+  locale: demoLocale,
+  density: demoDensity,
+  theme: demoTheme,
+  resolvedTheme: resolvedDemoTheme,
+  setLocale: persistDemoLocale,
+  setTheme: persistDemoTheme,
+  toggleTheme: toggleStoredDemoTheme
+} = useDemoPreferences({
+  onSystemThemeChange: () => syncDemoDocumentChrome()
+})
 const { copy: demoCopy, getCopy: getDemoCopy } = useDemoCopy(demoLocale)
-const demoDensity = ref<FileViewerUiDensity>(resolveInitialDemoDensity())
-const demoTheme = ref<FileViewerThemeMode>(resolveInitialDemoTheme())
-const systemPrefersDark = ref(window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
-const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 const url = ref(demoFileHandoff.isEmbedRequest && !demoFileHandoff.initialUrl ? '' : DEFAULT_DEMO_URL_BY_LOCALE[demoLocale.value])
 const preview = ref('')
+
+// ── Page overlays and responsive controls ──────────────────────────────────
+//
+// Page-level overlay state stays together because Escape, outside-click and
+// responsive handoff rules must close or move several surfaces atomically.
 const samplePickerOpen = ref(false)
 const expandedSampleGroupIndex = ref<number | null>(0)
 const samplePickerRef = ref<HTMLElement | null>(null)
@@ -198,24 +155,17 @@ const {
   samplesTrigger: sampleRailButtonRef,
   fileTrigger: fileIdentityButtonRef
 })
-const viewerSearchOpen = ref(false)
-const viewerSearchQuery = ref('')
-const viewerSearchInputRef = ref<HTMLInputElement | null>(null)
 const snippetCopied = ref(false)
 const snippetDialogOpen = ref(false)
 const snippetCloseRef = ref<HTMLButtonElement | null>(null)
 const snippetDialogRef = ref<HTMLElement | null>(null)
-const viewerSearchState = ref<FileViewerSearchState>({
-  query: '',
-  total: 0,
-  currentIndex: -1,
-  current: null,
-  matches: []
-})
-
-type ViewerAction = 'download' | 'print' | 'exportHtml' | 'zoomIn' | 'zoomOut' | 'resetZoom'
 
 const fileViewerRef = ref<FileViewerExpose | null>(null)
+
+// ── Settings and final File Viewer options ─────────────────────────────────
+//
+// Settings owns draft/apply/remount behavior. The page supplies the few effects
+// that belong to the surrounding shell rather than to File Viewer itself.
 const {
   settingsPanelOpen,
   settingsActiveTab,
@@ -238,8 +188,7 @@ const {
   fileViewerRef,
   hasActivePreview: () => Boolean(file.value || preview.value),
   applyTheme: nextTheme => {
-    demoTheme.value = nextTheme
-    writeDemoStorage(DEMO_THEME_STORAGE_KEY, nextTheme)
+    persistDemoTheme(nextTheme)
     syncDemoDocumentChrome()
   },
   applyDensity: nextDensity => {
@@ -271,6 +220,25 @@ const {
     }
   }
 })
+const {
+  viewerDensity,
+  externalToolbar: visibleExternalToolbar,
+  viewerOptions
+} = useDemoViewerOptions({
+  runtimeOptions,
+  locale: demoLocale,
+  demoTheme,
+  demoDensity,
+  immersiveMode,
+  settings: appliedViewerSettings,
+  fitMode,
+  watermarkEnabled
+})
+
+// ── Desktop file-capsule motion ────────────────────────────────────────────
+//
+// The merge animation depends on live DOM geometry and therefore remains a
+// page concern; its timing/state machine is isolated in the composable.
 const desktopFileCapsuleMotionQuery = window.matchMedia?.(
   '(min-width: 721px) and (hover: hover) and (pointer: fine)'
 )
@@ -327,41 +295,11 @@ const {
   resolveTriggerBounds: () => topCapsuleNavigationRef.value?.getBoundingClientRect() || null,
   resolveMergeTarget: resolveFileCapsuleMergeTarget
 })
-const createEmptyViewerAvailability = (): FileViewerOperationAvailability => ({
-  download: false,
-  print: false,
-  exportHtml: false,
-  zoom: false,
-  zoomIn: false,
-  zoomOut: false,
-  zoomReset: false
-})
 
-const createEmptyViewerZoomState = (): FileViewerZoomState => ({
-  scale: 1,
-  label: '100%',
-  canZoomIn: false,
-  canZoomOut: false,
-  canReset: false
-})
-
-const viewerAvailability = ref<FileViewerOperationAvailability>(createEmptyViewerAvailability())
-const viewerZoomState = ref<FileViewerZoomState>(createEmptyViewerZoomState())
-const viewerViewState = ref<FileViewerViewState>({})
-let viewerProviderEpoch = 0
-
-type PresetFile = {
-  name: string
-  url: string
-}
-
-type SampleGroup = {
-  title: string
-  description: string
-  family: string
-  items: PresetFile[]
-}
-
+// ── Recent files and localized presentation state ──────────────────────────
+//
+// Date formatting is derived from locale, while recent-file persistence and
+// deduplication remain owned by useDemoRecentFiles.
 const recentTimeFormatter = computed(() => new Intl.DateTimeFormat(demoLocale.value, {
   hour: '2-digit',
   minute: '2-digit'
@@ -386,7 +324,6 @@ const recentLocalReselectNotice = computed(() => {
   }
   return demoCopy.value.reselectLocalFile.replace('{name}', recentLocalReselectName.value)
 })
-const resolvedDemoTheme = computed(() => resolveFileViewerColorScheme(demoTheme.value, systemPrefersDark.value))
 const demoThemeButtonTitle = computed(() => {
   return resolvedDemoTheme.value === 'dark'
     ? demoCopy.value.themeToLight
@@ -398,337 +335,17 @@ const githubRepositoryAriaLabel = computed(() =>
     : 'GitHub repository'
 )
 
-const sampleGroupsZh: SampleGroup[] = [
-  {
-    title: '文档',
-    description: 'Word / PDF / OFD / Typst',
-    family: 'word',
-    items: [
-      { name: 'DOC', url: '/example/test.doc' },
-      { name: 'DOCX 中文长文档', url: '/example/word.docx' },
-      { name: 'DOT 模板', url: '/example/template.dot' },
-      { name: 'RTF', url: '/example/sample.rtf' },
-      { name: 'ODT', url: '/example/document.odt' },
-      { name: 'PDF 技术说明', url: '/example/pdf.pdf' },
-      { name: 'OFD', url: '/example/ofd.ofd' },
-      { name: 'Typst', url: '/example/report.typ' }
-    ]
-  },
-  {
-    title: '表格',
-    description: 'Excel / CSV / ODS',
-    family: 'sheet',
-    items: [
-      { name: 'XLSX', url: '/example/excel.xlsx' },
-      { name: 'XLSM', url: '/example/excel.xlsm' },
-      { name: 'XLSB', url: '/example/excel.xlsb' },
-      { name: 'XLS', url: '/example/excel.xls' },
-      { name: 'CSV', url: '/example/table.csv' },
-      { name: 'ODS', url: '/example/excel.ods' },
-      { name: 'FODS', url: '/example/excel.fods' },
-      { name: 'Numbers', url: '/example/excel.numbers' }
-    ]
-  },
-  {
-    title: '演示与图纸',
-    description: 'PPT / PPTX / CAD',
-    family: 'cad',
-    items: [
-      { name: 'PowerPoint 97–2003', url: '/example/office-demo.ppt' },
-      { name: 'NASA 月球战略 PPTX', url: '/example/ppt.pptx' },
-      { name: 'ODP', url: '/example/slides.odp' },
-      { name: 'DXF', url: '/example/drawing.dxf' },
-      { name: 'DWG', url: '/example/sample.dwg' },
-      { name: 'DWF Blocks/Tables', url: '/example/samples/apache/blocks_and_tables.dwf' },
-      { name: 'DWFx House', url: '/example/samples/autodesk/house.dwfx' },
-      { name: 'DWFx RobotArm', url: '/example/samples/autodesk/robot-arm.dwfx' }
-    ]
-  },
-  {
-    title: '脑图与绘图',
-    description: 'XMind / Mermaid / PlantUML / draw.io',
-    family: 'drawing',
-    items: [
-      { name: 'XMind 脑图', url: '/example/mindmap.xmind' },
-      { name: 'Mermaid 架构图', url: '/example/architecture.mermaid' },
-      { name: 'PlantUML 时序图', url: '/example/sequence.plantuml' },
-      { name: 'Excalidraw', url: '/example/flow.excalidraw' },
-      { name: 'draw.io', url: '/example/process.drawio' }
-    ]
-  },
-  {
-    title: '3D 模型和地理数据',
-    description: 'GLTF / STEP / OBJ / STL / GeoJSON / KML / GPX',
-    family: 'model',
-    items: [
-      { name: 'GLTF', url: '/example/model.gltf' },
-      { name: 'STEP 工程模型', url: '/example/model.step' },
-      { name: 'OBJ', url: '/example/model.obj' },
-      { name: 'STL', url: '/example/model.stl' },
-      { name: 'PLY', url: '/example/model.ply' },
-      { name: 'GeoJSON', url: '/example/map.geojson' },
-      { name: 'KML', url: '/example/route.kml' },
-      { name: 'GPX', url: '/example/track.gpx' }
-    ]
-  },
-  {
-    title: '电子书',
-    description: 'EPUB / UMD',
-    family: 'ebook',
-    items: [
-      { name: 'EPUB', url: '/example/book.epub' },
-      { name: 'UMD', url: '/example/book.umd' }
-    ]
-  },
-  {
-    title: '压缩包',
-    description: 'ZIP / TAR.GZ / 加密',
-    family: 'archive',
-    items: [
-      { name: 'ZIP', url: '/example/archive.zip' },
-      { name: 'TAR.GZ', url: '/example/archive.tar.gz' },
-      { name: '加密 ZIP（密码 flyfish）', url: '/example/encrypted.zip' }
-    ]
-  },
-  {
-    title: '邮件与 EDA',
-    description: 'EML / MSG / OLB / DRA / GDS / OASIS',
-    family: 'email',
-    items: [
-      { name: 'EML', url: '/example/sample.eml' },
-      { name: 'MSG', url: '/example/sample.msg' },
-      { name: 'MBOX', url: '/example/sample.mbox' },
-      { name: 'OLB', url: '/example/sample.olb' },
-      { name: 'DRA', url: '/example/sample.dra' },
-      { name: 'GDSII', url: '/example/layout.gds' },
-      { name: 'OAS', url: '/example/layout.oas' },
-      { name: 'OASIS', url: '/example/layout.oasis' }
-    ]
-  },
-  {
-    title: '文本',
-    description: 'Markdown / TXT / Log',
-    family: 'text',
-    items: [
-      { name: 'MD', url: '/example/markdown.md' },
-      { name: 'MARKDOWN', url: '/example/notes.markdown' },
-      { name: 'TXT', url: '/example/text.txt' },
-      { name: 'Log', url: '/example/app.log' }
-    ]
-  },
-  {
-    title: '前端与数据',
-    description: 'JS / TS / Vue / Data',
-    family: 'code',
-    items: [
-      { name: 'JSON', url: '/example/data.json' },
-      { name: 'JSONC', url: '/example/data.jsonc' },
-      { name: 'JSON5', url: '/example/data.json5' },
-      { name: 'IPYNB', url: '/example/notebook.ipynb' },
-      { name: 'JS', url: '/example/code.js' },
-      { name: 'MJS', url: '/example/code.mjs' },
-      { name: 'CJS', url: '/example/code.cjs' },
-      { name: 'TS', url: '/example/code.ts' },
-      { name: 'TSX', url: '/example/code.tsx' },
-      { name: 'JSX', url: '/example/code.jsx' },
-      { name: 'CSS', url: '/example/code.css' },
-      { name: 'HTML', url: '/example/page.html' },
-      { name: 'HTM', url: '/example/page.htm' },
-      { name: 'XML', url: '/example/data.xml' },
-      { name: 'VUE', url: '/example/component.vue' },
-      { name: 'React', url: '/example/component.react' },
-      { name: 'YAML', url: '/example/config.yaml' },
-      { name: 'YML', url: '/example/config.yml' },
-      { name: 'TOML', url: '/example/config.toml' },
-      { name: 'INI', url: '/example/settings.ini' },
-      { name: 'PROTO', url: '/example/service.proto' },
-      { name: 'HCL', url: '/example/infrastructure.hcl' },
-      { name: 'TeX', url: '/example/formula.tex' },
-      { name: 'Graphviz', url: '/example/graph.gv' },
-      { name: 'HTTP', url: '/example/request.http' },
-      { name: 'DIFF', url: '/example/change.diff' },
-      { name: 'PATCH 左右比对', url: '/example/change.patch' },
-      { name: 'Git Bundle', url: '/example/repository.bundle' }
-    ]
-  },
-  {
-    title: '后端与系统',
-    description: 'Shell / SQL / C / Go',
-    family: 'code',
-    items: [
-      { name: 'SH', url: '/example/script.sh' },
-      { name: 'BASH', url: '/example/script.bash' },
-      { name: 'SQL', url: '/example/query.sql' },
-      { name: 'GO', url: '/example/main.go' },
-      { name: 'RS', url: '/example/main.rs' },
-      { name: 'PHP', url: '/example/index.php' },
-      { name: 'C', url: '/example/main.c' },
-      { name: 'CPP', url: '/example/main.cpp' },
-      { name: 'CC', url: '/example/module.cc' },
-      { name: 'H', url: '/example/main.h' },
-      { name: 'HPP', url: '/example/main.hpp' },
-      { name: 'CS', url: '/example/program.cs' },
-      { name: 'Java', url: '/example/code.java' },
-      { name: 'Python', url: '/example/code.py' },
-      { name: 'Ruby', url: '/example/code.rb' },
-      { name: 'Swift', url: '/example/code.swift' },
-      { name: 'Kotlin', url: '/example/Main.kt' }
-    ]
-  },
-  {
-    title: '资产与数据',
-    description: 'SQLite / WASM / ICO',
-    family: 'data',
-    items: [
-      { name: 'SQLite', url: '/example/sample.sqlite' },
-      { name: 'WASM', url: '/example/module.wasm' },
-      { name: 'PSD 图层', url: '/example/design.psd' },
-      { name: 'ICO', url: '/example/icon.ico' }
-    ]
-  },
-  {
-    title: '媒体',
-    description: 'Image / Audio / Video',
-    family: 'image',
-    items: [
-      { name: 'PNG', url: '/example/pic.png' },
-      { name: 'JPG', url: '/example/pic.jpg' },
-      { name: 'JPEG', url: '/example/pic.jpeg' },
-      { name: 'GIF', url: '/example/pic.gif' },
-      { name: 'BMP', url: '/example/pic.bmp' },
-      { name: 'TIFF', url: '/example/pic.tiff' },
-      { name: 'TIF', url: '/example/pic.tif' },
-      { name: 'SVG', url: '/example/vector.svg' },
-      { name: 'WEBP', url: '/example/pic.webp' },
-      { name: 'MP3', url: '/example/audio.mp3' },
-      { name: 'OGG', url: '/example/audio.ogg' },
-      { name: 'MIDI', url: '/example/melody.mid' },
-      { name: 'MP4', url: '/example/video.mp4' }
-    ]
-  }
-]
+// Sample catalog data and URL identity rules are independent of panel layout.
+const {
+  sampleGroups,
+  allPresetFiles,
+  activePreset,
+  activeSampleGroupIndex,
+  uploadAccept
+} = useDemoSamples({ locale: demoLocale, url, preview })
 
-const englishGroupCopy: Array<Pick<SampleGroup, 'title' | 'description'>> = [
-  { title: 'Documents', description: 'Word / PDF / OFD / Typst' },
-  { title: 'Spreadsheets', description: 'Excel / CSV / ODS' },
-  { title: 'Slides & CAD', description: 'PPT / PPTX / CAD' },
-  { title: 'Mindmaps & Diagrams', description: 'XMind / Mermaid / PlantUML / draw.io' },
-  { title: '3D Models & Geospatial Data', description: 'GLTF / STEP / OBJ / STL / GeoJSON / KML / GPX' },
-  { title: 'Ebooks', description: 'EPUB / UMD' },
-  { title: 'Archives', description: 'ZIP / TAR.GZ / Encrypted' },
-  { title: 'Email & EDA', description: 'EML / MSG / OLB / DRA / GDS / OASIS' },
-  { title: 'Text', description: 'Markdown / TXT / Log' },
-  { title: 'Frontend & Data', description: 'JS / TS / Vue / Data' },
-  { title: 'Backend & System', description: 'Shell / SQL / C / Go' },
-  { title: 'Assets & Data', description: 'SQLite / WASM / PSD / ICO' },
-  { title: 'Media', description: 'Image / Audio / Video' }
-]
-
-const englishSampleUrlMap: Record<string, string> = {
-  '/example/word.docx': '/example/en/calibre-demo.docx',
-  '/example/excel.xlsx': '/example/en/financial-sample.xlsx',
-  '/example/pdf.pdf': '/example/en/prince-sample.pdf',
-  '/example/ppt.pptx': '/example/en/sample-presentation.pptx',
-  '/example/archive.zip': '/example/en/archive.zip',
-  '/example/archive.tar.gz': '/example/en/archive.tar.gz',
-  '/example/encrypted.zip': '/example/encrypted.zip',
-  '/example/model.gltf': '/example/en/model.gltf',
-  '/example/map.geojson': '/example/en/map.geojson',
-  '/example/markdown.md': '/example/en/markdown.md',
-  '/example/notes.markdown': '/example/en/notes.markdown',
-  '/example/text.txt': '/example/en/text.txt',
-  '/example/app.log': '/example/en/app.log',
-  '/example/table.csv': '/example/en/table.csv',
-  '/example/data.json': '/example/en/data.json',
-  '/example/data.jsonc': '/example/en/data.jsonc',
-  '/example/data.json5': '/example/en/data.json5',
-  '/example/code.ts': '/example/en/code.ts',
-  '/example/code.js': '/example/en/code.js'
-}
-
-const englishSampleNameMap: Record<string, string> = {
-  '/example/test.doc': 'DOC legacy document',
-  '/example/en/calibre-demo.docx': 'DOCX rich English document',
-  '/example/template.dot': 'DOT template',
-  '/example/sample.rtf': 'RTF document',
-  '/example/document.odt': 'ODT document',
-  '/example/en/prince-sample.pdf': 'PDF technical sample',
-  '/example/ofd.ofd': 'OFD layout document',
-  '/example/report.typ': 'Typst report',
-  '/example/en/financial-sample.xlsx': 'XLSX financial workbook',
-  '/example/excel.xlsm': 'XLSM macro workbook',
-  '/example/excel.xlsb': 'XLSB binary workbook',
-  '/example/excel.xls': 'XLS legacy workbook',
-  '/example/table.csv': 'CSV table',
-  '/example/excel.ods': 'ODS spreadsheet',
-  '/example/excel.fods': 'Flat ODS spreadsheet',
-  '/example/excel.numbers': 'Numbers workbook',
-  '/example/office-demo.ppt': 'PowerPoint 97–2003 sample',
-  '/example/en/sample-presentation.pptx': 'NASA lunar strategy PPTX',
-  '/example/slides.odp': 'ODP presentation',
-  '/example/drawing.dxf': 'DXF drawing',
-  '/example/sample.dwg': 'DWG Autodesk sample',
-  '/example/samples/apache/blocks_and_tables.dwf': 'DWF blocks and tables',
-  '/example/samples/autodesk/house.dwfx': 'DWFx house drawing',
-  '/example/samples/autodesk/robot-arm.dwfx': 'DWFx robot arm',
-  '/example/mindmap.xmind': 'XMind mind map',
-  '/example/architecture.mermaid': 'Mermaid architecture',
-  '/example/sequence.plantuml': 'PlantUML sequence',
-  '/example/flow.excalidraw': 'Excalidraw scene',
-  '/example/process.drawio': 'draw.io process',
-  '/example/book.epub': 'EPUB ebook',
-  '/example/book.umd': 'UMD ebook',
-  '/example/en/archive.zip': 'ZIP archive with English samples',
-  '/example/en/archive.tar.gz': 'TAR.GZ archive with English samples',
-  '/example/encrypted.zip': 'Encrypted ZIP (password: flyfish)',
-  '/example/sample.eml': 'EML message',
-  '/example/sample.msg': 'MSG Outlook message',
-  '/example/sample.mbox': 'MBOX mailbox',
-  '/example/sample.olb': 'OLB library',
-  '/example/sample.dra': 'DRA design archive',
-  '/example/layout.gds': 'GDSII layout',
-  '/example/layout.oas': 'OAS layout',
-  '/example/layout.oasis': 'OASIS layout',
-  '/example/markdown.md': 'Markdown document',
-  '/example/notes.markdown': 'Markdown notes',
-  '/example/text.txt': 'Plain text',
-  '/example/app.log': 'Application log',
-  '/example/en/markdown.md': 'Markdown product guide',
-  '/example/en/notes.markdown': 'Markdown support notes',
-  '/example/en/text.txt': 'Plain text overview',
-  '/example/en/app.log': 'Application log stream',
-  '/example/en/table.csv': 'CSV revenue table',
-  '/example/en/data.json': 'JSON capability data',
-  '/example/en/data.jsonc': 'JSONC config sample',
-  '/example/en/data.json5': 'JSON5 config sample',
-  '/example/en/code.ts': 'TypeScript integration sample',
-  '/example/en/code.js': 'JavaScript integration sample',
-  '/example/en/model.gltf': 'glTF embedded model',
-  '/example/model.step': 'STEP engineering model',
-  '/example/en/map.geojson': 'GeoJSON Bay route',
-  '/example/change.patch': 'Patch side-by-side diff',
-  '/example/repository.bundle': 'Git bundle history',
-  '/example/sample.sqlite': 'SQLite database',
-  '/example/module.wasm': 'WASM module',
-  '/example/design.psd': 'PSD layers',
-  '/example/icon.ico': 'ICO image'
-}
-
-const sampleGroupsEn: SampleGroup[] = sampleGroupsZh.map((group, index) => ({
-  ...group,
-  ...(englishGroupCopy[index] || {}),
-  items: group.items.map(item => {
-    const nextUrl = englishSampleUrlMap[item.url] || item.url
-    return {
-      url: nextUrl,
-      name: englishSampleNameMap[nextUrl] || englishSampleNameMap[item.url] || item.name
-    }
-  })
-}))
-
-const sampleGroups = computed(() => demoLocale.value === 'zh-CN' ? sampleGroupsZh : sampleGroupsEn)
-const presetFiles = computed(() => sampleGroups.value.flatMap(group => group.items))
-const allPresetFiles = [...sampleGroupsZh, ...sampleGroupsEn].flatMap(group => group.items)
+// The snippet reflects the currently active input path. Local files cannot be
+// represented as a URL, so that branch demonstrates the `file` prop instead.
 const integrationSnippet = computed(() => {
   if (file.value) {
     return `import FileViewer from '@file-viewer/react-full'
@@ -744,89 +361,15 @@ export function Preview() {
   return <FileViewer url="${sampleUrl}" style={{ height: 720 }} />
 }`
 })
-const extraUploadExtensions = [
-  'docm', 'dot', 'dotx', 'dotm', 'rtf', 'odt',
-  'xlt', 'xltx', 'xltm',
-  'ppt', 'pptm', 'potx', 'potm', 'ppsx', 'ppsm', 'odp',
-  'avif', 'jxl', 'heic', 'heif', 'webm', 'm3u8', 'mpeg', 'wav', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba', 'midi',
-  'glb', 'fbx', 'dae', '3ds', '3mf', 'amf', 'usd', 'usda', 'usdc', 'usdz', 'kmz',
-  'step', 'stp', 'iges', 'igs', 'ifc', '3dm', 'pcd', 'wrl', 'vrml', 'xyz', 'vtk', 'vtp', 'shp',
-  'zip', 'zipx', '7z', 'rar', 'tar', 'gz', 'gzip', 'tgz', 'bz2', 'bzip2', 'tbz', 'tbz2',
-  'xz', 'txz', 'lzma', 'zst', 'tzst', 'cab', 'ar', 'cpio', 'iso', 'xar', 'lha', 'lzh',
-  'jar', 'war', 'ear', 'apk', 'cbz', 'cbr', 'eml', 'msg', 'mbox', 'olb', 'dra', 'gds', 'oas', 'oasis', 'xmind', 'typst',
-  'mermaid', 'mmd', 'plantuml', 'puml', 'patch', 'bundle', 'bdl',
-  'ttf', 'otf', 'woff', 'woff2', 'psd', 'ai', 'eps', 'parquet', 'avro', 'webarchive'
-]
-
-const uploadAccept = Array.from(new Set([
-  ...allPresetFiles.map(item => {
-    const ext = item.url.split('.').pop()
-    return ext ? `.${ext}` : ''
-  }),
-  ...extraUploadExtensions.map(ext => `.${ext}`)
-]))
-  .filter(Boolean)
-  .join(',')
-
-const localUrlBase = () => {
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin
-  }
-  return 'file:///'
-}
-
-const sampleUrlKey = (target: string) => {
-  const clean = target.split(/[?#]/)[0] || target
-  try {
-    const parsed = new URL(clean, localUrlBase())
-    const isLocal = parsed.origin === new URL(localUrlBase()).origin
-    const originKey = isLocal ? '' : parsed.origin.toLowerCase()
-    return `${originKey}${safeDecodeURIComponent(parsed.pathname)}`
-  } catch {
-    const path = clean.startsWith('/') ? clean : `/${clean}`
-    return safeDecodeURIComponent(path)
-  }
-}
-
-const legacyDemoUrlMap: Record<string, string> = {
-  '/example/calibre-demo.docx': '/example/en/calibre-demo.docx'
-}
-
-const normalizeDemoUrl = (target: string) => {
-  const normalizedPath = legacyDemoUrlMap[sampleUrlKey(target)]
-  if (!normalizedPath) {
-    return target
-  }
-  try {
-    const parsed = new URL(target, localUrlBase())
-    const isRelative = !/^[a-z][a-z\d+\-.]*:/i.test(target)
-    const isLocalOrigin = typeof window === 'undefined' || parsed.origin === window.location.origin
-    if (!isRelative && !isLocalOrigin) {
-      return target
-    }
-    return `${normalizedPath}${parsed.search}${parsed.hash}`
-  } catch {
-    return normalizedPath
-  }
-}
-
-const isSameSampleUrl = (left: string, right: string) => {
-  return sampleUrlKey(left) === sampleUrlKey(right)
-}
-
-const activePreset = computed(() => {
-  return presetFiles.value.find(item => isSameSampleUrl(item.url, url.value))
-})
-
-const activeSampleGroupIndex = computed(() => {
-  const target = activePreset.value?.url || url.value || preview.value
-  return sampleGroups.value.findIndex(group => group.items.some(item => isSameSampleUrl(item.url, target)))
-})
 
 const activeIconMeta = computed(() => {
   return getFileIconMeta(activePreset.value?.url || url.value)
 })
 
+// ── Active document identity ───────────────────────────────────────────────
+//
+// Keep one canonical target for icons and format-specific settings. A local
+// File wins over remote URLs; `preview` wins over the editable URL field.
 const currentFileTarget = computed(() => {
   if (file.value && filename.value) {
     return filename.value
@@ -891,43 +434,16 @@ const fileIdentityAriaLabel = computed(() => (
   `${displayName.value}, ${previewType.value}, ${demoCopy.value.openSamples}`
 ))
 
+// A file change invalidates the old capsule geometry even when the URL changes
+// without changing the surrounding responsive breakpoint.
 watch(currentFileTarget, (nextTarget, previousTarget) => {
   if (nextTarget !== previousTarget) {
     resetFileCapsuleMotion()
   }
 })
 
-const externalToolbar = computed(() => {
-  const settings = appliedViewerSettings.value
-  const toolbar = runtimeOptions.value.toolbar
-  if (toolbar === false) {
-    return {
-      download: false,
-      print: false,
-      exportHtml: false,
-      zoom: false
-    }
-  }
-  if (toolbar && typeof toolbar === 'object') {
-    return {
-      download: settings.toolbarDownload && toolbar.download !== false,
-      print: settings.toolbarPrint && toolbar.print !== false,
-      exportHtml: settings.toolbarExportHtml && toolbar.exportHtml !== false,
-      zoom: settings.toolbarZoom && toolbar.zoom !== false
-    }
-  }
-  return {
-    download: settings.toolbarDownload,
-    print: settings.toolbarPrint,
-    exportHtml: settings.toolbarExportHtml,
-    zoom: settings.toolbarZoom
-  }
-})
-
-const visibleExternalToolbar = computed(() => {
-  return externalToolbar.value
-})
-
+// ── Renderer operation adapter ─────────────────────────────────────────────
+//
 const fitModeOptions = computed<Array<{ value: FileViewerFitMode | 'default'; label: string }>>(() => [
   { value: 'default', label: demoCopy.value.fitDefault },
   { value: 'auto', label: demoCopy.value.fitAuto },
@@ -939,206 +455,65 @@ const fitModeOptions = computed<Array<{ value: FileViewerFitMode | 'default'; la
   { value: 'scale-down', label: demoCopy.value.fitScaleDown }
 ])
 
-const viewerActionDisabled = computed(() => !file.value && !preview.value)
-const viewerZoomDisplayLabel = computed(() => (
-  !viewerActionDisabled.value && viewerAvailability.value.zoom
-    ? viewerZoomState.value.label
-    : '—'
-))
-const viewerZoomResetLabel = computed(() => (
-  `${demoCopy.value.resetZoom}: ${viewerZoomDisplayLabel.value}`
-))
-
-const viewerDensity = computed<FileViewerUiDensity>(() => {
-  return runtimeOptions.value.ui?.density
-    ? normalizeDemoDensity(runtimeOptions.value.ui.density)
-    : demoDensity.value
+// The demo toolbar is only an adapter. Search, zoom, printing and page
+// state stay in one composable so every renderer follows the same lifecycle.
+const {
+  viewerSearchOpen,
+  viewerSearchQuery,
+  viewerSearchInputRef,
+  viewerSearchState,
+  viewerAvailability,
+  viewerZoomState,
+  viewerActionDisabled,
+  viewerZoomDisplayLabel,
+  viewerZoomResetLabel,
+  viewerSearchSummary,
+  viewerPageLabel,
+  fitCurrentDocument,
+  printDirect,
+  printWithMask,
+  triggerViewerAction,
+  selectFitMode,
+  runViewerSearch,
+  openViewerSearch,
+  closeViewerSearch,
+  resetViewerSearch,
+  nextViewerSearch,
+  previousViewerSearch,
+  handleViewerAvailabilityChange,
+  handleViewerLoadStart,
+  handleViewerSearchChange,
+  handleViewerZoomChange,
+  handleViewerViewStateChange
+} = useDemoViewerOperations({
+  fileViewerRef,
+  settings: appliedViewerSettings,
+  fitMode,
+  copy: demoCopy,
+  previewType,
+  hasActivePreview: () => Boolean(file.value || preview.value),
+  isMobileViewport: isMobileDemoViewport,
+  beforeOpenSearch: () => {
+    closeDesktopTransientUi('search')
+    mobileActionsOpen.value = false
+  },
+  closeActionPanels: () => {
+    desktopActionsOpen.value = false
+    mobileActionsOpen.value = false
+  },
+  hideRecentPanel: () => {
+    recentPanelOpen.value = false
+  }
 })
 
-const viewerSearchSummary = computed(() => {
-  if (!viewerSearchQuery.value.trim()) {
-    return '0/0'
-  }
-  const state = viewerSearchState.value
-  return state.total ? `${state.currentIndex + 1}/${state.total}` : '0/0'
-})
-
-const viewerPageLabel = computed(() => {
-  const pageCount = viewerViewState.value.pageCount
-  if (pageCount && pageCount > 0) {
-    return `${viewerViewState.value.page || 1} / ${pageCount}`
-  }
-  return previewType.value
-})
-
-const viewerOptions = computed((): FileViewerOptions => {
-  const runtime = runtimeOptions.value
-  const settings = appliedViewerSettings.value
-  const megabyte = 1024 * 1024
-  const options = { ...(runtime as Record<string, unknown>) } as FileViewerOptions
-  options.renderers = runtime.renderers ?? allRenderers
-  if (!options.locale && !options.i18n?.locale) {
-    options.locale = demoLocale.value
-  }
-  if (!immersiveMode.value) {
-    options.theme = settings.theme
-    options.styleIsolation = settings.styleIsolation
-  } else if (!options.theme) {
-    options.theme = demoTheme.value
-  }
-  if (runtime.ui || viewerDensity.value === 'compact' || !immersiveMode.value) {
-    options.ui = {
-      ...runtime.ui,
-      density: viewerDensity.value,
-      ...(!immersiveMode.value
-        ? { surfaceBackground: settings.surfaceBackground }
-        : {})
-    }
-  } else {
-    delete options.ui
-  }
-
-  options.archive = {
-    cache: true,
-    ...runtime.archive,
-    ...(!immersiveMode.value
-      ? {
-          cache: settings.archiveCache,
-          maxArchiveSize: settings.archiveMaxSizeMb * megabyte,
-          maxEntryPreviewSize: settings.archiveMaxEntryPreviewMb * megabyte,
-          entryActions: {
-            ...runtime.archive?.entryActions,
-            download: settings.archiveEntryDownload
-          }
-        }
-      : {})
-  }
-  options.spreadsheet = {
-    worker: 'auto',
-    resizableColumns: true,
-    resizableRows: true,
-    ...runtime.spreadsheet,
-    ...(!immersiveMode.value
-      ? {
-          resizableColumns: settings.spreadsheetResizableColumns,
-          resizableRows: settings.spreadsheetResizableRows,
-          textEncoding: settings.spreadsheetTextEncoding,
-          workerAutoThreshold: settings.spreadsheetWorkerThresholdMb * megabyte
-        }
-      : {})
-  }
-  options.presentation = {
-    pptModuleUrl: demoPptRuntimeAssetUrl('vendor/ppt/index.mjs'),
-    pptWorkerUrl: demoPptRuntimeAssetUrl('vendor/ppt/worker.mjs'),
-    pptWasmUrl: demoPptRuntimeAssetUrl('vendor/ppt/ppt-native.wasm'),
-    pptFontUrl: demoPptRuntimeAssetUrl('vendor/ppt/ppt-font-cjk.otf'),
-    ...runtime.presentation
-  }
-  if (!immersiveMode.value) {
-    options.pdf = {
-      ...runtime.pdf,
-      toolbar: settings.pdfToolbar,
-      navigation: settings.pdfNavigation,
-      defaultNavigationVisible: settings.pdfDefaultNavigationVisible,
-      thumbnails: settings.pdfThumbnails,
-      rotation: settings.pdfRotation,
-      streaming: settings.pdfStreaming,
-      cjkFontFallback: settings.pdfCjkFontFallback,
-      identityFontRepair: settings.pdfIdentityFontRepair
-    }
-    options.docx = {
-      ...runtime.docx,
-      progressive: settings.docxProgressive,
-      visualPagination: settings.docxVisualPagination,
-      strictWordCompatibility: settings.docxStrictWordCompatibility,
-      awaitLayout: settings.docxAwaitLayout,
-      hideWebHiddenContent: settings.docxHideWebHiddenContent,
-      ignoreLastRenderedPageBreak: settings.docxIgnoreLastRenderedPageBreak
-    }
-    options.text = {
-      ...runtime.text,
-      toolbar: settings.textToolbar,
-      lineNumbers: settings.textLineNumbers,
-      virtualizeAboveBytes: settings.textVirtualizeAboveKb * 1024,
-      markdownVirtualizeAboveBytes: settings.textMarkdownVirtualizeAboveKb > 0
-        ? settings.textMarkdownVirtualizeAboveKb * 1024
-        : undefined,
-      maxRenderedLineBytes: settings.textMaxRenderedLineKb * 1024,
-      virtualOverscanLines: settings.textVirtualOverscanLines
-    }
-    const runtimeSearch = runtime.search && typeof runtime.search === 'object' ? runtime.search : {}
-    options.search = {
-      ...runtimeSearch,
-      enabled: settings.searchEnabled,
-      caseSensitive: settings.searchCaseSensitive,
-      wholeWord: settings.searchWholeWord,
-      maxMatches: settings.searchMaxMatches
-    }
-    options.cad = {
-      ...runtime.cad,
-      renderer: settings.cadRenderer,
-      fitMode: settings.cadFitMode,
-      fitPadding: settings.cadFitPadding,
-      includePaperSpace: settings.cadIncludePaperSpace,
-      dwfLineWeightMode: settings.cadDwfLineWeightMode
-    }
-    options.geo = {
-      ...runtime.geo,
-      basemap: settings.geoBasemap,
-      inferProjection: settings.geoInferProjection,
-      preferMapEngine: settings.geoPreferMapEngine,
-      fitPadding: settings.geoFitPadding
-    }
-    options.model = createDemoModelOptions(settings, runtime.model)
-    options.drawing = {
-      ...runtime.drawing,
-      preferOfficial: settings.drawingPreferOfficial
-    }
-  } else {
-    options.geo = {
-      basemap: 'offline',
-      ...runtime.geo
-    }
-    options.drawing = { ...runtime.drawing }
-  }
-  if (fitMode.value !== 'default') {
-    options.fit = {
-      mode: fitMode.value,
-      resize: settings.fitResize,
-      padding: settings.fitPadding,
-      minScale: settings.fitMinScale,
-      maxScale: settings.fitMaxScale
-    }
-  } else if (!immersiveMode.value) {
-    delete options.fit
-  }
-  options.toolbar = immersiveMode.value ? runtime.toolbar ?? true : false
-  options.watermark = !immersiveMode.value && !watermarkEnabled.value
-    ? false
-    : watermarkEnabled.value
-    ? {
-        text: settings.watermarkText || 'File Viewer',
-        opacity: settings.watermarkOpacity,
-        rotate: settings.watermarkRotate,
-        gapX: settings.watermarkGapX,
-        gapY: settings.watermarkGapY,
-        fontSize: settings.watermarkFontSize,
-        color: settings.watermarkColor,
-        ...(
-          typeof runtime.watermark === 'object' && runtime.watermark
-            ? runtime.watermark
-            : {}
-        )
-      }
-    : runtime.watermark
-
-  return options
-})
-
+// ── Overlay focus, dismissal and keyboard ownership ────────────────────────
+//
 const isVisibleControl = (element: HTMLElement | null): element is HTMLElement => (
   Boolean(element && element.getClientRects().length)
 )
 
+// Focus helpers are centralized here so dialogs and popovers always return to
+// the control that is actually visible at the current responsive breakpoint.
 function focusActionsTrigger() {
   const trigger = isVisibleControl(settingsButtonRef.value)
     ? settingsButtonRef.value
@@ -1188,6 +563,8 @@ function closeSettingsPanel(returnFocus = false) {
 }
 
 function closeDesktopTransientUi(except?: 'source' | 'settings' | 'search' | 'more') {
+  // Desktop surfaces are mutually exclusive. `except` lets the destination
+  // remain open while every competing surface closes in the same tick.
   if (except !== 'source') {
     closeDesktopSourcePanel()
   }
@@ -1203,6 +580,8 @@ function closeDesktopTransientUi(except?: 'source' | 'settings' | 'search' | 'mo
 }
 
 async function toggleSettingsPanel() {
+  // Opening settings snapshots live shell state into a draft. Applying is the
+  // only path that may remount the renderer and restore its view state.
   if (settingsPanelOpen.value) {
     closeSettingsPanel(true)
     return
@@ -1232,6 +611,11 @@ async function applySettingsAndRestoreFocus() {
 let copyResetTimer: number | undefined
 const clipboardWriteTimeoutMs = 800
 
+// ── Integration snippet dialog and clipboard fallback ──────────────────────
+//
+// Clipboard access can stall or be denied in embedded/private contexts. The
+// hidden textarea fallback keeps this demo action deterministic without
+// weakening browser permissions.
 async function openSnippetDialog() {
   closeDesktopTransientUi()
   mobileActionsOpen.value = false
@@ -1303,6 +687,8 @@ async function copyIntegrationSnippet() {
 }
 
 async function toggleDesktopActions() {
+  // The More menu follows roving-menu keyboard conventions implemented below;
+  // focus returns to the visible desktop/mobile trigger when it closes.
   if (!desktopActionsOpen.value) {
     closeDesktopTransientUi('more')
   }
@@ -1340,125 +726,12 @@ function handleMoreMenuKeydown(event: KeyboardEvent) {
   buttons[nextIndex]?.focus()
 }
 
-async function fitCurrentDocument() {
-  desktopActionsOpen.value = false
-  mobileActionsOpen.value = false
-  const providerEpoch = viewerProviderEpoch
-  const settings = appliedViewerSettings.value
-  const mode = fitMode.value === 'default' ? 'auto' : fitMode.value
-  const result = await fileViewerRef.value?.fitToView({
-    mode,
-    resize: settings.fitResize,
-    padding: settings.fitPadding,
-    minScale: settings.fitMinScale,
-    maxScale: settings.fitMaxScale
-  })
-  if (providerEpoch !== viewerProviderEpoch) {
-    return
-  }
-  if (result?.applied) {
-    viewerZoomState.value = fileViewerRef.value?.getZoomState() || viewerZoomState.value
-    viewerAvailability.value = fileViewerRef.value?.getOperationAvailability() || viewerAvailability.value
-  }
-}
-
-async function printDirect() {
-  desktopActionsOpen.value = false
-  mobileActionsOpen.value = false
-  await fileViewerRef.value?.printRenderedHtml()
-}
-
-async function printWithMask() {
-  desktopActionsOpen.value = false
-  mobileActionsOpen.value = false
-  await fileViewerRef.value?.printWithMask()
-}
-
-function triggerViewerAction(action: ViewerAction) {
-  desktopActionsOpen.value = false
-  mobileActionsOpen.value = false
-  if (action === 'download') {
-    void fileViewerRef.value?.downloadOriginalFile()
-    return
-  }
-  if (action === 'print') {
-    void printDirect()
-    return
-  }
-  if (action === 'exportHtml') {
-    void fileViewerRef.value?.exportRenderedHtml()
-    return
-  }
-  const nextAction = action === 'zoomIn'
-    ? fileViewerRef.value?.zoomIn()
-    : action === 'zoomOut'
-      ? fileViewerRef.value?.zoomOut()
-      : fileViewerRef.value?.resetZoom()
-  const providerEpoch = viewerProviderEpoch
-  void nextAction?.then(state => {
-    if (providerEpoch !== viewerProviderEpoch) {
-      return
-    }
-    viewerZoomState.value = state
-    viewerAvailability.value = fileViewerRef.value?.getOperationAvailability() || viewerAvailability.value
-  })
-}
-
-async function selectFitMode(event: Event) {
-  const value = (event.target as HTMLSelectElement).value as FileViewerFitMode | 'default'
-  fitMode.value = value
-  appliedViewerSettings.value = {
-    ...appliedViewerSettings.value,
-    fitMode: value
-  }
-  await nextTick()
-  if (value !== 'default') {
-    const settings = appliedViewerSettings.value
-    const result = await fileViewerRef.value?.fitToView({
-      mode: value,
-      resize: settings.fitResize,
-      padding: settings.fitPadding
-    })
-    if (result?.applied) {
-      viewerZoomState.value = fileViewerRef.value?.getZoomState() || viewerZoomState.value
-      viewerAvailability.value = fileViewerRef.value?.getOperationAvailability() || viewerAvailability.value
-    }
-  }
-}
-
-async function runViewerSearch() {
-  const query = viewerSearchQuery.value.trim()
-  if (!query) {
-    viewerSearchState.value = await fileViewerRef.value?.clearDocumentSearch() || viewerSearchState.value
-    return
-  }
-  viewerSearchState.value = await fileViewerRef.value?.searchDocument(query) || viewerSearchState.value
-}
-
-async function openViewerSearch() {
-  if (!appliedViewerSettings.value.searchEnabled) {
-    return
-  }
-  closeDesktopTransientUi('search')
-  mobileActionsOpen.value = false
-  if (isMobileDemoViewport()) {
-    recentPanelOpen.value = false
-  }
-  viewerSearchOpen.value = true
-  await nextTick()
-  viewerSearchInputRef.value?.focus()
-  viewerSearchInputRef.value?.select()
-}
-
-async function closeViewerSearch() {
-  viewerSearchOpen.value = false
-  viewerSearchState.value = await fileViewerRef.value?.clearDocumentSearch() || viewerSearchState.value
-}
-
 async function openDesktopSourcePanel(
   mode: 'link' | 'upload' | 'samples' = 'link',
   anchor: DemoSourcePanelAnchor = mode
 ) {
+  // Desktop source panels are anchored popovers. Sample mode additionally
+  // restores the active group so a large catalog never opens at a random spot.
   if (mode === 'upload') {
     recentLocalReselectName.value = ''
   }
@@ -1502,15 +775,14 @@ async function toggleDesktopSourcePanel(
   }
 }
 
-function resetViewerSearch() {
-  viewerSearchQuery.value = ''
-  void closeViewerSearch()
-}
-
+// ── Mobile source sheet and single More menu ───────────────────────────────
+//
 async function openMobileControls(
   mode: 'link' | 'upload' | 'samples' = 'link',
   anchor: DemoSourcePanelAnchor = mode
 ) {
+  // Mobile reuses source-panel content but clears desktop positioning. Only
+  // the document viewport keeps scrolling while this bottom sheet is open.
   if (mode === 'upload') {
     recentLocalReselectName.value = ''
   }
@@ -1554,6 +826,8 @@ async function toggleMobileActions() {
 }
 
 async function toggleFileSamples() {
+  // The filename capsule is the shared sample entry: anchored popover on
+  // desktop, bottom sheet on mobile.
   if (isMobileDemoViewport()) {
     if (mobileControlsOpen.value && desktopSourceMode.value === 'samples') {
       closeMobileControls()
@@ -1575,52 +849,10 @@ function toggleWatermark() {
   mobileActionsOpen.value = false
 }
 
-async function nextViewerSearch() {
-  if (!viewerSearchQuery.value.trim()) {
-    return
-  }
-  if (viewerSearchState.value.query !== viewerSearchQuery.value.trim()) {
-    await runViewerSearch()
-    return
-  }
-  viewerSearchState.value = await fileViewerRef.value?.nextSearchResult() || viewerSearchState.value
-}
-
-async function previousViewerSearch() {
-  if (!viewerSearchQuery.value.trim()) {
-    return
-  }
-  if (viewerSearchState.value.query !== viewerSearchQuery.value.trim()) {
-    await runViewerSearch()
-    return
-  }
-  viewerSearchState.value = await fileViewerRef.value?.previousSearchResult() || viewerSearchState.value
-}
-
-function handleViewerAvailabilityChange(availability: FileViewerOperationAvailability) {
-  viewerAvailability.value = availability
-  viewerZoomState.value = fileViewerRef.value?.getZoomState() || viewerZoomState.value
-}
-
-function handleViewerLoadStart() {
-  viewerProviderEpoch += 1
-  viewerAvailability.value = createEmptyViewerAvailability()
-  viewerZoomState.value = createEmptyViewerZoomState()
-  viewerViewState.value = {}
-}
-
-function handleViewerSearchChange(state: FileViewerSearchState) {
-  viewerSearchState.value = state
-}
-
-function handleViewerZoomChange(state: FileViewerZoomState) {
-  viewerZoomState.value = state
-}
-
-function handleViewerViewStateChange(change: FileViewerViewStateChange) {
-  viewerViewState.value = change.state
-}
-
+// ── External handoff and component lifecycle ───────────────────────────────
+//
+// Component integrations can hand off a File, URL and runtime options without
+// reloading the page. Receiving a handoff always switches to immersive mode.
 const stopDemoFileHandoff = demoFileHandoff.listen((body, target, options) => {
   immersiveMode.value = true
   runtimeOptions.value = options || {}
@@ -1640,6 +872,8 @@ const stopDemoFileHandoff = demoFileHandoff.listen((body, target, options) => {
   }
 })
 
+// Document chrome is deliberately synchronized in one place. Renderer theme
+// options are composed separately by useDemoViewerOptions.
 function syncDemoDocumentChrome(nextLocale = demoLocale.value) {
   document.documentElement.lang = nextLocale
   document.documentElement.dataset.demoTheme = resolvedDemoTheme.value
@@ -1647,11 +881,12 @@ function syncDemoDocumentChrome(nextLocale = demoLocale.value) {
 }
 
 onMounted(() => {
+  // Global listeners exist only for page-level coordination. Renderer event
+  // listeners are declared directly on <file-viewer> in the template.
   syncDemoDocumentChrome()
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   document.addEventListener('keydown', handleDocumentKeydown)
   window.addEventListener('resize', handleWindowResize)
-  systemThemeQuery?.addEventListener?.('change', handleSystemThemeChange)
   desktopFileCapsuleMotionQuery?.addEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
   reducedFileCapsuleMotionQuery?.addEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
   if (url.value || !immersiveMode.value) {
@@ -1660,10 +895,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  // Mirror every global subscription and discard memory-only File handles.
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   document.removeEventListener('keydown', handleDocumentKeydown)
   window.removeEventListener('resize', handleWindowResize)
-  systemThemeQuery?.removeEventListener?.('change', handleSystemThemeChange)
   desktopFileCapsuleMotionQuery?.removeEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
   reducedFileCapsuleMotionQuery?.removeEventListener?.('change', handleFileCapsuleMotionPreferenceChange)
   stopDemoFileHandoff()
@@ -1675,6 +910,11 @@ onBeforeUnmount(() => {
 
 type DemoRemoteRecentSource = 'auto' | 'url' | 'sample'
 
+// ── Remote URL, local File and recent-history flows ────────────────────────
+//
+// Recent entries are product-shell history, not part of immersive integrations.
+// Local File objects remain memory-only because browser storage cannot safely
+// persist their permissions or contents.
 function rememberRemotePreview(normalizedUrl: string, source: DemoRemoteRecentSource) {
   if (immersiveMode.value || !normalizedUrl) {
     return
@@ -1694,6 +934,8 @@ function rememberRemotePreview(normalizedUrl: string, source: DemoRemoteRecentSo
 }
 
 function openUrlPreview(nextUrl = url.value, recentSource: DemoRemoteRecentSource = 'auto') {
+  // One transition resets renderer view/search state and closes all source
+  // surfaces before the new URL becomes observable by <file-viewer>.
   const normalizedUrl = normalizeDemoUrl(nextUrl)
   clearPendingViewState()
   file.value = undefined
@@ -1709,12 +951,13 @@ function openUrlPreview(nextUrl = url.value, recentSource: DemoRemoteRecentSourc
 }
 
 function setDemoLocale(nextLocale: DemoLocale) {
+  // Locale changes preserve the chosen document. Only the locale-specific
+  // default sample is exchanged for its counterpart.
   if (demoLocale.value === nextLocale) {
     return
   }
   const previousDefaultUrl = DEFAULT_DEMO_URL_BY_LOCALE[demoLocale.value]
-  demoLocale.value = nextLocale
-  writeDemoStorage(DEMO_LOCALE_STORAGE_KEY, nextLocale)
+  persistDemoLocale(nextLocale)
   syncDemoDocumentChrome(nextLocale)
   if (!file.value && isSameSampleUrl(url.value || preview.value, previousDefaultUrl)) {
     const nextDefaultUrl = DEFAULT_DEMO_URL_BY_LOCALE[nextLocale]
@@ -1723,29 +966,24 @@ function setDemoLocale(nextLocale: DemoLocale) {
   }
 }
 
-function handleSystemThemeChange(event: MediaQueryListEvent) {
-  systemPrefersDark.value = event.matches
-  if (demoTheme.value === 'system') {
-    syncDemoDocumentChrome()
-  }
-}
-
 function handleFileCapsuleMotionPreferenceChange() {
   resetFileCapsuleMotion()
 }
 
 function toggleDemoTheme() {
-  const nextTheme = toggleFileViewerColorScheme(demoTheme.value, systemPrefersDark.value)
-  demoTheme.value = nextTheme
+  // Shell and renderer settings are updated together so no light/dark frame
+  // can appear between the surrounding UI and the document surface.
+  const nextTheme = toggleStoredDemoTheme()
   appliedViewerSettings.value = {
     ...appliedViewerSettings.value,
     theme: nextTheme
   }
-  writeDemoStorage(DEMO_THEME_STORAGE_KEY, nextTheme)
   syncDemoDocumentChrome()
 }
 
 function activateLocalFile(value: File) {
+  // File objects are assigned directly to the viewer and cached only for this
+  // page lifetime; recent-file metadata remains serializable.
   clearPendingViewState()
   samplePickerOpen.value = false
   desktopSourcePanelOpen.value = false
@@ -1782,6 +1020,8 @@ async function handleChange(e: Event) {
 }
 
 async function openRecentFile(entry: DemoRecentFile) {
+  // Remote history can reopen immediately. A local entry needs the in-memory
+  // File handle or asks the user to reselect it after a reload.
   if (entry.source !== 'local') {
     if (entry.url) {
       openUrlPreview(entry.url, entry.source)
@@ -1816,11 +1056,15 @@ async function toggleSamplePicker() {
   }
 }
 
+// ── Sample catalog interaction ─────────────────────────────────────────────
+//
 function toggleSampleGroup(index: number) {
   expandedSampleGroupIndex.value = expandedSampleGroupIndex.value === index ? null : index
 }
 
 function selectPreset(nextUrl: string) {
+  // Selecting a sample is the same preview transition as entering a URL, with
+  // the additional source tag used for recent-history presentation.
   const normalizedUrl = normalizeDemoUrl(nextUrl)
   const nextGroupIndex = sampleGroups.value.findIndex(group => group.items.some(item => isSameSampleUrl(item.url, normalizedUrl)))
   url.value = normalizedUrl
@@ -1832,11 +1076,13 @@ function selectPreset(nextUrl: string) {
   openUrlPreview(normalizedUrl, 'sample')
 }
 
-function isActivePreset(item: PresetFile) {
+function isActivePreset(item: DemoPresetFile) {
   return !file.value && isSameSampleUrl(url.value, item.url)
 }
 
 function handleDocumentPointerDown(event: PointerEvent) {
+  // Ignore clicks owned by active controls/dialogs. Everything else acts as an
+  // outside click and closes transient surfaces without touching the viewer.
   if (
     !samplePickerOpen.value &&
     !desktopSourcePanelOpen.value &&
@@ -1872,6 +1118,8 @@ function handleDocumentPointerDown(event: PointerEvent) {
   }
 }
 
+// Global keyboard handling is intentionally limited to cross-panel behavior.
+// Renderer-specific shortcuts stay inside core/renderers.
 function handleDocumentKeydown(event: KeyboardEvent) {
   const key = event.key.toLowerCase()
   if (snippetDialogOpen.value) {
@@ -1936,6 +1184,8 @@ function handleDocumentKeydown(event: KeyboardEvent) {
 }
 
 function handleWindowResize() {
+  // When crossing the mobile breakpoint, migrate the active source surface
+  // instead of discarding the user's current link/upload/sample context.
   const mobile = isMobileDemoViewport()
   resetFileCapsuleMotion()
   if (mobile !== wasMobileViewport.value) {
@@ -1977,7 +1227,12 @@ function handleWindowResize() {
     }"
   >
     <main class='workspace'>
+      <!-- Full product shell: source controls, settings, viewer and responsive actions. -->
       <div v-if='!immersiveMode' class='layout-shell'>
+        <!--
+          Desktop top cluster. The navigation and file capsule are separate in
+          the expanded state and share geometry during the merge animation.
+        -->
         <div class='top-capsule-cluster'>
           <nav
             ref='topCapsuleNavigationRef'
@@ -2066,6 +1321,10 @@ function handleWindowResize() {
           </div>
           </div>
 
+        <!--
+          Shared source/settings rail. CSS presents it as an anchored desktop
+          popover or a mobile bottom sheet without duplicating its form state.
+        -->
         <aside
           ref='controlPanelRef'
           class='control-panel'
@@ -2105,6 +1364,7 @@ function handleWindowResize() {
               </button>
             </header>
 
+            <!-- Remote URL mode: editable address plus the resolved path context. -->
             <template v-if='desktopSourceMode === "link"'>
               <section class='source-command source-command--focused'>
                 <label class='field-label' for='preview-url'>{{ demoCopy.address }}</label>
@@ -2133,6 +1393,7 @@ function handleWindowResize() {
               </div>
             </template>
 
+            <!-- Local mode: the File object is passed directly and never uploaded. -->
             <template v-else-if='desktopSourceMode === "upload"'>
               <label class='desktop-upload-dropzone'>
                 <input type='file' :accept='uploadAccept' @change='handleChange' />
@@ -2145,6 +1406,7 @@ function handleWindowResize() {
               </label>
             </template>
 
+            <!-- Sample mode: one expanded group keeps the large catalog compact. -->
             <template v-else>
               <div ref='samplePickerRef' class='sample-picker' :class='{ open: samplePickerOpen }'>
                 <button
@@ -2213,6 +1475,7 @@ function handleWindowResize() {
             </template>
           </div>
 
+          <!-- Settings are draft-based; renderer-affecting changes apply atomically. -->
           <DemoViewerSettingsPanel
             v-if='settingsPanelOpen'
             v-model:settings='settingsDraft'
@@ -2230,7 +1493,9 @@ function handleWindowResize() {
           />
         </aside>
 
+        <!-- Main document surface and the demo-owned external toolbar. -->
         <section class='viewer-panel'>
+          <!-- Repository and locale are global shell actions, not renderer actions. -->
           <div class='viewer-global-actions'>
             <a
               class='viewer-github-link'
@@ -2259,6 +1524,7 @@ function handleWindowResize() {
               </div>
           </div>
 
+          <!-- Each action reflects public API availability from the active renderer. -->
           <nav class='immersive-right-toolbar' :aria-label='demoCopy.previewActions'>
             <button
               v-if='appliedViewerSettings.toolbarSearch && appliedViewerSettings.searchEnabled'
@@ -2343,6 +1609,7 @@ function handleWindowResize() {
             </div>
           </Transition>
 
+          <!-- Search state is renderer-backed and shared with the Cmd/Ctrl+F shortcut. -->
           <div v-if='viewerSearchOpen' class='viewer-search-popover' role='search' :aria-label='demoCopy.searchDocument'>
             <input
               ref='viewerSearchInputRef'
@@ -2363,6 +1630,10 @@ function handleWindowResize() {
             </button>
           </div>
 
+          <!--
+            This is the only scrolling content region. The surrounding shell,
+            source controls and action docks remain fixed for immersion.
+          -->
           <div class='viewport'>
             <file-viewer
               :key='viewerRevision'
@@ -2378,6 +1649,7 @@ function handleWindowResize() {
               @zoom-change='handleViewerZoomChange'
             />
           </div>
+          <!-- Stable page/zoom feedback remains outside renderer-specific toolbars. -->
           <div class='viewer-status-dock' :aria-label='demoCopy.previewActions'>
             <span class='viewer-status-context'>{{ viewerPageLabel }}</span>
             <i v-if='visibleExternalToolbar.zoom' class='viewer-status-divider' aria-hidden='true' />
@@ -2435,6 +1707,7 @@ function handleWindowResize() {
           </div>
         </section>
 
+        <!-- Recent history is product-mode UI and never appears in URL/embed mode. -->
         <DemoRecentFiles
           v-if='recentPanelOpen && recentDisplayEntries.length'
           :entries='recentDisplayEntries'
@@ -2462,6 +1735,10 @@ function handleWindowResize() {
           @click='closeMobileControls'
         />
 
+        <!--
+          Mobile exposes one More entry. It contains source selection, viewer
+          operations, theme, integration help and the complete settings panel.
+        -->
         <nav class='mobile-action-dock' :aria-label='demoCopy.previewActions'>
           <div
             v-if='mobileActionsOpen'
@@ -2636,7 +1913,9 @@ function handleWindowResize() {
         </nav>
       </div>
 
+      <!-- Explicit URL/embed entry: keep the caller's renderer toolbar and omit demo chrome. -->
       <section v-else class='viewer-panel standalone'>
+        <!-- Search is the only demo overlay retained for the standalone surface. -->
         <div v-if='viewerSearchOpen' class='viewer-search-popover viewer-search-popover--standalone' role='search' :aria-label='demoCopy.searchDocument'>
           <input
             ref='viewerSearchInputRef'
@@ -2674,6 +1953,7 @@ function handleWindowResize() {
       </section>
     </main>
 
+    <!-- Teleport prevents transformed viewer ancestors from clipping the modal. -->
     <Teleport to='body'>
       <Transition name='snippet-dialog'>
         <div

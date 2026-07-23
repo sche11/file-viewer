@@ -1,5 +1,12 @@
 import { computed, type Ref } from 'vue'
 
+/**
+ * Localized product-demo copy.
+ *
+ * Keeping labels in one typed dictionary makes desktop, mobile, dialogs and
+ * accessibility names change language together. Renderer translations remain
+ * in core and are not duplicated here.
+ */
 export type DemoLocale = 'zh-CN' | 'en-US'
 export type DemoCopy = Record<string, string>
 

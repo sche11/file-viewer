@@ -18,6 +18,12 @@ const DESKTOP_PANEL_WIDTH: Record<DemoSourcePanelMode, number> = {
   samples: 690
 }
 
+/**
+ * Owns desktop source-popover anchoring without owning the panel content.
+ *
+ * Mobile deliberately returns an empty style object: the page/CSS turns the
+ * same content into a bottom sheet, avoiding duplicate responsive state.
+ */
 export function useDemoFloatingPanels(options: UseDemoFloatingPanelsOptions) {
   const sourcePanelOpen = ref(false)
   const sourcePanelMode = ref<DemoSourcePanelMode>('link')
@@ -49,9 +55,13 @@ export function useDemoFloatingPanels(options: UseDemoFloatingPanelsOptions) {
       DESKTOP_PANEL_WIDTH[sourcePanelMode.value],
       window.innerWidth - margin * 2
     )
+    // Center on the invoking control, then clamp to viewport gutters. The file
+    // capsule can open the same sample panel from a different anchor.
     const centeredLeft = rect.left + rect.width / 2 - desiredWidth / 2
     const left = Math.max(margin, Math.min(centeredLeft, window.innerWidth - desiredWidth - margin))
     const preferredTop = rect.bottom + gap
+    // A short viewport may not fit the panel below its trigger. Move it upward
+    // while retaining a usable minimum body height and internal scrolling.
     const minimumPanelHeight = Math.min(260, window.innerHeight - margin * 2)
     const top = Math.max(
       margin,
@@ -84,6 +94,8 @@ export function useDemoFloatingPanels(options: UseDemoFloatingPanelsOptions) {
     mode: DemoSourcePanelMode,
     anchor: DemoSourcePanelAnchor = mode
   ) {
+    // Mode and anchor both participate in identity: Samples from the top nav
+    // and Samples from the filename capsule are distinct placements.
     if (
       sourcePanelOpen.value &&
       sourcePanelMode.value === mode &&
