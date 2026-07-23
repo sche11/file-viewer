@@ -251,7 +251,9 @@ export const createDefaultViewerSettings = (
   docxVisualPagination: false,
   docxStrictWordCompatibility: false,
   docxAwaitLayout: true,
-  docxHideWebHiddenContent: true,
+  // DOCX uses print layout. Word often marks cached TOC page numbers as
+  // webHidden, so hiding them by default also removes the TOC leader line.
+  docxHideWebHiddenContent: false,
   docxIgnoreLastRenderedPageBreak: false,
   cadRenderer: 'auto',
   cadFitMode: 'best',
