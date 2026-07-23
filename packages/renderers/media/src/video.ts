@@ -123,6 +123,8 @@ export default async function renderVideo(
     if (normalizedType === 'm3u8') {
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = source
+        video.load()
+        await waitForVideoMetadata(video, context?.signal)
         return
       }
       const { default: HlsConstructor } = await import('hls.js')
@@ -131,17 +133,51 @@ export default async function renderVideo(
       }
       if (HlsConstructor.isSupported()) {
         hls = new HlsConstructor({ enableWorker: true, lowLatencyMode: false })
-        hls.loadSource(source)
-        hls.attachMedia(video)
+        if (context?.signal?.aborted) {
+          throw new DOMException('The video request was aborted.', 'AbortError')
+        }
+        await new Promise<void>((resolve, reject) => {
+          const events = HlsConstructor.Events
+          const timeoutId = window.setTimeout(() => {
+            cleanupListeners()
+            reject(new Error('Timed out while loading the HLS manifest.'))
+          }, 30000)
+          const onManifest = () => {
+            cleanupListeners()
+            resolve()
+          }
+          const onError = (_event: string, data: { fatal?: boolean; details?: string }) => {
+            if (!data?.fatal) return
+            cleanupListeners()
+            reject(new Error(data.details || 'Unable to load the HLS video stream.'))
+          }
+          const onAbort = () => {
+            cleanupListeners()
+            reject(new DOMException('The video request was aborted.', 'AbortError'))
+          }
+          const cleanupListeners = () => {
+            window.clearTimeout(timeoutId)
+            hls?.off(events.MANIFEST_PARSED, onManifest)
+            hls?.off(events.ERROR, onError)
+            context?.signal?.removeEventListener('abort', onAbort)
+          }
+          hls?.on(events.MANIFEST_PARSED, onManifest)
+          hls?.on(events.ERROR, onError)
+          context?.signal?.addEventListener('abort', onAbort, { once: true })
+          hls?.attachMedia(video)
+          hls?.loadSource(source)
+        })
+        await waitForVideoMetadata(video, context?.signal)
         return
       }
+      throw new Error('This browser cannot play HLS video.')
     }
     video.src = source
+    video.load()
+    await waitForVideoMetadata(video, context?.signal)
   }
 
-  void mountVideo()
-
-  return createRenderedInstance(target, () => {
+  const cleanup = () => {
     disposed = true
     hls?.destroy()
     hls = null
@@ -152,5 +188,51 @@ export default async function renderVideo(
       URL.revokeObjectURL(objectUrl)
       objectUrl = ''
     }
+  }
+
+  try {
+    await mountVideo()
+  } catch (error) {
+    cleanup()
+    target.replaceChildren()
+    throw error
+  }
+
+  return createRenderedInstance(target, () => {
+    cleanup()
+  })
+}
+
+const waitForVideoMetadata = async (video: HTMLVideoElement, signal?: AbortSignal) => {
+  if (video.readyState >= HTMLMediaElement.HAVE_METADATA) return
+  if (signal?.aborted) throw new DOMException('The video request was aborted.', 'AbortError')
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup()
+      reject(new Error('Timed out while loading video metadata.'))
+    }, 30000)
+    const cleanup = () => {
+      window.clearTimeout(timeoutId)
+      video.removeEventListener('loadedmetadata', onReady)
+      video.removeEventListener('canplay', onReady)
+      video.removeEventListener('error', onError)
+      signal?.removeEventListener('abort', onAbort)
+    }
+    const onReady = () => {
+      cleanup()
+      resolve()
+    }
+    const onError = () => {
+      cleanup()
+      reject(new Error(video.error?.message || 'The browser could not decode this video.'))
+    }
+    const onAbort = () => {
+      cleanup()
+      reject(new DOMException('The video request was aborted.', 'AbortError'))
+    }
+    video.addEventListener('loadedmetadata', onReady, { once: true })
+    video.addEventListener('canplay', onReady, { once: true })
+    video.addEventListener('error', onError, { once: true })
+    signal?.addEventListener('abort', onAbort, { once: true })
   })
 }

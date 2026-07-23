@@ -246,6 +246,8 @@ export default async function renderModel(
   let stopSystemThemeListener: (() => void) | null = null;
   let activeDarkMode: boolean | null = null;
   let resizeObserver: ResizeObserver | null = null;
+  let controlsWithEvents: OrbitControls | null = null;
+  let disposed = false;
   let animationFrame = 0;
   let activeVersion = 0;
   let modelMeshCount = 0;
@@ -612,6 +614,10 @@ export default async function renderModel(
     applyModelTheme(initializeTheme);
     updateHelperVisibility();
     resize();
+    if (!controls) {
+      throw new Error('Failed to initialize 3D controls.');
+    }
+    return controls;
   };
 
   const clearModel = () => {
@@ -1058,6 +1064,7 @@ export default async function renderModel(
       errorMessage = normalizeError(reason) || t('model.error.parseFailed', { type: normalizedType.toUpperCase() });
       updateUi();
       zoomEmitter.emit();
+      throw reason instanceof Error ? reason : new Error(errorMessage);
     }
   };
 
@@ -1118,64 +1125,75 @@ export default async function renderModel(
     emitViewStateChange('view-option-change', 'user');
   });
 
-  updateUi();
-  ensureScene();
-  observeModelTheme();
-  const controlsWithEvents = controls as OrbitControls | null;
-  controlsWithEvents?.addEventListener('start', onControlsStart);
-  controlsWithEvents?.addEventListener('end', onControlsEnd);
-  registerFileViewerZoomProvider(root, {
-    zoomIn: () => setModelZoom(getModelScale() * MODEL_ZOOM_STEP, 'user', 'zoom-in'),
-    zoomOut: () => setModelZoom(getModelScale() / MODEL_ZOOM_STEP, 'user', 'zoom-out'),
-    resetZoom: () => setModelZoom(1, 'user', 'zoom-reset'),
-    setZoom: scale => setModelZoom(scale, 'api', 'zoom-change'),
-    fit: applyModelFit,
-    getState: getModelZoomState,
-    subscribe: zoomEmitter.subscribe,
-  });
-  registerFileViewerViewStateProvider(root, {
-    getState: getModelViewState,
-    applyState: applyModelViewState,
-    fit: applyModelFit,
-    subscribe: viewStateEmitter.subscribe,
-  });
-  resizeObserver = new ResizeObserver(resize);
-  resizeObserver.observe(canvas);
-  timer.connect(target.ownerDocument);
-  renderFrame();
-  await loadModel();
+  const cleanup = () => {
+    if (disposed) return;
+    disposed = true;
+    activeVersion += 1;
+    window.cancelAnimationFrame(animationFrame);
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    themeObserver?.disconnect();
+    themeObserver = null;
+    stopSystemThemeListener?.();
+    stopSystemThemeListener = null;
+    clearModel();
+    controlsWithEvents?.removeEventListener('start', onControlsStart);
+    controlsWithEvents?.removeEventListener('end', onControlsEnd);
+    controlsWithEvents = null;
+    unregisterFileViewerZoomProvider(root);
+    unregisterFileViewerViewStateProvider(root);
+    controls?.dispose();
+    controls = null;
+    if (scene) {
+      disposeObject(scene);
+    }
+    renderer?.dispose();
+    renderer?.renderLists.dispose();
+    renderer = null;
+    timer.dispose();
+    scene = null;
+    camera = null;
+    gridHelper = null;
+    axesHelper = null;
+    hemisphereLight = null;
+    target.replaceChildren();
+  };
+
+  try {
+    updateUi();
+    controlsWithEvents = ensureScene();
+    observeModelTheme();
+    controlsWithEvents.addEventListener('start', onControlsStart);
+    controlsWithEvents.addEventListener('end', onControlsEnd);
+    registerFileViewerZoomProvider(root, {
+      zoomIn: () => setModelZoom(getModelScale() * MODEL_ZOOM_STEP, 'user', 'zoom-in'),
+      zoomOut: () => setModelZoom(getModelScale() / MODEL_ZOOM_STEP, 'user', 'zoom-out'),
+      resetZoom: () => setModelZoom(1, 'user', 'zoom-reset'),
+      setZoom: scale => setModelZoom(scale, 'api', 'zoom-change'),
+      fit: applyModelFit,
+      getState: getModelZoomState,
+      subscribe: zoomEmitter.subscribe,
+    });
+    registerFileViewerViewStateProvider(root, {
+      getState: getModelViewState,
+      applyState: applyModelViewState,
+      fit: applyModelFit,
+      subscribe: viewStateEmitter.subscribe,
+    });
+    resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
+    timer.connect(target.ownerDocument);
+    renderFrame();
+    await loadModel();
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
 
   return {
     $el: root,
     unmount() {
-      activeVersion += 1;
-      window.cancelAnimationFrame(animationFrame);
-      resizeObserver?.disconnect();
-      resizeObserver = null;
-      themeObserver?.disconnect();
-      themeObserver = null;
-      stopSystemThemeListener?.();
-      stopSystemThemeListener = null;
-      clearModel();
-      controlsWithEvents?.removeEventListener('start', onControlsStart);
-      controlsWithEvents?.removeEventListener('end', onControlsEnd);
-      unregisterFileViewerZoomProvider(root);
-      unregisterFileViewerViewStateProvider(root);
-      controls?.dispose();
-      controls = null;
-      if (scene) {
-        disposeObject(scene);
-      }
-      renderer?.dispose();
-      renderer?.renderLists.dispose();
-      renderer = null;
-      timer.dispose();
-      scene = null;
-      camera = null;
-      gridHelper = null;
-      axesHelper = null;
-      hemisphereLight = null;
-      target.replaceChildren();
+      cleanup();
     },
   };
 }

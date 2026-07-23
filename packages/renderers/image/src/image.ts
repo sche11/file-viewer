@@ -86,6 +86,29 @@ const resolveImageUrl = async (buffer: ArrayBuffer, type?: string) => {
   return readBlobDataUrl(new Blob([buffer], { type: getImageBlobType(normalizedType) }));
 };
 
+const waitForImageReady = async (image: HTMLImageElement) => {
+  if (image.complete) {
+    if (image.naturalWidth > 0 && image.naturalHeight > 0) return;
+    throw new Error('The browser could not decode this image format.');
+  }
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      image.removeEventListener('load', onLoad);
+      image.removeEventListener('error', onError);
+    };
+    const onLoad = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('The browser could not decode this image format.'));
+    };
+    image.addEventListener('load', onLoad, { once: true });
+    image.addEventListener('error', onError, { once: true });
+  });
+};
+
 const roundImageScale = (value: number) => {
   return Number(value.toFixed(3));
 };
@@ -298,16 +321,28 @@ export default async function renderImage(
   (context?.surface?.shadowRoot || target).append(lightbox.element);
   updateViewportSize();
 
+  const cleanup = () => {
+    context?.registerThumbnailAdapter?.(null);
+    unregisterFileViewerZoomProvider(root);
+    resizeObserver.disconnect();
+    image.removeEventListener('load', updateViewportSize);
+    image.removeEventListener('click', openLightbox);
+    lightbox.destroy();
+    target.replaceChildren();
+  };
+
+  try {
+    await waitForImageReady(image);
+    updateViewportSize();
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+
   return {
     $el: target,
     unmount() {
-      context?.registerThumbnailAdapter?.(null);
-      unregisterFileViewerZoomProvider(root);
-      resizeObserver.disconnect();
-      image.removeEventListener('load', updateViewportSize);
-      image.removeEventListener('click', openLightbox);
-      lightbox.destroy();
-      target.replaceChildren();
+      cleanup();
     },
   };
 }
