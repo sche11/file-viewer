@@ -2,6 +2,7 @@ import {
   DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH,
   DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH,
   DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH,
+  DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION,
   DEFAULT_FILE_VIEWER_CAD_WASM_PATH,
   DEFAULT_FILE_VIEWER_CAD_WORKER_PATH,
   DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL,
@@ -83,6 +84,11 @@ function versionDocxRuntimeAssetUrl(url: string) {
   return `${url}${separator}file-viewer-docx=${encodeURIComponent(DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION)}`;
 }
 
+function versionCadRuntimeAssetUrl(url: string) {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}file-viewer-cad=${encodeURIComponent(DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION)}`;
+}
+
 export function createFullAssetOptions(
   assetBaseUrl?: string | URL | null
 ): FileViewerOptions {
@@ -100,8 +106,8 @@ export function createFullAssetOptions(
     },
     cad: {
       wasmPath: assetUrl(DEFAULT_FILE_VIEWER_CAD_WASM_PATH),
-      workerUrl: assetUrl(DEFAULT_FILE_VIEWER_CAD_WORKER_PATH),
-      dwfWasmUrl: assetUrl(DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH),
+      workerUrl: versionCadRuntimeAssetUrl(assetUrl(DEFAULT_FILE_VIEWER_CAD_WORKER_PATH)),
+      dwfWasmUrl: versionCadRuntimeAssetUrl(assetUrl(DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH)),
     },
     data: {
       sqlWasmUrl: assetUrl(DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL),

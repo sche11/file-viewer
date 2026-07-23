@@ -36,6 +36,7 @@ export const DEFAULT_FILE_VIEWER_DRAWIO_ASSET_PATH = 'vendor/drawio/';
 export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH = 'wasm/cad/';
 export const DEFAULT_FILE_VIEWER_CAD_WORKER_PATH = 'wasm/cad/dwg-worker.js';
 export const DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH = 'wasm/cad/dwfv-render.wasm';
+export const DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION = '0.8.0';
 export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_SCRIPT_PATH = 'wasm/cad/libredwg-web.js';
 export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_WASM_PATH = 'wasm/cad/libredwg-web.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
@@ -807,17 +808,30 @@ export const resolveFileViewerCadAssetUrls = (
   options?: Pick<FileViewerCadOptions, 'wasmPath' | 'workerUrl' | 'dwfWasmUrl'> | null,
   documentBaseUrl?: string
 ): ResolvedFileViewerCadAssetUrls => {
+  const workerUrl = resolveFileViewerAssetUrl(
+    options?.workerUrl,
+    DEFAULT_FILE_VIEWER_CAD_WORKER_PATH,
+    { documentBaseUrl }
+  );
+  const dwfWasmUrl = resolveFileViewerAssetUrl(
+    options?.dwfWasmUrl,
+    DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH,
+    { documentBaseUrl }
+  );
+  const versionDefaultRuntimeAsset = (url: string, overridden: boolean) => {
+    if (overridden) {
+      return url;
+    }
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}file-viewer-cad=${encodeURIComponent(DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION)}`;
+  };
   return {
     wasmPath: resolveFileViewerAssetUrl(options?.wasmPath, DEFAULT_FILE_VIEWER_CAD_WASM_PATH, {
       documentBaseUrl,
       trimTrailingSlash: true,
     }),
-    workerUrl: resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_CAD_WORKER_PATH, {
-      documentBaseUrl,
-    }),
-    dwfWasmUrl: resolveFileViewerAssetUrl(options?.dwfWasmUrl, DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH, {
-      documentBaseUrl,
-    }),
+    workerUrl: versionDefaultRuntimeAsset(workerUrl, Boolean(options?.workerUrl)),
+    dwfWasmUrl: versionDefaultRuntimeAsset(dwfWasmUrl, Boolean(options?.dwfWasmUrl)),
   };
 };
 

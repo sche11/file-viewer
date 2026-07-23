@@ -1,4 +1,5 @@
 import {
+  DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION,
   DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION,
   DEFAULT_RENDERER_DEFINITIONS,
   DEFAULT_FILE_VIEWER_PPT_RUNTIME_VERSION,
@@ -147,6 +148,9 @@ function createFullAssetOptions(assetBaseUrl?: string | URL | null): ViewerOptio
   const docxAssetUrl = (path: string) => (
     `${baseUrl}${path}?file-viewer-docx=${encodeURIComponent(DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION)}`
   )
+  const cadAssetUrl = (path: string) => (
+    `${baseUrl}${path}?file-viewer-cad=${encodeURIComponent(DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION)}`
+  )
   return {
     archive: {
       workerUrl: `${baseUrl}vendor/libarchive/worker-bundle.js`,
@@ -154,8 +158,8 @@ function createFullAssetOptions(assetBaseUrl?: string | URL | null): ViewerOptio
     },
     cad: {
       wasmPath: `${baseUrl}wasm/cad/`,
-      workerUrl: `${baseUrl}wasm/cad/dwg-worker.js`,
-      dwfWasmUrl: `${baseUrl}wasm/cad/dwfv-render.wasm`
+      workerUrl: cadAssetUrl('wasm/cad/dwg-worker.js'),
+      dwfWasmUrl: cadAssetUrl('wasm/cad/dwfv-render.wasm')
     },
     data: {
       sqlWasmUrl: `${baseUrl}wasm/data/sql-wasm.wasm`
