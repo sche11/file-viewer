@@ -933,11 +933,16 @@ useViewerPreviewLifecycle({
   overflow: hidden;
 }
 
+/* Custom properties cross the component ShadowRoot, so host shells can
+ * reserve overlay space without relying on ineffective deep selectors. */
 .content {
+  box-sizing: border-box;
   display: block;
   width: 100%;
   height: 100%;
   overflow: auto;
+  padding-block-start: var(--file-viewer-content-start-inset, 0px);
+  scroll-padding-block-start: var(--file-viewer-content-start-inset, 0px);
   background: var(--file-viewer-render-surface-background, var(--file-viewer-bg, #f2f2f2));
 }
 

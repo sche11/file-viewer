@@ -26,6 +26,8 @@
   --demo-file-capsule-expanded-top: 120px;
   --demo-file-capsule-expanded-width: 310px;
   --demo-file-capsule-merged-width: 238px;
+  --demo-file-capsule-collapsed-bottom: 78px;
+  --demo-document-start-gap: 14px;
   --demo-scrollbar-thumb: rgba(63, 82, 74, 0.28);
   --demo-scrollbar-thumb-hover: rgba(45, 105, 78, 0.46);
   position: relative;
@@ -1025,7 +1027,8 @@
 }
 
 .viewport {
-  --demo-document-start-inset: 104px;
+  --file-viewer-content-start-inset:
+    calc(var(--demo-file-capsule-collapsed-bottom) + var(--demo-document-start-gap));
   position: absolute;
   z-index: 1;
   inset: 0 112px 0;
@@ -1081,20 +1084,8 @@
   background-color: var(--demo-scrollbar-thumb-hover);
 }
 
-/*
- * Keep the renderer itself full-height so document pixels can travel beneath
- * the translucent chrome. The initial safety gap belongs to the scrolling
- * content; it therefore disappears naturally as the reader scrolls instead
- * of becoming a permanent clipped header band.
- */
-.viewport :deep(.file-render) {
-  box-sizing: border-box;
-  padding-block-start: var(--demo-document-start-inset);
-  scroll-padding-block-start: var(--demo-document-start-inset);
-}
-
 .standalone .viewport {
-  --demo-document-start-inset: 0px;
+  --file-viewer-content-start-inset: 0px;
   inset: 0;
   padding: 0;
 }
@@ -1841,6 +1832,7 @@
   .demo-shell {
     --demo-file-capsule-expanded-top: 100px;
     --demo-file-capsule-merged-width: 210px;
+    --demo-file-capsule-collapsed-bottom: 70px;
   }
 
   .rail-brand {
@@ -1895,7 +1887,6 @@
   }
 
   .viewport {
-    --demo-document-start-inset: 86px;
     inset: 0 88px 0 54px;
   }
 
@@ -1908,6 +1899,7 @@
 @media (max-height: 680px) and (min-width: 721px) {
   .demo-shell {
     --demo-file-capsule-expanded-top: 78px;
+    --demo-file-capsule-collapsed-bottom: 67px;
   }
 
   .rail-brand,
@@ -1924,7 +1916,6 @@
   }
 
   .viewport {
-    --demo-document-start-inset: 70px;
     top: 0;
   }
 
@@ -2056,7 +2047,8 @@
   }
 
   .viewport {
-    --demo-document-start-inset: calc(max(10px, env(safe-area-inset-top)) + 52px);
+    --file-viewer-content-start-inset:
+      calc(max(10px, env(safe-area-inset-top)) + 52px);
     inset: 0;
     padding: 0;
   }

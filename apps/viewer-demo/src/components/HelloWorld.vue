@@ -1968,6 +1968,7 @@ function handleWindowResize() {
     :data-demo-mode='immersiveMode ? "immersive" : "product"'
     :data-file-family='currentIconMeta.family'
     :data-file-capsule-state='fileCapsuleState'
+    :style='fileCapsuleMotionStyle'
     :class="{
       hidden: immersiveMode,
       'mobile-controls-open': mobileControlsOpen,
@@ -2027,10 +2028,7 @@ function handleWindowResize() {
             </button>
           </nav>
 
-          <div
-            class='viewer-toolbar'
-            :style='fileCapsuleMotionStyle'
-          >
+          <div class='viewer-toolbar'>
             <div
               class='viewer-file-identity'
               @pointerenter='handleFileCapsulePointerEnter'

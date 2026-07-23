@@ -68,7 +68,8 @@ export function createDemoFileCapsuleMotionController(options: UseDemoFileCapsul
     '--demo-file-capsule-target-top': roundedPixel(target.top),
     '--demo-file-capsule-target-left': roundedPixel(target.left),
     '--demo-file-capsule-target-width': roundedPixel(target.width),
-    '--demo-file-capsule-target-height': roundedPixel(target.height)
+    '--demo-file-capsule-target-height': roundedPixel(target.height),
+    '--demo-file-capsule-collapsed-bottom': roundedPixel(target.bottom)
   })
 
   const expand = (immediate = false) => {
