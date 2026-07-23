@@ -8,6 +8,7 @@
 
 ## 主线未发布 — 2026-07-22
 
+- CAD 链路使用 npm `latest` 的 `@flyfish-dev/cad-viewer@0.8.0`。底层引擎新增 BOM 提取与表格安全的 CSV/JSON 导出接口，收紧 DWG/DXF 元数据边界，并把 LibreDWG WASM 升级到 0.7.9；复杂线型 STYLE 引用为空时，合法图纸不再因解析异常而无法加载。
 - Word 链路升级到 `@file-viewer/docx@0.3.23`。东亚语言和主题字体按文档语言脚本解析并保留可靠的系统字体回退，悬挂制表位、目录缩进和 HTML 样式属性的渲染更接近 Word；Worker 与主线程继续使用同一解析行为。
 - Archive renderer 在压缩包内选中 Shapefile `.shp` 时，会按同目录和同 basename 收集 `.dbf`、`.shx`、`.prj`、`.cpg` sidecar，生成有界的临时 ZIP 后交给既有 Geo renderer；多数据集压缩包不会串用属性或投影文件，普通压缩包预览路径保持不变（GitHub #148/#149）。
 - Word 链路升级到 `@file-viewer/docx@0.3.22`。缺失或部分缺失 `sectPr` / `pgSz` / `pgMar` 的 DOCX 在共享解析层获得 A4 页面和 1 英寸正文边距兜底，主线程与 Worker 行为一致；显式自定义尺寸、横向布局、零边距和附件保持不变（GitHub #150）。
